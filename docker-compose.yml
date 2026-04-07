@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: schulerpark-db
+    environment:
+      POSTGRES_DB: schulerpark
+      POSTGRES_USER: schulerpark
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schulerpark"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: schulerpark-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=schulerpark;Username=schulerpark;Password=${DB_PASSWORD:-changeme}"
+      ASPNETCORE_ENVIRONMENT: Development
+
+volumes:
+  postgres_data:
