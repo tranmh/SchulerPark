@@ -26,6 +26,10 @@ services:
         condition: service_healthy
     environment:
       ConnectionStrings__Default: "Host=db;Port=5432;Database=schulerpark;Username=schulerpark;Password=${DB_PASSWORD:-changeme}"
+      Jwt__Secret: "${JWT_SECRET:-CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS}"
+      AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
+      AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
+      AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
       ASPNETCORE_ENVIRONMENT: Development
 
 volumes:

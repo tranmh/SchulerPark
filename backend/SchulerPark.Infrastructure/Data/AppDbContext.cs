@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<LotteryRun> LotteryRuns => Set<LotteryRun>();
     public DbSet<LotteryHistory> LotteryHistories => Set<LotteryHistory>();
     public DbSet<BlockedDay> BlockedDays => Set<BlockedDay>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

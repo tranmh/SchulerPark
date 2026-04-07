@@ -1,5 +1,6 @@
 namespace SchulerPark.Infrastructure.Data.Seed;
 
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SchulerPark.Core.Entities;
@@ -17,29 +18,31 @@ public static class SeedData
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
 
-        await SeedAdminUser(context);
+        await SeedAdminUser(context, passwordHasher);
         await SeedLocations(context);
         await SeedParkingSlots(context);
 
         await context.SaveChangesAsync();
     }
 
-    private static async Task SeedAdminUser(AppDbContext context)
+    private static async Task SeedAdminUser(AppDbContext context, IPasswordHasher<User> passwordHasher)
     {
         if (await context.Users.AnyAsync(u => u.Id == AdminUserId))
             return;
 
-        context.Users.Add(new User
+        var admin = new User
         {
             Id = AdminUserId,
             Email = "admin@schulerpark.local",
             DisplayName = "System Administrator",
             Role = UserRole.Admin,
-            PasswordHash = "PLACEHOLDER_SET_IN_PHASE3",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
-        });
+        };
+        admin.PasswordHash = passwordHasher.HashPassword(admin, "Admin123!");
+        context.Users.Add(admin);
     }
 
     private static async Task SeedLocations(AppDbContext context)
