@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using SchulerPark.Infrastructure.Data;
+using SchulerPark.Infrastructure.Data.Seed;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services
@@ -13,11 +17,23 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddControllers();
 
-// TODO Phase 2: Add DbContext (EF Core + PostgreSQL)
+// Database
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
 // TODO Phase 3: Add Authentication (Azure AD + JWT)
 // TODO Phase 5: Add Hangfire
 
 var app = builder.Build();
+
+// Auto-migrate and seed in development
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await SeedData.SeedAsync(app.Services);
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -38,4 +54,4 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp =
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");
 
-app.Run();
+await app.RunAsync();
