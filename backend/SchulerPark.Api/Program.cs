@@ -1,4 +1,6 @@
 using System.Text;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +11,7 @@ using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Data;
 using SchulerPark.Infrastructure.Data.Seed;
+using SchulerPark.Infrastructure.Jobs;
 using SchulerPark.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -94,7 +97,17 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
 
-// TODO Phase 5: Add Hangfire
+// Phase 5: Lottery services
+builder.Services.AddScoped<ILotteryService, LotteryService>();
+
+// Hangfire
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("Default"))));
+builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
@@ -111,6 +124,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHangfireDashboard("/hangfire");
 }
 
 app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
@@ -124,6 +138,13 @@ app.MapControllers();
 
 // Health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+
+// Lottery recurring job: 10 PM Europe/Berlin daily
+RecurringJob.AddOrUpdate<LotteryJob>(
+    "daily-lottery",
+    job => job.ExecuteAsync(),
+    "0 22 * * *",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
 
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");
