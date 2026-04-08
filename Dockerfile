@@ -15,6 +15,7 @@ COPY backend/SchulerPark.sln ./
 COPY backend/SchulerPark.Api/SchulerPark.Api.csproj ./SchulerPark.Api/
 COPY backend/SchulerPark.Core/SchulerPark.Core.csproj ./SchulerPark.Core/
 COPY backend/SchulerPark.Infrastructure/SchulerPark.Infrastructure.csproj ./SchulerPark.Infrastructure/
+COPY backend/SchulerPark.Tests/SchulerPark.Tests.csproj ./SchulerPark.Tests/
 RUN dotnet restore
 
 # Copy everything else and publish
