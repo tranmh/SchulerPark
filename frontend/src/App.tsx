@@ -6,6 +6,11 @@ import { RegisterPage } from './pages/Login/RegisterPage'
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
 import { BookingPage } from './pages/Booking/BookingPage'
 import { MyBookingsPage } from './pages/MyBookings/MyBookingsPage'
+import { LocationsPage } from './pages/Admin/LocationsPage'
+import { SlotsPage } from './pages/Admin/SlotsPage'
+import { BlockedDaysPage } from './pages/Admin/BlockedDaysPage'
+import { BookingsPage } from './pages/Admin/BookingsPage'
+import { LotteryHistoryPage } from './pages/Admin/LotteryHistoryPage'
 
 function App() {
   return (
@@ -30,6 +35,42 @@ function App() {
         <ProtectedRoute>
           <AppLayout>
             <MyBookingsPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      {/* Admin routes */}
+      <Route path="/admin/locations" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <LocationsPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/slots" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <SlotsPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/blocked-days" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <BlockedDaysPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/bookings" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <BookingsPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/lottery-history" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <LotteryHistoryPage />
           </AppLayout>
         </ProtectedRoute>
       } />
