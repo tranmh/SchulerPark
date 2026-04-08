@@ -13,11 +13,13 @@ public class LotteryService : ILotteryService
 {
     private readonly AppDbContext _db;
     private readonly ILogger<LotteryService> _logger;
+    private readonly IEmailService _emailService;
 
-    public LotteryService(AppDbContext db, ILogger<LotteryService> logger)
+    public LotteryService(AppDbContext db, ILogger<LotteryService> logger, IEmailService emailService)
     {
         _db = db;
         _logger = logger;
+        _emailService = emailService;
     }
 
     public async Task RunAllLotteriesAsync(DateOnly date)
@@ -55,8 +57,9 @@ public class LotteryService : ILotteryService
             return;
         }
 
-        // 2. Fetch pending bookings
+        // 2. Fetch pending bookings (include User for email notifications)
         var pendingBookings = await _db.Bookings
+            .Include(b => b.User)
             .Where(b => b.LocationId == locationId && b.Date == date
                 && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending)
             .ToListAsync();
@@ -154,6 +157,20 @@ public class LotteryService : ILotteryService
             "Lottery completed for {LocationId} {Date} {TimeSlot}: {Winners} winners, {Losers} losers out of {Total} bookings.",
             locationId, date, timeSlot,
             results.Count(r => r.Won), results.Count(r => !r.Won), results.Count);
+
+        // 9. Send email notifications (fire-and-forget, errors logged inside EmailService)
+        foreach (var result in results)
+        {
+            var booking = pendingBookings.First(b => b.Id == result.BookingId);
+            booking.Location = location!;
+            if (result.AssignedSlotId.HasValue)
+                booking.ParkingSlot = availableSlots.FirstOrDefault(s => s.Id == result.AssignedSlotId.Value);
+
+            if (result.Won)
+                _ = _emailService.SendLotteryWonAsync(booking);
+            else
+                _ = _emailService.SendLotteryLostAsync(booking);
+        }
     }
 
     private void RecordRun(Guid locationId, DateOnly date, TimeSlot timeSlot,

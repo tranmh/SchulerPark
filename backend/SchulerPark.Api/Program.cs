@@ -59,6 +59,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("AzureAd"));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 // Auth services
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
@@ -99,6 +100,9 @@ builder.Services.AddScoped<ILocationService, LocationService>();
 
 // Phase 5: Lottery services
 builder.Services.AddScoped<ILotteryService, LotteryService>();
+
+// Phase 7: Email service
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Hangfire
 builder.Services.AddHangfire(config => config

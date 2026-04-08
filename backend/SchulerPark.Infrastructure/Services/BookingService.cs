@@ -73,8 +73,9 @@ public class BookingService : IBookingService
         _db.Bookings.Add(booking);
         await _db.SaveChangesAsync();
 
-        // Eager-load navigation for DTO mapping
+        // Eager-load navigations for DTO mapping and email
         await _db.Entry(booking).Reference(b => b.Location).LoadAsync();
+        await _db.Entry(booking).Reference(b => b.User).LoadAsync();
         return booking;
     }
 
@@ -107,9 +108,12 @@ public class BookingService : IBookingService
         return (bookings, totalCount);
     }
 
-    public async Task CancelBookingAsync(Guid bookingId, Guid userId)
+    public async Task<Booking> CancelBookingAsync(Guid bookingId, Guid userId)
     {
-        var booking = await _db.Bookings.FindAsync(bookingId)
+        var booking = await _db.Bookings
+            .Include(b => b.Location)
+            .Include(b => b.User)
+            .FirstOrDefaultAsync(b => b.Id == bookingId)
             ?? throw new NotFoundException("Booking not found.");
 
         if (booking.UserId != userId)
@@ -120,6 +124,7 @@ public class BookingService : IBookingService
 
         booking.Status = BookingStatus.Cancelled;
         await _db.SaveChangesAsync();
+        return booking;
     }
 
     public async Task<Booking> ConfirmBookingAsync(Guid bookingId, Guid userId)

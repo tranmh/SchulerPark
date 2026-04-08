@@ -14,10 +14,12 @@ using SchulerPark.Core.Interfaces;
 public class BookingController : ControllerBase
 {
     private readonly IBookingService _bookingService;
+    private readonly IEmailService _emailService;
 
-    public BookingController(IBookingService bookingService)
+    public BookingController(IBookingService bookingService, IEmailService emailService)
     {
         _bookingService = bookingService;
+        _emailService = emailService;
     }
 
     [HttpPost]
@@ -33,6 +35,8 @@ public class BookingController : ControllerBase
 
         var booking = await _bookingService.CreateBookingAsync(
             GetUserId(), request.LocationId, request.Date, timeSlot);
+
+        _ = _emailService.SendBookingCreatedAsync(booking);
 
         var dto = ToBookingDto(booking);
         return CreatedAtAction(nameof(GetMyBookings), dto);
@@ -72,7 +76,8 @@ public class BookingController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id)
     {
-        await _bookingService.CancelBookingAsync(id, GetUserId());
+        var booking = await _bookingService.CancelBookingAsync(id, GetUserId());
+        _ = _emailService.SendBookingCancelledAsync(booking);
         return NoContent();
     }
 
