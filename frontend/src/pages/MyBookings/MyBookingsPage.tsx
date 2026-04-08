@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingService } from '../../services/bookingService';
 import { BookingStatusBadge } from '../../components/BookingStatusBadge';
@@ -141,16 +141,19 @@ export function MyBookingsPage() {
               </div>
 
               {/* Actions */}
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-2 items-center">
                 {b.status === 'Won' && (
-                  <button
-                    type="button"
-                    onClick={() => handleConfirm(b.id)}
-                    disabled={confirmingId === b.id}
-                    className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {confirmingId === b.id ? 'Confirming...' : 'Confirm Usage'}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleConfirm(b.id)}
+                      disabled={confirmingId === b.id}
+                      className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {confirmingId === b.id ? 'Confirming...' : 'Confirm Usage'}
+                    </button>
+                    {b.confirmationDeadline && <DeadlineCountdown deadline={b.confirmationDeadline} />}
+                  </>
                 )}
                 {(b.status === 'Pending' || b.status === 'Won') && (
                   <button
@@ -206,5 +209,35 @@ export function MyBookingsPage() {
         isLoading={isCancelling}
       />
     </div>
+  );
+}
+
+function DeadlineCountdown({ deadline }: { deadline: string }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const remaining = useMemo(() => {
+    const deadlineMs = new Date(deadline).getTime();
+    const diff = deadlineMs - now;
+    if (diff <= 0) return null;
+
+    const hours = Math.floor(diff / 3_600_000);
+    const minutes = Math.floor((diff % 3_600_000) / 60_000);
+    if (hours > 0) return `${hours}h ${minutes}m remaining`;
+    return `${minutes}m remaining`;
+  }, [deadline, now]);
+
+  if (!remaining) {
+    return <span className="text-xs text-red-500 font-medium">Deadline passed</span>;
+  }
+
+  return (
+    <span className="text-xs text-amber-600 font-medium">
+      {remaining}
+    </span>
   );
 }

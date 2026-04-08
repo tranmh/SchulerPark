@@ -10,4 +10,5 @@ public record BookingDto(
     string TimeSlot,
     string Status,
     DateTime? ConfirmedAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    DateTime? ConfirmationDeadline);

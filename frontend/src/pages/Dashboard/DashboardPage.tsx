@@ -72,6 +72,13 @@ export function DashboardPage() {
                   {b.parkingSlotNumber && (
                     <div className="text-sm text-gray-500">Slot: {b.parkingSlotNumber}</div>
                   )}
+                  {b.status === 'Won' && b.confirmationDeadline && (
+                    <div className="mt-1 text-xs text-amber-600 font-medium">
+                      Confirm by {new Date(b.confirmationDeadline).toLocaleTimeString('de-DE', {
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </div>
+                  )}
                 </div>
                 <BookingStatusBadge status={b.status} />
               </div>

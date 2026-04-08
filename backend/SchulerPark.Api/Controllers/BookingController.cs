@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SchulerPark.Api.DTOs.Booking;
 using SchulerPark.Core.Enums;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 
 [ApiController]
@@ -95,5 +96,8 @@ public class BookingController : ControllerBase
         b.TimeSlot.ToString(),
         b.Status.ToString(),
         b.ConfirmedAt,
-        b.CreatedAt);
+        b.CreatedAt,
+        ConfirmationDeadline: b.Status == BookingStatus.Won
+            ? DeadlineHelper.GetConfirmationDeadline(b.Date, b.TimeSlot)
+            : null);
 }

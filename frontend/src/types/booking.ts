@@ -34,6 +34,7 @@ export interface Booking {
   status: BookingStatus;
   confirmedAt: string | null;
   createdAt: string;
+  confirmationDeadline: string | null;
 }
 
 export interface Availability {

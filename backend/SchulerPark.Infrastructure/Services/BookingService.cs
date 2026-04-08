@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Infrastructure.Data;
 
@@ -134,6 +135,9 @@ public class BookingService : IBookingService
 
         if (booking.Status != BookingStatus.Won)
             throw new ValidationException("Only Won bookings can be confirmed.");
+
+        if (DeadlineHelper.IsDeadlinePassed(booking.Date, booking.TimeSlot))
+            throw new ValidationException("Confirmation deadline has passed.");
 
         booking.Status = BookingStatus.Confirmed;
         booking.ConfirmedAt = DateTime.UtcNow;

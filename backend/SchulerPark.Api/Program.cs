@@ -146,6 +146,13 @@ RecurringJob.AddOrUpdate<LotteryJob>(
     "0 22 * * *",
     new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
 
+// Confirmation expiry job: every hour
+RecurringJob.AddOrUpdate<ConfirmationExpiryJob>(
+    "confirmation-expiry",
+    job => job.ExecuteAsync(),
+    "0 * * * *",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
+
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");
 
