@@ -88,12 +88,20 @@ export function AppLayout({ children }: Props) {
               </span>
             )}
           </div>
-          <button
-            onClick={logout}
-            className="w-full rounded-md bg-gray-800 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-          >
-            Sign out
-          </button>
+          <div className="flex gap-2">
+            <NavLink to="/profile"
+              className={({ isActive }) =>
+                `flex-1 rounded-md px-3 py-1.5 text-center text-sm ${isActive ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'}`
+              }>
+              Profile
+            </NavLink>
+            <button
+              onClick={logout}
+              className="flex-1 rounded-md bg-gray-800 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
 

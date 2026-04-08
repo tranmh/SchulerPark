@@ -157,6 +157,13 @@ RecurringJob.AddOrUpdate<ConfirmationExpiryJob>(
     "0 * * * *",
     new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
 
+// Data retention job: weekly, Sunday 2 AM
+RecurringJob.AddOrUpdate<DataRetentionJob>(
+    "data-retention",
+    job => job.ExecuteAsync(),
+    "0 2 * * 0",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
+
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");
 
