@@ -90,6 +90,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
 });
 
+// Phase 4: Booking services
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<ILocationService, LocationService>();
+
 // TODO Phase 5: Add Hangfire
 
 var app = builder.Build();
@@ -108,6 +112,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
 
 app.UseStaticFiles();
 

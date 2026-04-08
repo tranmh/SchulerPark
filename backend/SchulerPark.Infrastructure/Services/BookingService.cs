@@ -1,0 +1,144 @@
+namespace SchulerPark.Infrastructure.Services;
+
+using Microsoft.EntityFrameworkCore;
+using SchulerPark.Core.Entities;
+using SchulerPark.Core.Enums;
+using SchulerPark.Core.Exceptions;
+using SchulerPark.Core.Interfaces;
+using SchulerPark.Infrastructure.Data;
+
+public class BookingService : IBookingService
+{
+    private static readonly TimeZoneInfo BerlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+    private readonly AppDbContext _db;
+
+    public BookingService(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<Booking> CreateBookingAsync(Guid userId, Guid locationId, DateOnly date, TimeSlot timeSlot)
+    {
+        // Date validation (Europe/Berlin timezone)
+        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
+        var today = DateOnly.FromDateTime(berlinNow);
+        if (date <= today)
+            throw new ValidationException("Cannot book for today or past dates.");
+        if (date > today.AddMonths(1))
+            throw new ValidationException("Cannot book more than 1 month in advance.");
+
+        // Location exists and is active
+        var location = await _db.Locations
+            .Include(l => l.ParkingSlots.Where(s => s.IsActive))
+            .FirstOrDefaultAsync(l => l.Id == locationId && l.IsActive)
+            ?? throw new NotFoundException("Location not found or inactive.");
+
+        // At least one active slot
+        if (location.ParkingSlots.Count == 0)
+            throw new ValidationException("No active parking slots at this location.");
+
+        // Location-wide block check
+        var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
+            b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
+        if (isLocationBlocked)
+            throw new ValidationException("This location is blocked on the selected date.");
+
+        // Check if ALL individual slots are blocked
+        var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
+        var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
+            b.LocationId == locationId && b.Date == date &&
+            b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
+        if (blockedSlotCount >= activeSlotIds.Count)
+            throw new ValidationException("All parking slots are blocked on the selected date.");
+
+        // Duplicate check
+        var duplicate = await _db.Bookings.AnyAsync(b =>
+            b.UserId == userId && b.LocationId == locationId &&
+            b.Date == date && b.TimeSlot == timeSlot &&
+            b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
+        if (duplicate)
+            throw new ValidationException("You already have a booking for this date, time slot, and location.");
+
+        var booking = new Booking
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            LocationId = locationId,
+            Date = date,
+            TimeSlot = timeSlot,
+            Status = BookingStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Bookings.Add(booking);
+        await _db.SaveChangesAsync();
+
+        // Eager-load navigation for DTO mapping
+        await _db.Entry(booking).Reference(b => b.Location).LoadAsync();
+        return booking;
+    }
+
+    public async Task<(List<Booking> Bookings, int TotalCount)> GetUserBookingsAsync(
+        Guid userId, int page, int pageSize,
+        BookingStatus? statusFilter = null, DateOnly? fromDate = null, DateOnly? toDate = null)
+    {
+        var query = _db.Bookings
+            .Where(b => b.UserId == userId)
+            .Include(b => b.Location)
+            .Include(b => b.ParkingSlot)
+            .AsQueryable();
+
+        if (statusFilter.HasValue)
+            query = query.Where(b => b.Status == statusFilter.Value);
+        if (fromDate.HasValue)
+            query = query.Where(b => b.Date >= fromDate.Value);
+        if (toDate.HasValue)
+            query = query.Where(b => b.Date <= toDate.Value);
+
+        var totalCount = await query.CountAsync();
+
+        var bookings = await query
+            .OrderByDescending(b => b.Date)
+            .ThenByDescending(b => b.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (bookings, totalCount);
+    }
+
+    public async Task CancelBookingAsync(Guid bookingId, Guid userId)
+    {
+        var booking = await _db.Bookings.FindAsync(bookingId)
+            ?? throw new NotFoundException("Booking not found.");
+
+        if (booking.UserId != userId)
+            throw new ForbiddenException("You can only cancel your own bookings.");
+
+        if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Won)
+            throw new ValidationException("Only Pending or Won bookings can be cancelled.");
+
+        booking.Status = BookingStatus.Cancelled;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<Booking> ConfirmBookingAsync(Guid bookingId, Guid userId)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Location)
+            .Include(b => b.ParkingSlot)
+            .FirstOrDefaultAsync(b => b.Id == bookingId)
+            ?? throw new NotFoundException("Booking not found.");
+
+        if (booking.UserId != userId)
+            throw new ForbiddenException("You can only confirm your own bookings.");
+
+        if (booking.Status != BookingStatus.Won)
+            throw new ValidationException("Only Won bookings can be confirmed.");
+
+        booking.Status = BookingStatus.Confirmed;
+        booking.ConfirmedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return booking;
+    }
+}

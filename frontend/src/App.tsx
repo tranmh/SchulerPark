@@ -1,9 +1,11 @@
 import { Routes, Route } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { useAuth } from './contexts/AuthContext'
+import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
-import './App.css'
+import { DashboardPage } from './pages/Dashboard/DashboardPage'
+import { BookingPage } from './pages/Booking/BookingPage'
+import { MyBookingsPage } from './pages/MyBookings/MyBookingsPage'
 
 function App() {
   return (
@@ -12,38 +14,26 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/" element={
         <ProtectedRoute>
-          <Dashboard />
+          <AppLayout>
+            <DashboardPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/booking" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <BookingPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/my-bookings" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <MyBookingsPage />
+          </AppLayout>
         </ProtectedRoute>
       } />
     </Routes>
-  )
-}
-
-function Dashboard() {
-  const { user, logout } = useAuth()
-
-  return (
-    <div className="app">
-      <header className="app-header">
-        <h1>SchulerPark</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span>Welcome, {user?.displayName}</span>
-          <button onClick={logout}>Logout</button>
-        </div>
-      </header>
-      <main>
-        <div className="home">
-          <h2>Dashboard</h2>
-          <p>Parkplatz-Buchungssystem fuer Schuler-Standorte.</p>
-          <ul>
-            <li>Goeppingen</li>
-            <li>Erfurt</li>
-            <li>Hessdorf</li>
-            <li>Gemmingen</li>
-          </ul>
-        </div>
-      </main>
-    </div>
   )
 }
 
