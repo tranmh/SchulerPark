@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using SchulerPark.Api.DTOs.Admin;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
+using SchulerPark.Core.Exceptions;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -43,6 +44,15 @@ public class AdminController : ControllerBase
     [HttpPost("locations")]
     public async Task<ActionResult<AdminLocationDto>> CreateLocation([FromBody] CreateLocationRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ValidationException("Location name is required.");
+        if (request.Name.Length > 100)
+            throw new ValidationException("Location name must not exceed 100 characters.");
+        if (string.IsNullOrWhiteSpace(request.Address))
+            throw new ValidationException("Address is required.");
+        if (request.Address.Length > 300)
+            throw new ValidationException("Address must not exceed 300 characters.");
+
         var location = new Location
         {
             Id = Guid.NewGuid(),
@@ -126,8 +136,13 @@ public class AdminController : ControllerBase
     [HttpPost("slots")]
     public async Task<ActionResult<AdminSlotDto>> CreateSlot([FromBody] CreateSlotRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.SlotNumber))
+            throw new ValidationException("Slot number is required.");
+        if (request.SlotNumber.Length > 20)
+            throw new ValidationException("Slot number must not exceed 20 characters.");
+
         var locationExists = await _db.Locations.AnyAsync(l => l.Id == request.LocationId);
-        if (!locationExists) return BadRequest(new ProblemDetails { Detail = "Location not found.", Status = 400 });
+        if (!locationExists) throw new ValidationException("Location not found.");
 
         var slot = new ParkingSlot
         {
@@ -194,13 +209,18 @@ public class AdminController : ControllerBase
     [HttpPost("blocked-days")]
     public async Task<ActionResult<AdminBlockedDayDto>> CreateBlockedDay([FromBody] CreateBlockedDayRequest request)
     {
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin")));
+        if (request.Date < today)
+            throw new ValidationException("Cannot block a date in the past.");
+
         var location = await _db.Locations.FindAsync(request.LocationId);
-        if (location == null) return BadRequest(new ProblemDetails { Detail = "Location not found.", Status = 400 });
+        if (location == null) throw new ValidationException("Location not found.");
 
         if (request.ParkingSlotId.HasValue)
         {
             var slotExists = await _db.ParkingSlots.AnyAsync(s => s.Id == request.ParkingSlotId.Value);
-            if (!slotExists) return BadRequest(new ProblemDetails { Detail = "Parking slot not found.", Status = 400 });
+            if (!slotExists) throw new ValidationException("Parking slot not found.");
         }
 
         var blocked = new BlockedDay

@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from './LoadingSpinner';
 import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
@@ -11,11 +12,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
   if (isLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        Loading...
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   if (!isAuthenticated) {
