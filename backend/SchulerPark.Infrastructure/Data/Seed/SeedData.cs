@@ -82,7 +82,8 @@ public static class SeedData
         {
             if (!await context.Users.AnyAsync(u => u.Id == user.Id))
             {
-                user.PasswordHash = passwordHasher.HashPassword(user, "Test1234!");
+                var password = user.Id == AdminUserId ? "Admin123!" : "Test1234!";
+                user.PasswordHash = passwordHasher.HashPassword(user, password);
                 context.Users.Add(user);
             }
         }
