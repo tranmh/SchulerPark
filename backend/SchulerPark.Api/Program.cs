@@ -128,7 +128,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseHangfireDashboard("/hangfire");
 }
 
 app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
@@ -139,6 +138,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+    {
+        Authorization = []
+    }).AllowAnonymous();
+}
 
 // Health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
