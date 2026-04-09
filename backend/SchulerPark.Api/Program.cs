@@ -175,3 +175,6 @@ RecurringJob.AddOrUpdate<DataRetentionJob>(
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
+
+// Make the implicit Program class accessible for integration tests
+public partial class Program { }
