@@ -1,5 +1,6 @@
 import api from './api';
 import type { Location, ParkingSlot, BlockedDay, Availability } from '../types/booking';
+import type { GridAvailability } from '../types/grid';
 
 export const locationService = {
   getLocations: () =>
@@ -16,5 +17,10 @@ export const locationService = {
   getAvailability: (locationId: string, from?: string, to?: string) =>
     api.get<Availability[]>(`/locations/${locationId}/availability`, {
       params: { from, to },
+    }).then(r => r.data),
+
+  getGridAvailability: (locationId: string, date: string, timeSlot: string) =>
+    api.get<GridAvailability>(`/locations/${locationId}/grid-availability`, {
+      params: { date, timeSlot },
     }).then(r => r.data),
 };

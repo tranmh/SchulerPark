@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<LotteryHistory> LotteryHistories => Set<LotteryHistory>();
     public DbSet<BlockedDay> BlockedDays => Set<BlockedDay>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<GridCell> GridCells => Set<GridCell>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -15,6 +15,7 @@ const navItems = [
 const adminNavItems = [
   { to: '/admin/locations', label: 'Locations', icon: LocationIcon },
   { to: '/admin/slots', label: 'Parking Slots', icon: SlotIcon },
+  { to: '/admin/grid-layout', label: 'Grid Layout', icon: GridIcon },
   { to: '/admin/blocked-days', label: 'Blocked Days', icon: BlockIcon },
   { to: '/admin/bookings', label: 'All Bookings', icon: ListIcon },
   { to: '/admin/lottery-history', label: 'Lottery History', icon: HistoryIcon },
@@ -164,6 +165,15 @@ function BlockIcon() {
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
         d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+        d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zM3 14h7v7H3v-7z" />
     </svg>
   );
 }

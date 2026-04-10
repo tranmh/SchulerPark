@@ -1,7 +1,7 @@
 # SchulerPark - Parking Slot Booking System
 
 ## Project Overview
-Multi-location parking slot booking system with fair lottery assignment for Schuler office locations (Goeppingen, Erfurt, Hessdorf, Gemmingen).
+Multi-location parking slot booking system with fair lottery assignment for Schuler office locations (Goeppingen, Erfurt, Hessdorf, Gemmingen, Weingarten, Netphen).
 
 ## Tech Stack
 - **Backend:** .NET 10, ASP.NET Core Web API, Entity Framework Core, PostgreSQL

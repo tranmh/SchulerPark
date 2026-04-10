@@ -98,13 +98,40 @@ Login as admin, then test:
 - [ ] Try logging in again with that user — should fail (soft-deleted)
 - [ ] Visit **http://localhost:8080/privacy** (no login needed) — should show privacy notice
 
-## 10. Test Error Handling
+## 10. Test Grid Layout (Phase 11)
+
+Login as admin, then test:
+
+- [ ] **Grid Layout** (`/admin/grid-layout`): Should appear in admin sidebar
+- [ ] Select a location (e.g., Goeppingen)
+- [ ] Set grid dimensions (e.g., 5 rows x 8 columns) — grid should render
+- [ ] **Place slots**: Click a slot in the palette, then click an empty grid cell — slot appears on the grid
+- [ ] **Drag-and-drop**: Drag a slot from the palette onto an empty cell
+- [ ] **Paint cell types**: Select "Road" tool, click cells to mark as road (dark gray). Try Obstacle, Entrance, Label.
+- [ ] **Remove items**: Right-click a placed slot or cell — should remove it
+- [ ] **Eraser tool**: Select Eraser, click cells to clear them
+- [ ] Click **"Save Layout"** — should show success message
+- [ ] Refresh the page, re-select the same location — layout should reload correctly
+- [ ] **Clear Grid**: Click "Clear Grid" — all placements should be removed
+
+Test user grid view:
+
+- [ ] Login as a regular user
+- [ ] Go to **"Book a Spot"**, select the location that has a grid configured
+- [ ] Select a date and time slot, proceed to the Review step
+- [ ] A **"Parking Layout"** section should appear showing the color-coded grid
+  - [ ] Free slots in **green**, booked slots in **red**, blocked in **gray**
+  - [ ] If the user has a booking for a slot, it should show in **blue**
+  - [ ] Legend should appear below the grid
+- [ ] Select a location without a grid configured — no grid should appear (backwards compatible)
+
+## 11. Test Error Handling
 
 - [ ] Try `POST /api/bookings` with a past date — should get 400 with ProblemDetails + traceId
 - [ ] Try accessing `/api/admin/locations` as a non-admin user — should get 403
 - [ ] Try accessing any API endpoint without a token — should get 401
 
-## 11. Cleanup
+## 12. Cleanup
 
 ```bash
 docker compose down -v

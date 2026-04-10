@@ -5,6 +5,7 @@ import type {
   AdminBlockedDay, CreateBlockedDayRequest,
   AdminBooking, LotteryRun,
 } from '../types/admin';
+import type { GridConfiguration, SaveGridConfigurationRequest } from '../types/grid';
 
 export const adminService = {
   // Locations
@@ -51,4 +52,10 @@ export const adminService = {
   }) =>
     api.get<{ lotteryRuns: LotteryRun[]; totalCount: number; page: number; pageSize: number }>(
       '/admin/lottery-runs', { params }).then(r => r.data),
+
+  // Grid Layout
+  getGridConfiguration: (locationId: string) =>
+    api.get<GridConfiguration>(`/admin/locations/${locationId}/grid`).then(r => r.data),
+  saveGridConfiguration: (locationId: string, data: SaveGridConfigurationRequest) =>
+    api.put<GridConfiguration>(`/admin/locations/${locationId}/grid`, data).then(r => r.data),
 };

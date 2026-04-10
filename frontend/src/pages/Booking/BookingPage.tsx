@@ -5,7 +5,9 @@ import { locationService } from '../../services/locationService';
 import { LocationSelector } from '../../components/LocationSelector';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
+import { ParkingGridView } from '../../components/grid/ParkingGridView';
 import type { Location, Availability, TimeSlot } from '../../types/booking';
+import type { GridAvailability } from '../../types/grid';
 
 const STEPS = ['Location', 'Date', 'Time Slot', 'Confirm'];
 
@@ -24,6 +26,7 @@ export function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [gridAvailability, setGridAvailability] = useState<GridAvailability | null>(null);
 
   // Load locations
   useEffect(() => {
@@ -100,6 +103,12 @@ export function BookingPage() {
     setTimeSlot(ts);
     setStep(4);
     setError(null);
+    setGridAvailability(null);
+    if (locationId && date) {
+      locationService.getGridAvailability(locationId, date, ts)
+        .then((ga) => { if (ga.gridRows > 0) setGridAvailability(ga); })
+        .catch(() => {});
+    }
   };
 
   const handleSubmit = async () => {
@@ -229,6 +238,13 @@ export function BookingPage() {
                   <dd className="text-sm font-medium text-gray-900">{timeSlot}</dd>
                 </div>
               </dl>
+
+              {gridAvailability && (
+                <div className="mt-6">
+                  <h3 className="mb-2 text-sm font-medium text-gray-700">Parking Layout</h3>
+                  <ParkingGridView availability={gridAvailability} />
+                </div>
+              )}
 
               <div className="mt-6 flex gap-3">
                 <button

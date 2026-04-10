@@ -11,6 +11,7 @@ import { SlotsPage } from './pages/Admin/SlotsPage'
 import { BlockedDaysPage } from './pages/Admin/BlockedDaysPage'
 import { BookingsPage } from './pages/Admin/BookingsPage'
 import { LotteryHistoryPage } from './pages/Admin/LotteryHistoryPage'
+import { GridLayoutPage } from './pages/Admin/GridLayoutPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { PrivacyPage } from './pages/Privacy/PrivacyPage'
 
@@ -81,6 +82,13 @@ function App() {
         <ProtectedRoute requireAdmin>
           <AppLayout>
             <LotteryHistoryPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/grid-layout" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <GridLayoutPage />
           </AppLayout>
         </ProtectedRoute>
       } />

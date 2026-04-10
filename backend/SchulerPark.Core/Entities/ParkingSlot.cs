@@ -7,6 +7,8 @@ public class ParkingSlot
     public string SlotNumber { get; set; } = string.Empty;
     public string? Label { get; set; }
     public bool IsActive { get; set; } = true;
+    public int? GridRow { get; set; }
+    public int? GridColumn { get; set; }
 
     // Navigation properties
     public Location Location { get; set; } = null!;

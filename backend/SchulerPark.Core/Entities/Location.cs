@@ -9,6 +9,8 @@ public class Location
     public string Address { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public LotteryAlgorithm DefaultAlgorithm { get; set; } = LotteryAlgorithm.WeightedHistory;
+    public int? GridRows { get; set; }
+    public int? GridColumns { get; set; }
 
     // Navigation properties
     public ICollection<ParkingSlot> ParkingSlots { get; set; } = [];
@@ -16,4 +18,5 @@ public class Location
     public ICollection<LotteryRun> LotteryRuns { get; set; } = [];
     public ICollection<LotteryHistory> LotteryHistories { get; set; } = [];
     public ICollection<BlockedDay> BlockedDays { get; set; } = [];
+    public ICollection<GridCell> GridCells { get; set; } = [];
 }

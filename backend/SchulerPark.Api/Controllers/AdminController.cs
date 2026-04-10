@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchulerPark.Api.DTOs.Admin;
+using SchulerPark.Api.DTOs.Grid;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
@@ -334,6 +335,110 @@ public class AdminController : ControllerBase
             lr.RanAt, lr.TotalBookings, lr.AvailableSlots)).ToList();
 
         return Ok(new { lotteryRuns = dtos, totalCount, page, pageSize });
+    }
+
+    // ── Grid Layout ─────────────────────────────────────────────
+
+    [HttpGet("locations/{id:guid}/grid")]
+    public async Task<ActionResult<GridConfigurationDto>> GetGridConfiguration(Guid id)
+    {
+        var location = await _db.Locations
+            .Include(l => l.ParkingSlots)
+            .Include(l => l.GridCells)
+            .FirstOrDefaultAsync(l => l.Id == id);
+        if (location == null) return NotFound();
+
+        var slots = location.ParkingSlots
+            .OrderBy(s => s.SlotNumber)
+            .Select(s => new GridSlotDto(s.Id, s.SlotNumber, s.Label, s.IsActive, s.GridRow, s.GridColumn))
+            .ToList();
+
+        var cells = location.GridCells
+            .OrderBy(c => c.Row).ThenBy(c => c.Column)
+            .Select(c => new GridCellDto(c.Id, c.Row, c.Column, c.CellType.ToString(), c.Label))
+            .ToList();
+
+        return Ok(new GridConfigurationDto(location.GridRows, location.GridColumns, slots, cells));
+    }
+
+    [HttpPut("locations/{id:guid}/grid")]
+    public async Task<ActionResult<GridConfigurationDto>> SaveGridConfiguration(
+        Guid id, [FromBody] SaveGridConfigurationRequest request)
+    {
+        if (request.GridRows < 1 || request.GridRows > 30)
+            throw new ValidationException("Grid rows must be between 1 and 30.");
+        if (request.GridColumns < 1 || request.GridColumns > 30)
+            throw new ValidationException("Grid columns must be between 1 and 30.");
+
+        var location = await _db.Locations
+            .Include(l => l.ParkingSlots)
+            .Include(l => l.GridCells)
+            .FirstOrDefaultAsync(l => l.Id == id);
+        if (location == null) return NotFound();
+
+        // Validate slot positions
+        var slotIds = location.ParkingSlots.Select(s => s.Id).ToHashSet();
+        var occupiedPositions = new HashSet<string>();
+
+        foreach (var sp in request.SlotPositions)
+        {
+            if (!slotIds.Contains(sp.SlotId))
+                throw new ValidationException($"Slot {sp.SlotId} does not belong to this location.");
+            if (sp.Row < 0 || sp.Row >= request.GridRows || sp.Column < 0 || sp.Column >= request.GridColumns)
+                throw new ValidationException($"Slot position ({sp.Row},{sp.Column}) is out of grid bounds.");
+            if (!occupiedPositions.Add($"{sp.Row},{sp.Column}"))
+                throw new ValidationException($"Duplicate position at ({sp.Row},{sp.Column}).");
+        }
+
+        // Validate cells
+        foreach (var cell in request.Cells)
+        {
+            if (cell.Row < 0 || cell.Row >= request.GridRows || cell.Column < 0 || cell.Column >= request.GridColumns)
+                throw new ValidationException($"Cell position ({cell.Row},{cell.Column}) is out of grid bounds.");
+            if (!occupiedPositions.Add($"{cell.Row},{cell.Column}"))
+                throw new ValidationException($"Duplicate position at ({cell.Row},{cell.Column}).");
+            if (!Enum.TryParse<GridCellType>(cell.CellType, ignoreCase: true, out _))
+                throw new ValidationException($"Invalid cell type: {cell.CellType}.");
+        }
+
+        // Update location grid dimensions
+        location.GridRows = request.GridRows;
+        location.GridColumns = request.GridColumns;
+
+        // Clear all grid positions on slots
+        foreach (var slot in location.ParkingSlots)
+        {
+            slot.GridRow = null;
+            slot.GridColumn = null;
+        }
+
+        // Set new grid positions
+        foreach (var sp in request.SlotPositions)
+        {
+            var slot = location.ParkingSlots.First(s => s.Id == sp.SlotId);
+            slot.GridRow = sp.Row;
+            slot.GridColumn = sp.Column;
+        }
+
+        // Replace grid cells
+        _db.GridCells.RemoveRange(location.GridCells);
+        foreach (var cell in request.Cells)
+        {
+            _db.GridCells.Add(new GridCell
+            {
+                Id = Guid.NewGuid(),
+                LocationId = id,
+                Row = cell.Row,
+                Column = cell.Column,
+                CellType = Enum.Parse<GridCellType>(cell.CellType, ignoreCase: true),
+                Label = cell.Label
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Reload and return
+        return await GetGridConfiguration(id);
     }
 
     private Guid GetUserId() =>

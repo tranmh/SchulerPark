@@ -22,5 +22,11 @@ public class ParkingSlotConfiguration : IEntityTypeConfiguration<ParkingSlot>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(ps => new { ps.LocationId, ps.SlotNumber }).IsUnique();
+
+        builder.Property(ps => ps.GridRow).IsRequired(false);
+        builder.Property(ps => ps.GridColumn).IsRequired(false);
+        builder.HasIndex(ps => new { ps.LocationId, ps.GridRow, ps.GridColumn })
+            .IsUnique()
+            .HasFilter("\"GridRow\" IS NOT NULL AND \"GridColumn\" IS NOT NULL");
     }
 }

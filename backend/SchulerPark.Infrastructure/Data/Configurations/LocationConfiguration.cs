@@ -18,5 +18,8 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.DefaultAlgorithm).HasConversion<string>().HasMaxLength(30);
 
         builder.HasIndex(l => l.Name).IsUnique();
+
+        builder.Property(l => l.GridRows).IsRequired(false);
+        builder.Property(l => l.GridColumns).IsRequired(false);
     }
 }
