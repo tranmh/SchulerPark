@@ -59,6 +59,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # Backup: docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db-backup /usr/local/bin/db-backup.sh
 ```
 
+### CI/CD
+Push to master triggers: backend build+test, frontend lint+test+build, E2E Playwright tests.
+If all pass, auto-deploys to production via SSH (`appleboy/ssh-action`).
+Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PATH`.
+
 ### Default Credentials
 - Admin: `admin@schulerpark.local` / `Admin123!`
 
