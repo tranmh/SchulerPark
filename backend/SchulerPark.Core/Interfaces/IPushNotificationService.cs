@@ -2,12 +2,9 @@ namespace SchulerPark.Core.Interfaces;
 
 using SchulerPark.Core.Entities;
 
-public interface IEmailService
+public interface IPushNotificationService
 {
-    Task SendBookingCreatedAsync(Booking booking);
-    Task SendBookingCancelledAsync(Booking booking);
     Task SendLotteryWonAsync(Booking booking);
     Task SendLotteryLostAsync(Booking booking);
-    Task SendConfirmationReminderAsync(Booking booking);
     Task SendWaitlistWonAsync(Booking booking);
 }

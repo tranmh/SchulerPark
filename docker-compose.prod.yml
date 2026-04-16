@@ -26,6 +26,9 @@ services:
       Smtp__Username: "${SMTP_USERNAME}"
       Smtp__Password: "${SMTP_PASSWORD}"
       Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.de}"
+      Vapid__PublicKey: "${VAPID_PUBLIC_KEY}"
+      Vapid__PrivateKey: "${VAPID_PRIVATE_KEY}"
+      Vapid__Subject: "${VAPID_SUBJECT:-mailto:noreply@schulerpark.local}"
       ASPNETCORE_ENVIRONMENT: Production
     deploy:
       resources:

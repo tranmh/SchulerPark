@@ -6,10 +6,22 @@ import { LocationSelector } from '../../components/LocationSelector';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
 import { ParkingGridView } from '../../components/grid/ParkingGridView';
-import type { Location, Availability, TimeSlot } from '../../types/booking';
+import type { Location, Availability, TimeSlot, SkippedDay } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
 
 const STEPS = ['Location', 'Date', 'Time Slot', 'Confirm'];
+
+function getWeekFriday(mondayStr: string): string {
+  const [y, m, d] = mondayStr.split('-').map(Number);
+  const fri = new Date(y, m - 1, d + 4);
+  return `${fri.getFullYear()}-${String(fri.getMonth() + 1).padStart(2, '0')}-${String(fri.getDate()).padStart(2, '0')}`;
+}
+
+function formatDateDE(dateStr: string): string {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-DE', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
+}
 
 export function BookingPage() {
   const navigate = useNavigate();
@@ -20,6 +32,7 @@ export function BookingPage() {
   const [locationId, setLocationId] = useState<string | null>(preselectedLocation);
   const [date, setDate] = useState<string | null>(null);
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null);
+  const [weekMode, setWeekMode] = useState(false);
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -27,6 +40,9 @@ export function BookingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [gridAvailability, setGridAvailability] = useState<GridAvailability | null>(null);
+
+  // Week booking result
+  const [weekResult, setWeekResult] = useState<{ created: number; skipped: SkippedDay[] } | null>(null);
 
   // Load locations
   useEffect(() => {
@@ -90,6 +106,7 @@ export function BookingPage() {
     setTimeSlot(null);
     setStep(2);
     setError(null);
+    setWeekResult(null);
   };
 
   const handleDateSelect = (d: string) => {
@@ -104,7 +121,7 @@ export function BookingPage() {
     setStep(4);
     setError(null);
     setGridAvailability(null);
-    if (locationId && date) {
+    if (locationId && date && !weekMode) {
       locationService.getGridAvailability(locationId, date, ts)
         .then((ga) => { if (ga.gridRows > 0) setGridAvailability(ga); })
         .catch(() => {});
@@ -116,8 +133,17 @@ export function BookingPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await bookingService.create({ locationId, date, timeSlot });
-      navigate('/my-bookings');
+      if (weekMode) {
+        const result = await bookingService.createWeek({ locationId, weekStartDate: date, timeSlot });
+        if (result.skippedDays.length > 0) {
+          setWeekResult({ created: result.createdBookings.length, skipped: result.skippedDays });
+        } else {
+          navigate('/my-bookings');
+        }
+      } else {
+        await bookingService.create({ locationId, date, timeSlot });
+        navigate('/my-bookings');
+      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         ?? 'Failed to create booking.';
@@ -129,6 +155,40 @@ export function BookingPage() {
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center text-gray-400">Loading...</div>;
+  }
+
+  // Week booking result summary
+  if (weekResult) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Week Booking Summary</h1>
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
+            {weekResult.created} booking{weekResult.created !== 1 ? 's' : ''} created successfully.
+          </div>
+          {weekResult.skipped.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-gray-700">Skipped days:</h3>
+              <ul className="space-y-1">
+                {weekResult.skipped.map((s) => (
+                  <li key={s.date} className="flex items-center gap-2 text-sm text-amber-700">
+                    <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+                    {formatDateDE(s.date)} — {s.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate('/my-bookings')}
+            className="mt-6 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Go to My Bookings
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -187,8 +247,20 @@ export function BookingPage() {
         {step === 2 && (
           <div>
             <h2 className="mb-4 text-lg font-medium text-gray-700">
-              Select a date at {selectedLocation?.name}
+              Select a {weekMode ? 'week' : 'date'} at {selectedLocation?.name}
             </h2>
+
+            {/* Week mode toggle */}
+            <label className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={weekMode}
+                onChange={(e) => { setWeekMode(e.target.checked); setDate(null); }}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Book entire week (Mon - Fri)
+            </label>
+
             <CalendarPicker
               selectedDate={date}
               onSelect={handleDateSelect}
@@ -196,6 +268,7 @@ export function BookingPage() {
               availability={availabilityMap}
               minDate={minDate}
               maxDate={maxDate}
+              weekMode={weekMode}
             />
           </div>
         )}
@@ -204,7 +277,9 @@ export function BookingPage() {
         {step === 3 && (
           <div>
             <h2 className="mb-4 text-lg font-medium text-gray-700">
-              Select a time slot for {date}
+              Select a time slot for {weekMode && date
+                ? `${formatDateDE(date)} - ${formatDateDE(getWeekFriday(date))}`
+                : date}
             </h2>
             <TimeSlotSelector
               value={timeSlot}
@@ -226,20 +301,28 @@ export function BookingPage() {
                   <dd className="text-sm font-medium text-gray-900">{selectedLocation?.name}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Date</dt>
+                  <dt className="text-sm text-gray-500">{weekMode ? 'Week' : 'Date'}</dt>
                   <dd className="text-sm font-medium text-gray-900">
-                    {date && new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
-                      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-                    })}
+                    {weekMode && date
+                      ? `${formatDateDE(date)} - ${formatDateDE(getWeekFriday(date))}`
+                      : date && new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
+                          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                        })
+                    }
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Time Slot</dt>
                   <dd className="text-sm font-medium text-gray-900">{timeSlot}</dd>
                 </div>
+                {weekMode && (
+                  <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                    Individual bookings will be created for each weekday. Days that are blocked or already booked will be skipped.
+                  </div>
+                )}
               </dl>
 
-              {gridAvailability && (
+              {gridAvailability && !weekMode && (
                 <div className="mt-6">
                   <h3 className="mb-2 text-sm font-medium text-gray-700">Parking Layout</h3>
                   <ParkingGridView availability={gridAvailability} />
@@ -260,7 +343,11 @@ export function BookingPage() {
                   disabled={isSubmitting}
                   className="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Booking...' : 'Confirm Booking'}
+                  {isSubmitting
+                    ? 'Booking...'
+                    : weekMode
+                      ? 'Book Entire Week'
+                      : 'Confirm Booking'}
                 </button>
               </div>
             </div>

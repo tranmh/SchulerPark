@@ -7,6 +7,24 @@ interface Props {
   availability?: Map<string, { morning: number; afternoon: number }>;
   minDate?: string;
   maxDate?: string;
+  weekMode?: boolean;
+}
+
+function getMonday(dateStr: string): string {
+  const d = parseDate(dateStr);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Monday=1
+  d.setDate(d.getDate() + diff);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekDays(mondayStr: string): string[] {
+  const d = parseDate(mondayStr);
+  return Array.from({ length: 5 }, (_, i) => {
+    const day = new Date(d);
+    day.setDate(day.getDate() + i);
+    return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  });
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -20,7 +38,7 @@ function parseDate(str: string): Date {
   return new Date(y, m - 1, d);
 }
 
-export function CalendarPicker({ selectedDate, onSelect, blockedDates, availability, minDate, maxDate }: Props) {
+export function CalendarPicker({ selectedDate, onSelect, blockedDates, availability, minDate, maxDate, weekMode }: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -79,10 +97,13 @@ export function CalendarPicker({ selectedDate, onSelect, blockedDates, availabil
           const dateStr = toDateStr(viewYear, viewMonth, day);
           const date = parseDate(dateStr);
           const isBlocked = blockedDates.has(dateStr);
-          const isSelected = selectedDate === dateStr;
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const isSelected = weekMode && selectedDate
+            ? getWeekDays(getMonday(selectedDate)).includes(dateStr)
+            : selectedDate === dateStr;
           const isPast = minDate ? dateStr < minDate : date <= today;
           const isFuture = maxDate ? dateStr > maxDate : false;
-          const isDisabled = isPast || isFuture || isBlocked;
+          const isDisabled = isPast || isFuture || isBlocked || (weekMode && isWeekend);
 
           const avail = availability?.get(dateStr);
           const totalAvail = avail ? avail.morning + avail.afternoon : undefined;
@@ -92,7 +113,7 @@ export function CalendarPicker({ selectedDate, onSelect, blockedDates, availabil
               key={dateStr}
               type="button"
               disabled={isDisabled}
-              onClick={() => onSelect(dateStr)}
+              onClick={() => onSelect(weekMode ? getMonday(dateStr) : dateStr)}
               className={`relative flex h-10 items-center justify-center rounded text-sm transition-colors ${
                 isDisabled
                   ? isBlocked

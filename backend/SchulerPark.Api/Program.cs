@@ -61,6 +61,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 
 // Auth services
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
@@ -101,6 +102,12 @@ builder.Services.AddScoped<ILocationService, LocationService>();
 
 // Phase 5: Lottery services
 builder.Services.AddScoped<ILotteryService, LotteryService>();
+
+// Waitlist service
+builder.Services.AddScoped<IWaitlistService, WaitlistService>();
+
+// Push notification service
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 
 // Phase 7: Email service
 builder.Services.AddScoped<IEmailService, EmailService>();

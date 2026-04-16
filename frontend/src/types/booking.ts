@@ -58,6 +58,22 @@ export interface MyBookingsResponse {
   pageSize: number;
 }
 
+export interface CreateWeekBookingRequest {
+  locationId: string;
+  weekStartDate: string;
+  timeSlot: TimeSlot;
+}
+
+export interface SkippedDay {
+  date: string;
+  reason: string;
+}
+
+export interface WeekBookingResponse {
+  createdBookings: Booking[];
+  skippedDays: SkippedDay[];
+}
+
 export interface BookingFilters {
   page?: number;
   pageSize?: number;

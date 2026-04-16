@@ -82,6 +82,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - `GET /api/profile/data-export` — DSGVO data export
 - `DELETE /api/profile/data` — DSGVO account deletion
 - `POST /api/lottery/run?date=` — Manual lottery trigger (admin)
+- `POST /api/bookings/week` — Create week booking (Mon-Fri)
+- `GET /api/push/vapid-public-key` — VAPID public key for push subscriptions
+- `POST /api/push/subscribe` — Subscribe to push notifications
+- `DELETE /api/push/subscribe` — Unsubscribe from push notifications
 - `GET /api/admin/*` — Admin CRUD endpoints (admin)
 
 ## Error Handling

@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<BlockedDay> BlockedDays => Set<BlockedDay>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<GridCell> GridCells => Set<GridCell>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

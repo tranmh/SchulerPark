@@ -14,12 +14,15 @@ public class LotteryService : ILotteryService
     private readonly AppDbContext _db;
     private readonly ILogger<LotteryService> _logger;
     private readonly IEmailService _emailService;
+    private readonly IPushNotificationService _pushService;
 
-    public LotteryService(AppDbContext db, ILogger<LotteryService> logger, IEmailService emailService)
+    public LotteryService(AppDbContext db, ILogger<LotteryService> logger,
+        IEmailService emailService, IPushNotificationService pushService)
     {
         _db = db;
         _logger = logger;
         _emailService = emailService;
+        _pushService = pushService;
     }
 
     public async Task RunAllLotteriesAsync(DateOnly date)
@@ -167,9 +170,15 @@ public class LotteryService : ILotteryService
                 booking.ParkingSlot = availableSlots.FirstOrDefault(s => s.Id == result.AssignedSlotId.Value);
 
             if (result.Won)
+            {
                 _ = _emailService.SendLotteryWonAsync(booking);
+                _ = _pushService.SendLotteryWonAsync(booking);
+            }
             else
+            {
                 _ = _emailService.SendLotteryLostAsync(booking);
+                _ = _pushService.SendLotteryLostAsync(booking);
+            }
         }
     }
 

@@ -42,6 +42,28 @@ public class BookingController : ControllerBase
         return CreatedAtAction(nameof(GetMyBookings), dto);
     }
 
+    [HttpPost("week")]
+    public async Task<ActionResult<WeekBookingResponse>> CreateWeek([FromBody] CreateWeekBookingRequest request)
+    {
+        if (!Enum.TryParse<TimeSlot>(request.TimeSlot, ignoreCase: true, out var timeSlot))
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Bad Request",
+                Detail = "Invalid time slot. Must be 'Morning' or 'Afternoon'.",
+                Status = 400
+            });
+
+        var (created, skipped) = await _bookingService.CreateWeekBookingAsync(
+            GetUserId(), request.LocationId, request.WeekStartDate, timeSlot);
+
+        foreach (var booking in created)
+            _ = _emailService.SendBookingCreatedAsync(booking);
+
+        return Ok(new WeekBookingResponse(
+            created.Select(ToBookingDto).ToList(),
+            skipped.Select(s => new SkippedDay(s.Date, s.Reason)).ToList()));
+    }
+
     [HttpGet("my")]
     public async Task<ActionResult<MyBookingsResponse>> GetMyBookings(
         [FromQuery] int page = 1,

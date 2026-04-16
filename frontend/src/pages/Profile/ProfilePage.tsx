@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
@@ -14,6 +15,9 @@ export function ProfilePage() {
   // Deletion
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const { isSupported: pushSupported, permission: pushPermission, isSubscribed: pushSubscribed,
+    requestPermission: requestPush, disable: disablePush } = usePushNotifications();
 
   useEffect(() => {
     if (user) {
@@ -103,6 +107,35 @@ export function ProfilePage() {
           Download My Data
         </button>
       </div>
+
+      {/* Push Notifications */}
+      {pushSupported && (
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-900">Push Notifications</h2>
+          <p className="mt-1 text-sm text-gray-500">Get notified when lottery results are ready.</p>
+          <div className="mt-4">
+            {pushPermission === 'denied' ? (
+              <p className="text-sm text-red-600">Push notifications are blocked. Please enable them in your browser settings.</p>
+            ) : pushSubscribed ? (
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 text-sm text-green-700">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  Push notifications enabled
+                </span>
+                <button onClick={disablePush}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  Disable
+                </button>
+              </div>
+            ) : (
+              <button onClick={requestPush}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                Enable Push Notifications
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Account Deletion */}
       <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-6">

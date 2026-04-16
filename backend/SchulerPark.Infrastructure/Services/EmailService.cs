@@ -82,6 +82,26 @@ public class EmailService : IEmailService
         await SendEmailAsync(booking.User.Email, subject, body);
     }
 
+    public async Task SendWaitlistWonAsync(Booking booking)
+    {
+        var deadline = DeadlineHelper.GetConfirmationDeadline(booking.Date, booking.TimeSlot);
+        var berlinDeadline = TimeZoneInfo.ConvertTimeFromUtc(deadline,
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"));
+
+        var subject = $"Great News! A Spot Opened Up — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml($"""
+            <h2 style="color: #16a34a;">A Parking Spot Has Become Available!</h2>
+            <p>Hi {booking.User.DisplayName},</p>
+            <p>A spot has become available and you have been automatically assigned:</p>
+            {BookingDetailsTable(booking)}
+            <p><strong>Assigned Slot:</strong> {booking.ParkingSlot?.SlotNumber ?? "TBD"}</p>
+            <p style="color: #d97706;"><strong>Please confirm your usage before {berlinDeadline:HH:mm} on {berlinDeadline:dd.MM.yyyy}.</strong></p>
+            <p>Log in to SchulerPark and confirm your booking, or it will expire.</p>
+            """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
     public async Task SendConfirmationReminderAsync(Booking booking)
     {
         var subject = $"Reminder: Confirm Your Parking — {booking.Location.Name}";

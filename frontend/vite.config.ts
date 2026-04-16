@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
@@ -38,25 +41,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\/api\/locations$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-locations',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60,
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/.*\/api\//,
-            handler: 'NetworkOnly',
-          },
-        ],
       },
     }),
   ],

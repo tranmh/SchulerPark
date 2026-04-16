@@ -20,4 +20,5 @@ public class User
     public ICollection<LotteryHistory> LotteryHistories { get; set; } = [];
     public ICollection<BlockedDay> BlockedDays { get; set; } = [];
     public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
+    public ICollection<PushSubscription> PushSubscriptions { get; set; } = [];
 }
