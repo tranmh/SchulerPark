@@ -11,3 +11,9 @@
 .env
 .env.*
 !.env.example
+Caddyfile
+scripts/
+db_backups/
+docs/
+e2e/
+*.md

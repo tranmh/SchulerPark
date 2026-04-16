@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi.Models;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Interfaces;
@@ -115,13 +116,16 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
-// Auto-migrate and seed in development
-if (app.Environment.IsDevelopment())
+// Auto-migrate database (all environments — EF Core migrations are idempotent)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-    await SeedData.SeedAsync(app.Services);
+
+    if (app.Environment.IsDevelopment())
+    {
+        await SeedData.SeedAsync(app.Services);
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -131,6 +135,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
+
+// Trust reverse proxy headers (Caddy)
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseStaticFiles();
 
@@ -150,26 +160,30 @@ if (app.Environment.IsDevelopment())
 // Health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
+// Register Hangfire recurring jobs (use DI-based manager, not static API)
+var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+var berlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+
 // Lottery recurring job: 10 PM Europe/Berlin daily
-RecurringJob.AddOrUpdate<LotteryJob>(
+jobManager.AddOrUpdate<LotteryJob>(
     "daily-lottery",
     job => job.ExecuteAsync(),
     "0 22 * * *",
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
+    new RecurringJobOptions { TimeZone = berlinTz });
 
 // Confirmation expiry job: every hour
-RecurringJob.AddOrUpdate<ConfirmationExpiryJob>(
+jobManager.AddOrUpdate<ConfirmationExpiryJob>(
     "confirmation-expiry",
     job => job.ExecuteAsync(),
     "0 * * * *",
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
+    new RecurringJobOptions { TimeZone = berlinTz });
 
 // Data retention job: weekly, Sunday 2 AM
-RecurringJob.AddOrUpdate<DataRetentionJob>(
+jobManager.AddOrUpdate<DataRetentionJob>(
     "data-retention",
     job => job.ExecuteAsync(),
     "0 2 * * 0",
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin") });
+    new RecurringJobOptions { TimeZone = berlinTz });
 
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");

@@ -9,13 +9,16 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Auth:** Azure AD SSO (Microsoft.Identity.Web) + local auth fallback (JWT)
 - **Scheduling:** Hangfire (lottery at 10 PM daily, expiry hourly, retention weekly — Europe/Berlin)
 - **Email:** MailKit via SMTP (MailHog for dev)
-- **Deploy:** Docker Compose (app + PostgreSQL + MailHog)
+- **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
+- **Reverse Proxy:** Caddy 2 (automatic HTTPS via Let's Encrypt, security headers)
+- **PWA:** vite-plugin-pwa (service worker, offline support, installable)
 
 ## Repo Structure
 ```
 /backend          .NET solution (Api, Core, Infrastructure, Tests)
 /frontend         React + Vite + TypeScript
-/docs/plans       Implementation plans (Phase1-Phase10)
+/docs/plans       Implementation plans (Phase1-Phase12)
+/scripts          DB backup script
 ```
 
 ## Build & Run
@@ -36,7 +39,7 @@ npm run build        # Production build to dist/
 dotnet test          # Runs xUnit strategy tests
 ```
 
-### Docker (full stack)
+### Docker (development)
 ```bash
 cp .env.example .env   # Edit .env with real values
 docker compose up --build
@@ -45,6 +48,15 @@ docker compose up --build
 # MailHog UI: http://localhost:8025
 # Swagger: http://localhost:8080/swagger (dev only)
 # Hangfire: http://localhost:8080/hangfire (dev only)
+```
+
+### Docker (production)
+```bash
+cp .env.production.example .env   # Edit with real secrets
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Caddy: https://<SITE_DOMAIN> (auto-TLS via Let's Encrypt)
+# Scale: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale app=3
+# Backup: docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db-backup /usr/local/bin/db-backup.sh
 ```
 
 ### Default Credentials

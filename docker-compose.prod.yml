@@ -1,0 +1,92 @@
+# Production services — use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=schulerpark;Username=schulerpark;Password=${DB_PASSWORD:-changeme}"
+      Jwt__Secret: "${JWT_SECRET}"
+      AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
+      AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
+      AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
+      Smtp__Host: "${SMTP_HOST}"
+      Smtp__Port: "${SMTP_PORT:-587}"
+      Smtp__Username: "${SMTP_USERNAME}"
+      Smtp__Password: "${SMTP_PASSWORD}"
+      Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.de}"
+      ASPNETCORE_ENVIRONMENT: Production
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: schulerpark-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: "${SITE_DOMAIN:-schulerpark.example.com}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  db-backup:
+    image: postgres:16-alpine
+    container_name: schulerpark-db-backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: schulerpark
+      PGPASSWORD: ${DB_PASSWORD:-changeme}
+      PGDATABASE: schulerpark
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+    volumes:
+      - ./scripts/db-backup.sh:/usr/local/bin/db-backup.sh:ro
+      - db_backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "0 3 * * * /usr/local/bin/db-backup.sh >> /var/log/db-backup.log 2>&1" | crontab -
+        echo "[DB Backup] Cron scheduled: daily 03:00 UTC"
+        crond -f -l 2
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_backups:

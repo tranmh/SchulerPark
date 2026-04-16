@@ -1,0 +1,20 @@
+{$SITE_DOMAIN:schulerpark.example.com} {
+	reverse_proxy app:8080
+
+	header {
+		# Security headers
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Remove server identification
+		-Server
+	}
+}
+
+# Explicit HTTP block prevents Caddy's default HTTP->HTTPS redirect,
+# which would cause a redirect loop when Cloudflare SSL is set to Flexible.
+http://{$SITE_DOMAIN:schulerpark.example.com} {
+	reverse_proxy app:8080
+}
