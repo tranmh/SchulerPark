@@ -11,4 +11,5 @@ public record BookingDto(
     string Status,
     DateTime? ConfirmedAt,
     DateTime CreatedAt,
-    DateTime? ConfirmationDeadline);
+    DateTime? ConfirmationDeadline,
+    string? FallbackReason);

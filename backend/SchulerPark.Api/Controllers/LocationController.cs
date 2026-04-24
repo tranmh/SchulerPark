@@ -38,7 +38,7 @@ public class LocationController : ControllerBase
     {
         var slots = await _locationService.GetLocationSlotsAsync(id);
         var dtos = slots.Select(s => new ParkingSlotDto(
-            s.Id, s.SlotNumber, s.Label, s.IsActive)).ToList();
+            s.Id, s.SlotNumber, s.Label, s.IsActive, s.GridRow, s.GridColumn)).ToList();
         return Ok(dtos);
     }
 

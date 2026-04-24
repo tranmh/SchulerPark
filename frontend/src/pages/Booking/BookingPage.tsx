@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { bookingService } from '../../services/bookingService';
 import { locationService } from '../../services/locationService';
 import { LocationSelector } from '../../components/LocationSelector';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
 import { ParkingGridView } from '../../components/grid/ParkingGridView';
-import type { Location, Availability, TimeSlot, SkippedDay } from '../../types/booking';
+import type { Location, Availability, Booking, TimeSlot, SkippedDay } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
 
 const STEPS = ['Location', 'Date', 'Time Slot', 'Confirm'];
@@ -25,11 +26,15 @@ function formatDateDE(dateStr: string): string {
 
 export function BookingPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedLocation = searchParams.get('location');
 
   const [step, setStep] = useState(preselectedLocation ? 2 : 1);
   const [locationId, setLocationId] = useState<string | null>(preselectedLocation);
+  // True when the current location came from the user's preference (not manual/URL).
+  // Used to send locationId: null to the API so the backend resolver can fall back.
+  const [locationFromPreference, setLocationFromPreference] = useState(false);
   const [date, setDate] = useState<string | null>(null);
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null);
   const [weekMode, setWeekMode] = useState(false);
@@ -42,15 +47,31 @@ export function BookingPage() {
   const [gridAvailability, setGridAvailability] = useState<GridAvailability | null>(null);
 
   // Week booking result
-  const [weekResult, setWeekResult] = useState<{ created: number; skipped: SkippedDay[] } | null>(null);
+  const [weekResult, setWeekResult] = useState<{
+    created: Booking[];
+    skipped: SkippedDay[];
+  } | null>(null);
 
-  // Load locations
+  // Single booking fallback summary (only shown when the server reports a fallback)
+  const [singleResult, setSingleResult] = useState<Booking | null>(null);
+
+  // Load locations — then preselect preferred if no URL-provided location
   useEffect(() => {
     locationService.getLocations()
-      .then(setLocations)
+      .then((locs) => {
+        setLocations(locs);
+        if (!preselectedLocation && user?.preferredLocationId) {
+          const stillActive = locs.some((l) => l.id === user.preferredLocationId);
+          if (stillActive) {
+            setLocationId(user.preferredLocationId);
+            setLocationFromPreference(true);
+            setStep(2);
+          }
+        }
+      })
       .catch(() => setError('Failed to load locations.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [preselectedLocation, user?.preferredLocationId]);
 
   // Load availability when location changes
   useEffect(() => {
@@ -102,6 +123,7 @@ export function BookingPage() {
 
   const handleLocationSelect = (id: string) => {
     setLocationId(id);
+    setLocationFromPreference(false);
     setDate(null);
     setTimeSlot(null);
     setStep(2);
@@ -132,17 +154,27 @@ export function BookingPage() {
     if (!locationId || !date || !timeSlot) return;
     setIsSubmitting(true);
     setError(null);
+    // When the location came from the user's preference, send null so the API
+    // can resolve + fall back. When the user picked a location explicitly
+    // (step 1 or URL param), honor that exact choice without fallback.
+    const submittedLocationId = locationFromPreference ? null : locationId;
+
     try {
       if (weekMode) {
-        const result = await bookingService.createWeek({ locationId, weekStartDate: date, timeSlot });
-        if (result.skippedDays.length > 0) {
-          setWeekResult({ created: result.createdBookings.length, skipped: result.skippedDays });
+        const result = await bookingService.createWeek({ locationId: submittedLocationId, weekStartDate: date, timeSlot });
+        const hasFallback = result.createdBookings.some((b) => b.fallbackReason);
+        if (result.skippedDays.length > 0 || hasFallback) {
+          setWeekResult({ created: result.createdBookings, skipped: result.skippedDays });
         } else {
           navigate('/my-bookings');
         }
       } else {
-        await bookingService.create({ locationId, date, timeSlot });
-        navigate('/my-bookings');
+        const booking = await bookingService.create({ locationId: submittedLocationId, date, timeSlot });
+        if (booking.fallbackReason) {
+          setSingleResult(booking);
+        } else {
+          navigate('/my-bookings');
+        }
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -157,15 +189,64 @@ export function BookingPage() {
     return <div className="flex h-64 items-center justify-center text-gray-400">Loading...</div>;
   }
 
+  // Single-booking fallback summary (only shown when server reports a fallback)
+  if (singleResult) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Booking Created</h1>
+        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {singleResult.fallbackReason}
+          </div>
+          <dl className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <dt className="text-gray-500">Location</dt>
+              <dd className="font-medium text-gray-900">{singleResult.locationName}</dd>
+            </div>
+            <div className="flex justify-between text-sm">
+              <dt className="text-gray-500">Date</dt>
+              <dd className="font-medium text-gray-900">{formatDateDE(singleResult.date)}</dd>
+            </div>
+            <div className="flex justify-between text-sm">
+              <dt className="text-gray-500">Time Slot</dt>
+              <dd className="font-medium text-gray-900">{singleResult.timeSlot}</dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            onClick={() => navigate('/my-bookings')}
+            className="mt-6 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Go to My Bookings
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Week booking result summary
   if (weekResult) {
+    const fallbackBookings = weekResult.created.filter((b) => b.fallbackReason);
     return (
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Week Booking Summary</h1>
         <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
           <div className="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-            {weekResult.created} booking{weekResult.created !== 1 ? 's' : ''} created successfully.
+            {weekResult.created.length} booking{weekResult.created.length !== 1 ? 's' : ''} created successfully.
           </div>
+          {fallbackBookings.length > 0 && (
+            <div className="mb-4">
+              <h3 className="mb-2 text-sm font-medium text-gray-700">Days booked at a fallback location:</h3>
+              <ul className="space-y-1">
+                {fallbackBookings.map((b) => (
+                  <li key={b.id} className="flex items-start gap-2 text-sm text-amber-800">
+                    <span className="mt-1.5 inline-block h-2 w-2 flex-shrink-0 rounded-full bg-amber-400" />
+                    <span>{formatDateDE(b.date)} → <strong>{b.locationName}</strong>. {b.fallbackReason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {weekResult.skipped.length > 0 && (
             <div>
               <h3 className="mb-2 text-sm font-medium text-gray-700">Skipped days:</h3>

@@ -1,6 +1,8 @@
 export interface UpdateProfileRequest {
   displayName: string;
   carLicensePlate: string | null;
+  preferredLocationId: string | null;
+  preferredSlotId: string | null;
 }
 
 export interface DataExport {

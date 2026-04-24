@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
+import { locationService } from '../../services/locationService';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import type { Location, ParkingSlot } from '../../types/booking';
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [carLicensePlate, setCarLicensePlate] = useState(user?.carLicensePlate ?? '');
+  const [preferredLocationId, setPreferredLocationId] = useState<string | null>(user?.preferredLocationId ?? null);
+  const [preferredSlotId, setPreferredSlotId] = useState<string | null>(user?.preferredSlotId ?? null);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,8 +29,26 @@ export function ProfilePage() {
     if (user) {
       setDisplayName(user.displayName);
       setCarLicensePlate(user.carLicensePlate ?? '');
+      setPreferredLocationId(user.preferredLocationId ?? null);
+      setPreferredSlotId(user.preferredSlotId ?? null);
     }
   }, [user]);
+
+  useEffect(() => {
+    locationService.getLocations()
+      .then(setLocations)
+      .catch(() => { /* non-fatal: just hide the dropdown */ });
+  }, []);
+
+  useEffect(() => {
+    if (!preferredLocationId) {
+      setSlots([]);
+      return;
+    }
+    locationService.getSlots(preferredLocationId)
+      .then((all) => setSlots(all.filter((s) => s.isActive)))
+      .catch(() => setSlots([]));
+  }, [preferredLocationId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -34,6 +58,8 @@ export function ProfilePage() {
       await profileService.updateProfile({
         displayName,
         carLicensePlate: carLicensePlate || null,
+        preferredLocationId,
+        preferredSlotId: preferredLocationId ? preferredSlotId : null,
       });
       setSaved(true);
     } catch { setError('Failed to update profile.'); }
@@ -90,6 +116,47 @@ export function ProfilePage() {
             <input value={carLicensePlate} onChange={(e) => setCarLicensePlate(e.target.value)}
               placeholder="e.g. GP-AB 1234"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label htmlFor="preferredLocation" className="block text-sm font-medium text-gray-700">Preferred Parking Location</label>
+            <select
+              id="preferredLocation"
+              value={preferredLocationId ?? ''}
+              onChange={(e) => {
+                const next = e.target.value || null;
+                setPreferredLocationId(next);
+                setPreferredSlotId(null);
+              }}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">No preference</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              New bookings will use this location by default. If it's unavailable on a given day, the system will book a random alternative location and notify you.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="preferredSlot" className="block text-sm font-medium text-gray-700">Preferred Parking Slot</label>
+            <select
+              id="preferredSlot"
+              value={preferredSlotId ?? ''}
+              onChange={(e) => setPreferredSlotId(e.target.value || null)}
+              disabled={!preferredLocationId || slots.length === 0}
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="">No preference</option>
+              {slots.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label ? `${s.slotNumber} — ${s.label}` : s.slotNumber}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              When you win the daily lottery, you'll get this exact slot if it's free; otherwise the system picks the nearest available slot on the grid. Select a preferred location first.
+            </p>
           </div>
           <button onClick={handleSave} disabled={saving || !displayName}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">

@@ -197,6 +197,8 @@ public class AuthController : ControllerBase
             user.DisplayName,
             user.CarLicensePlate,
             user.Role.ToString(),
-            !string.IsNullOrEmpty(user.AzureAdObjectId));
+            !string.IsNullOrEmpty(user.AzureAdObjectId),
+            user.PreferredLocationId,
+            user.PreferredSlotId);
     }
 }

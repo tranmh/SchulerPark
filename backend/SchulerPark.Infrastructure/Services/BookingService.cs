@@ -20,7 +20,8 @@ public class BookingService : IBookingService
         _waitlistService = waitlistService;
     }
 
-    public async Task<Booking> CreateBookingAsync(Guid userId, Guid locationId, DateOnly date, TimeSlot timeSlot)
+    public async Task<(Booking Booking, string? FallbackReason)> CreateBookingAsync(
+        Guid userId, Guid? locationId, DateOnly date, TimeSlot timeSlot)
     {
         // Date validation (Europe/Berlin timezone)
         var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
@@ -30,33 +31,12 @@ public class BookingService : IBookingService
         if (date > today.AddMonths(1))
             throw new ValidationException("Cannot book more than 1 month in advance.");
 
-        // Location exists and is active
-        var location = await _db.Locations
-            .Include(l => l.ParkingSlots.Where(s => s.IsActive))
-            .FirstOrDefaultAsync(l => l.Id == locationId && l.IsActive)
-            ?? throw new NotFoundException("Location not found or inactive.");
+        var (resolvedLocationId, fallbackReason) = await ResolveLocationAsync(userId, locationId, date);
 
-        // At least one active slot
-        if (location.ParkingSlots.Count == 0)
-            throw new ValidationException("No active parking slots at this location.");
+        await ValidateLocationForDateAsync(resolvedLocationId, date);
 
-        // Location-wide block check
-        var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
-            b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
-        if (isLocationBlocked)
-            throw new ValidationException("This location is blocked on the selected date.");
-
-        // Check if ALL individual slots are blocked
-        var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
-        var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
-            b.LocationId == locationId && b.Date == date &&
-            b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
-        if (blockedSlotCount >= activeSlotIds.Count)
-            throw new ValidationException("All parking slots are blocked on the selected date.");
-
-        // Duplicate check
         var duplicate = await _db.Bookings.AnyAsync(b =>
-            b.UserId == userId && b.LocationId == locationId &&
+            b.UserId == userId && b.LocationId == resolvedLocationId &&
             b.Date == date && b.TimeSlot == timeSlot &&
             b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
         if (duplicate)
@@ -66,7 +46,7 @@ public class BookingService : IBookingService
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            LocationId = locationId,
+            LocationId = resolvedLocationId,
             Date = date,
             TimeSlot = timeSlot,
             Status = BookingStatus.Pending,
@@ -75,38 +55,28 @@ public class BookingService : IBookingService
         _db.Bookings.Add(booking);
         await _db.SaveChangesAsync();
 
-        // Eager-load navigations for DTO mapping and email
         await _db.Entry(booking).Reference(b => b.Location).LoadAsync();
         await _db.Entry(booking).Reference(b => b.User).LoadAsync();
-        return booking;
+        return (booking, fallbackReason);
     }
 
-    public async Task<(List<Booking> Created, List<(DateOnly Date, string Reason)> Skipped)>
-        CreateWeekBookingAsync(Guid userId, Guid locationId, DateOnly weekStartDate, TimeSlot timeSlot)
+    public async Task<(List<(Booking Booking, string? FallbackReason)> Created,
+                       List<(DateOnly Date, string Reason)> Skipped)>
+        CreateWeekBookingAsync(Guid userId, Guid? locationId, DateOnly weekStartDate, TimeSlot timeSlot)
     {
         if (weekStartDate.DayOfWeek != DayOfWeek.Monday)
             throw new ValidationException("WeekStartDate must be a Monday.");
 
-        var location = await _db.Locations
-            .Include(l => l.ParkingSlots.Where(s => s.IsActive))
-            .FirstOrDefaultAsync(l => l.Id == locationId && l.IsActive)
-            ?? throw new NotFoundException("Location not found or inactive.");
-
-        if (location.ParkingSlots.Count == 0)
-            throw new ValidationException("No active parking slots at this location.");
-
         var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
         var today = DateOnly.FromDateTime(berlinNow);
-        var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
 
-        var created = new List<Booking>();
+        var created = new List<(Booking Booking, string? FallbackReason)>();
         var skipped = new List<(DateOnly Date, string Reason)>();
 
         for (int i = 0; i < 5; i++)
         {
             var date = weekStartDate.AddDays(i);
 
-            // Date validations (skip instead of throw)
             if (date <= today)
             {
                 skipped.Add((date, "Cannot book for today or past dates."));
@@ -118,28 +88,41 @@ public class BookingService : IBookingService
                 continue;
             }
 
-            // Location-wide block
-            var isBlocked = await _db.BlockedDays.AnyAsync(b =>
-                b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
-            if (isBlocked)
+            Guid resolvedLocationId;
+            string? fallbackReason;
+            try
             {
-                skipped.Add((date, "Location is blocked on this date."));
+                (resolvedLocationId, fallbackReason) =
+                    await ResolveLocationAsync(userId, locationId, date);
+            }
+            catch (ValidationException ex)
+            {
+                skipped.Add((date, ex.Message));
+                continue;
+            }
+            catch (NotFoundException ex)
+            {
+                skipped.Add((date, ex.Message));
                 continue;
             }
 
-            // All slots blocked
-            var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
-                b.LocationId == locationId && b.Date == date &&
-                b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
-            if (blockedSlotCount >= activeSlotIds.Count)
+            try
             {
-                skipped.Add((date, "All parking slots are blocked on this date."));
+                await ValidateLocationForDateAsync(resolvedLocationId, date);
+            }
+            catch (ValidationException ex)
+            {
+                skipped.Add((date, ex.Message));
+                continue;
+            }
+            catch (NotFoundException ex)
+            {
+                skipped.Add((date, ex.Message));
                 continue;
             }
 
-            // Duplicate check
             var duplicate = await _db.Bookings.AnyAsync(b =>
-                b.UserId == userId && b.LocationId == locationId &&
+                b.UserId == userId && b.LocationId == resolvedLocationId &&
                 b.Date == date && b.TimeSlot == timeSlot &&
                 b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
             if (duplicate)
@@ -148,26 +131,26 @@ public class BookingService : IBookingService
                 continue;
             }
 
-            created.Add(new Booking
+            var booking = new Booking
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
-                LocationId = locationId,
+                LocationId = resolvedLocationId,
                 Date = date,
                 TimeSlot = timeSlot,
                 Status = BookingStatus.Pending,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _db.Bookings.Add(booking);
+            created.Add((booking, fallbackReason));
         }
 
         if (created.Count == 0)
             throw new ValidationException("No bookings could be created for the selected week. All days were skipped.");
 
-        _db.Bookings.AddRange(created);
         await _db.SaveChangesAsync();
 
-        // Eager-load navigations
-        foreach (var booking in created)
+        foreach (var (booking, _) in created)
         {
             await _db.Entry(booking).Reference(b => b.Location).LoadAsync();
             await _db.Entry(booking).Reference(b => b.User).LoadAsync();
@@ -225,7 +208,6 @@ public class BookingService : IBookingService
         booking.ParkingSlotId = null;
         await _db.SaveChangesAsync();
 
-        // Promote highest-priority Lost booking if a slot was freed
         if (freedSlotId.HasValue)
         {
             await _waitlistService.TryPromoteWaitlistAsync(
@@ -257,5 +239,110 @@ public class BookingService : IBookingService
         await _db.SaveChangesAsync();
 
         return booking;
+    }
+
+    private async Task<(Guid LocationId, string? FallbackReason)> ResolveLocationAsync(
+        Guid userId, Guid? requestedLocationId, DateOnly date)
+    {
+        // Explicit client-provided location wins; no fallback.
+        if (requestedLocationId.HasValue)
+            return (requestedLocationId.Value, null);
+
+        var user = await _db.Users.FindAsync(userId)
+            ?? throw new NotFoundException("User not found.");
+
+        if (!user.PreferredLocationId.HasValue)
+            throw new ValidationException(
+                "No location specified and no preferred location set. " +
+                "Please choose a location or set a preferred one in your profile.");
+
+        var preferredId = user.PreferredLocationId.Value;
+        var preferredReason = await GetUnavailabilityReasonAsync(preferredId, date);
+        if (preferredReason == null)
+            return (preferredId, null);
+
+        // Preferred is unavailable — simple lottery over other active+available locations.
+        var candidateIds = await _db.Locations
+            .Where(l => l.IsActive && l.Id != preferredId)
+            .Select(l => l.Id)
+            .ToListAsync();
+
+        var valid = new List<Guid>();
+        foreach (var id in candidateIds)
+        {
+            if (await GetUnavailabilityReasonAsync(id, date) == null)
+                valid.Add(id);
+        }
+
+        if (valid.Count == 0)
+            throw new ValidationException(
+                $"Your preferred location is unavailable on {date:yyyy-MM-dd} " +
+                "and no alternative locations are available.");
+
+        var picked = valid[Random.Shared.Next(valid.Count)];
+
+        var preferredName = await _db.Locations
+            .Where(l => l.Id == preferredId)
+            .Select(l => l.Name)
+            .FirstOrDefaultAsync() ?? "preferred location";
+        var pickedName = await _db.Locations
+            .Where(l => l.Id == picked)
+            .Select(l => l.Name)
+            .FirstAsync();
+
+        return (picked,
+            $"Your preferred location '{preferredName}' is unavailable on {date:yyyy-MM-dd} " +
+            $"({preferredReason}). Booked at '{pickedName}' instead.");
+    }
+
+    // Returns null if the location is bookable on `date`; else a short human reason.
+    private async Task<string?> GetUnavailabilityReasonAsync(Guid locationId, DateOnly date)
+    {
+        var location = await _db.Locations
+            .Include(l => l.ParkingSlots.Where(s => s.IsActive))
+            .FirstOrDefaultAsync(l => l.Id == locationId);
+
+        if (location == null || !location.IsActive)
+            return "location is inactive";
+
+        if (location.ParkingSlots.Count == 0)
+            return "no active parking slots";
+
+        var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
+            b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
+        if (isLocationBlocked)
+            return "location blocked on this date";
+
+        var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
+        var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
+            b.LocationId == locationId && b.Date == date &&
+            b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
+        if (blockedSlotCount >= activeSlotIds.Count)
+            return "all slots blocked on this date";
+
+        return null;
+    }
+
+    private async Task ValidateLocationForDateAsync(Guid locationId, DateOnly date)
+    {
+        var location = await _db.Locations
+            .Include(l => l.ParkingSlots.Where(s => s.IsActive))
+            .FirstOrDefaultAsync(l => l.Id == locationId && l.IsActive)
+            ?? throw new NotFoundException("Location not found or inactive.");
+
+        if (location.ParkingSlots.Count == 0)
+            throw new ValidationException("No active parking slots at this location.");
+
+        var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
+            b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
+        if (isLocationBlocked)
+            throw new ValidationException("This location is blocked on the selected date.");
+
+        var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
+        var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
+            b.LocationId == locationId && b.Date == date &&
+            b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
+        if (blockedSlotCount >= activeSlotIds.Count)
+            throw new ValidationException("All parking slots are blocked on the selected date.");
     }
 }

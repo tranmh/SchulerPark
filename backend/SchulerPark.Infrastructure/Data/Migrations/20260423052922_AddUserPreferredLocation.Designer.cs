@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SchulerPark.Infrastructure.Data;
@@ -11,9 +12,11 @@ using SchulerPark.Infrastructure.Data;
 namespace SchulerPark.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260423052922_AddUserPreferredLocation")]
+    partial class AddUserPreferredLocation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -420,9 +423,6 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.Property<Guid?>("PreferredLocationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("PreferredSlotId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -443,8 +443,6 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("PreferredLocationId");
-
-                    b.HasIndex("PreferredSlotId");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -582,14 +580,7 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasForeignKey("PreferredLocationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("SchulerPark.Core.Entities.ParkingSlot", "PreferredSlot")
-                        .WithMany()
-                        .HasForeignKey("PreferredSlotId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("PreferredLocation");
-
-                    b.Navigation("PreferredSlot");
                 });
 
             modelBuilder.Entity("SchulerPark.Core.Entities.Location", b =>

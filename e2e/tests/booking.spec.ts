@@ -9,7 +9,10 @@ async function loginAs(page: Page, email: string, password: string) {
 }
 
 async function loginAsTestUser(page: Page) {
-  await loginAs(page, 'anna.mueller@schuler.de', 'Test1234!');
+  // Finn has no preferred location — booking step 1 (location picker) renders
+  // for him. Users with a preferred location auto-skip step 1, which this
+  // suite's step-1 assertions rely on.
+  await loginAs(page, 'finn.werner@schuler.de', 'Test1234!');
 }
 
 test.describe('Booking Flow', () => {

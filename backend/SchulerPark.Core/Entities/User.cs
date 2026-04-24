@@ -11,11 +11,15 @@ public class User
     public string? AzureAdObjectId { get; set; }
     public string? PasswordHash { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
+    public Guid? PreferredLocationId { get; set; }
+    public Guid? PreferredSlotId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
     // Navigation properties
+    public Location? PreferredLocation { get; set; }
+    public ParkingSlot? PreferredSlot { get; set; }
     public ICollection<Booking> Bookings { get; set; } = [];
     public ICollection<LotteryHistory> LotteryHistories { get; set; } = [];
     public ICollection<BlockedDay> BlockedDays { get; set; } = [];

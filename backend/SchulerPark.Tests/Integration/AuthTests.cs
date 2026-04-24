@@ -126,5 +126,5 @@ public class AuthTests
     }
 
     private record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
-    private record UserDto(Guid Id, string Email, string DisplayName, string? CarLicensePlate, string Role, bool HasAzureAd);
+    private record UserDto(Guid Id, string Email, string DisplayName, string? CarLicensePlate, string Role, bool HasAzureAd, Guid? PreferredLocationId);
 }

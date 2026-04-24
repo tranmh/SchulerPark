@@ -33,12 +33,12 @@ public class BookingController : ControllerBase
                 Status = 400
             });
 
-        var booking = await _bookingService.CreateBookingAsync(
+        var (booking, fallbackReason) = await _bookingService.CreateBookingAsync(
             GetUserId(), request.LocationId, request.Date, timeSlot);
 
         _ = _emailService.SendBookingCreatedAsync(booking);
 
-        var dto = ToBookingDto(booking);
+        var dto = ToBookingDto(booking, fallbackReason);
         return CreatedAtAction(nameof(GetMyBookings), dto);
     }
 
@@ -56,11 +56,11 @@ public class BookingController : ControllerBase
         var (created, skipped) = await _bookingService.CreateWeekBookingAsync(
             GetUserId(), request.LocationId, request.WeekStartDate, timeSlot);
 
-        foreach (var booking in created)
+        foreach (var (booking, _) in created)
             _ = _emailService.SendBookingCreatedAsync(booking);
 
         return Ok(new WeekBookingResponse(
-            created.Select(ToBookingDto).ToList(),
+            created.Select(c => ToBookingDto(c.Booking, c.FallbackReason)).ToList(),
             skipped.Select(s => new SkippedDay(s.Date, s.Reason)).ToList()));
     }
 
@@ -91,7 +91,7 @@ public class BookingController : ControllerBase
         var (bookings, totalCount) = await _bookingService.GetUserBookingsAsync(
             GetUserId(), page, pageSize, statusFilter, from, to);
 
-        var dtos = bookings.Select(ToBookingDto).ToList();
+        var dtos = bookings.Select(b => ToBookingDto(b)).ToList();
         return Ok(new MyBookingsResponse(dtos, totalCount, page, pageSize));
     }
 
@@ -113,7 +113,7 @@ public class BookingController : ControllerBase
     private Guid GetUserId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    private static BookingDto ToBookingDto(Core.Entities.Booking b) => new(
+    private static BookingDto ToBookingDto(Core.Entities.Booking b, string? fallbackReason = null) => new(
         b.Id,
         b.LocationId,
         b.Location?.Name ?? "",
@@ -126,5 +126,6 @@ public class BookingController : ControllerBase
         b.CreatedAt,
         ConfirmationDeadline: b.Status == BookingStatus.Won
             ? DeadlineHelper.GetConfirmationDeadline(b.Date, b.TimeSlot)
-            : null);
+            : null,
+        FallbackReason: fallbackReason);
 }

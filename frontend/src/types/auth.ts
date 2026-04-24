@@ -5,6 +5,8 @@ export interface User {
   carLicensePlate: string | null;
   role: 'User' | 'Admin';
   hasAzureAd: boolean;
+  preferredLocationId: string | null;
+  preferredSlotId: string | null;
 }
 
 export interface AuthResponse {

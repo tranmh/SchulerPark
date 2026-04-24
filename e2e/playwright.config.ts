@@ -13,6 +13,10 @@ export default defineConfig({
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
+    video: {
+      mode: 'on',
+      size: { width: 1280, height: 720 },
+    },
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },

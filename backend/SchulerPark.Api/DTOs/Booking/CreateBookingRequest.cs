@@ -1,3 +1,3 @@
 namespace SchulerPark.Api.DTOs.Booking;
 
-public record CreateBookingRequest(Guid LocationId, DateOnly Date, string TimeSlot);
+public record CreateBookingRequest(Guid? LocationId, DateOnly Date, string TimeSlot);

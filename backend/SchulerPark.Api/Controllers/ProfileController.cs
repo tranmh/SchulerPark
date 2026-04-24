@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchulerPark.Api.DTOs.Auth;
 using SchulerPark.Api.DTOs.Profile;
+using SchulerPark.Core.Exceptions;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -26,8 +27,7 @@ public class ProfileController : ControllerBase
         var user = await _db.Users.FindAsync(GetUserId());
         if (user == null || user.DeletedAt != null) return NotFound();
 
-        return Ok(new UserDto(user.Id, user.Email, user.DisplayName,
-            user.CarLicensePlate, user.Role.ToString(), user.AzureAdObjectId != null));
+        return Ok(ToDto(user));
     }
 
     [HttpPut]
@@ -36,14 +36,46 @@ public class ProfileController : ControllerBase
         var user = await _db.Users.FindAsync(GetUserId());
         if (user == null || user.DeletedAt != null) return NotFound();
 
+        if (request.PreferredLocationId.HasValue)
+        {
+            var exists = await _db.Locations.AnyAsync(l =>
+                l.Id == request.PreferredLocationId.Value && l.IsActive);
+            if (!exists)
+                throw new ValidationException("Preferred location not found or inactive.");
+        }
+
+        if (request.PreferredSlotId.HasValue)
+        {
+            if (!request.PreferredLocationId.HasValue)
+                throw new ValidationException("Preferred slot requires a preferred location.");
+
+            var slot = await _db.ParkingSlots.FirstOrDefaultAsync(s =>
+                s.Id == request.PreferredSlotId.Value && s.IsActive);
+            if (slot is null)
+                throw new ValidationException("Preferred slot not found or inactive.");
+            if (slot.LocationId != request.PreferredLocationId.Value)
+                throw new ValidationException("Preferred slot does not belong to the preferred location.");
+        }
+
         user.DisplayName = request.DisplayName;
         user.CarLicensePlate = request.CarLicensePlate;
+        user.PreferredLocationId = request.PreferredLocationId;
+        user.PreferredSlotId = request.PreferredSlotId;
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return Ok(new UserDto(user.Id, user.Email, user.DisplayName,
-            user.CarLicensePlate, user.Role.ToString(), user.AzureAdObjectId != null));
+        return Ok(ToDto(user));
     }
+
+    private static UserDto ToDto(Core.Entities.User user) => new(
+        user.Id,
+        user.Email,
+        user.DisplayName,
+        user.CarLicensePlate,
+        user.Role.ToString(),
+        user.AzureAdObjectId != null,
+        user.PreferredLocationId,
+        user.PreferredSlotId);
 
     [HttpGet("data-export")]
     public async Task<ActionResult<DataExportDto>> ExportData()

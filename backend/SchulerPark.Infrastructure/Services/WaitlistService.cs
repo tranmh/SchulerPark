@@ -67,7 +67,8 @@ public class WaitlistService : IWaitlistService
             .ToListAsync();
 
         var promoted = lostBookings
-            .OrderByDescending(b => WeightedHistoryStrategy.CalculateWeight(b.UserId, locationId, history))
+            .OrderByDescending(b => b.User.PreferredSlotId == freedSlotId) // boost users who preferred this exact slot
+            .ThenByDescending(b => WeightedHistoryStrategy.CalculateWeight(b.UserId, locationId, history))
             .ThenBy(b => b.CreatedAt) // earliest booking wins ties
             .First();
 

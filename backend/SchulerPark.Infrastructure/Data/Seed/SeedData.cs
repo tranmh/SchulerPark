@@ -28,6 +28,7 @@ public static class SeedData
         await SeedUsers(context, passwordHasher);
         await SeedLocations(context);
         await SeedParkingSlots(context);
+        await SeedUserPreferredSlots(context);
         await SeedTestBookings(context);
         await SeedBlockedDays(context);
 
@@ -38,7 +39,7 @@ public static class SeedData
 
     private static async Task SeedUsers(AppDbContext context, IPasswordHasher<User> passwordHasher)
     {
-        var users = new[]
+        var baseUsers = new[]
         {
             new User
             {
@@ -57,6 +58,7 @@ public static class SeedData
                 DisplayName = "Anna Mueller",
                 Role = UserRole.User,
                 CarLicensePlate = "GP-AM 2001",
+                PreferredLocationId = GoeppingenId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             },
@@ -67,6 +69,7 @@ public static class SeedData
                 DisplayName = "Max Schmidt",
                 Role = UserRole.User,
                 CarLicensePlate = "EF-MS 3002",
+                PreferredLocationId = ErfurtId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             },
@@ -77,10 +80,44 @@ public static class SeedData
                 DisplayName = "Lisa Weber",
                 Role = UserRole.User,
                 CarLicensePlate = "HD-LW 4003",
+                PreferredLocationId = WeingartenId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             }
         };
+
+        // 16 additional seed users (total = 20). Deterministic IDs so re-seeding is idempotent.
+        var extras = new (string IdHex, string Email, string Display, string? Plate, Guid? PrefLoc)[]
+        {
+            ("05", "felix.bauer@schuler.de",      "Felix Bauer",       "GP-FB 5001", GoeppingenId),
+            ("06", "sophie.fischer@schuler.de",   "Sophie Fischer",    "GP-SF 5002", GoeppingenId),
+            ("07", "jonas.hoffmann@schuler.de",   "Jonas Hoffmann",    "EF-JH 5003", ErfurtId),
+            ("08", "marie.koch@schuler.de",       "Marie Koch",        "EF-MK 5004", ErfurtId),
+            ("09", "leon.richter@schuler.de",     "Leon Richter",      "HD-LR 5005", HessdorfId),
+            ("0a", "emma.wolf@schuler.de",        "Emma Wolf",         "HD-EW 5006", HessdorfId),
+            ("0b", "paul.neumann@schuler.de",     "Paul Neumann",      "GM-PN 5007", GemmingenId),
+            ("0c", "mia.schwarz@schuler.de",      "Mia Schwarz",       "GM-MS 5008", GemmingenId),
+            ("0d", "noah.zimmermann@schuler.de",  "Noah Zimmermann",   "WG-NZ 5009", WeingartenId),
+            ("0e", "lena.krueger@schuler.de",     "Lena Krüger",       "WG-LK 5010", WeingartenId),
+            ("0f", "elias.hartmann@schuler.de",   "Elias Hartmann",    "SI-EH 5011", NetphenId),
+            ("10", "clara.lange@schuler.de",      "Clara Lange",       "SI-CL 5012", NetphenId),
+            ("11", "finn.werner@schuler.de",      "Finn Werner",       "GP-FW 5013", null),
+            ("12", "julia.peters@schuler.de",     "Julia Peters",      "EF-JP 5014", null),
+            ("13", "david.kaiser@schuler.de",     "David Kaiser",      null,          null),
+            ("14", "sara.vogel@schuler.de",       "Sara Vogel",        null,          null),
+        };
+
+        var users = baseUsers.Concat(extras.Select(e => new User
+        {
+            Id = Guid.Parse($"a0000000-0000-0000-0000-0000000000{e.IdHex}"),
+            Email = e.Email,
+            DisplayName = e.Display,
+            Role = UserRole.User,
+            CarLicensePlate = e.Plate,
+            PreferredLocationId = e.PrefLoc,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        })).ToArray();
 
         foreach (var user in users)
         {
@@ -176,6 +213,43 @@ public static class SeedData
                     IsActive = true
                 });
             }
+        }
+    }
+
+    // Assign preferred parking slots to a subset of seed users so the feature
+    // has meaningful demo data. Idempotent: only fills in when PreferredSlotId
+    // is null, so operator-chosen preferences in prod are never overwritten.
+    private static async Task SeedUserPreferredSlots(AppDbContext context)
+    {
+        var assignments = new (Guid UserId, Guid LocationId, string SlotNumber)[]
+        {
+            (TestUser1Id,                                            GoeppingenId, "P001"), // Anna
+            (TestUser2Id,                                            ErfurtId,     "P001"), // Max
+            (TestUser3Id,                                            WeingartenId, "P001"), // Lisa
+            (Guid.Parse("a0000000-0000-0000-0000-000000000005"),     GoeppingenId, "P005"), // Felix
+            (Guid.Parse("a0000000-0000-0000-0000-000000000006"),     GoeppingenId, "P006"), // Sophie
+            (Guid.Parse("a0000000-0000-0000-0000-000000000007"),     ErfurtId,     "P005"), // Jonas
+            (Guid.Parse("a0000000-0000-0000-0000-000000000009"),     HessdorfId,   "P001"), // Leon
+            (Guid.Parse("a0000000-0000-0000-0000-00000000000b"),     GemmingenId,  "P001"), // Paul
+            (Guid.Parse("a0000000-0000-0000-0000-00000000000d"),     WeingartenId, "P013"), // Noah
+            (Guid.Parse("a0000000-0000-0000-0000-00000000000f"),     NetphenId,    "P001"), // Elias
+        };
+
+        foreach (var (userId, locationId, slotNumber) in assignments)
+        {
+            var user = context.Users.Local.FirstOrDefault(u => u.Id == userId)
+                ?? await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null || user.PreferredSlotId is not null)
+                continue;
+
+            var slot = context.ParkingSlots.Local
+                .FirstOrDefault(s => s.LocationId == locationId && s.SlotNumber == slotNumber)
+                ?? await context.ParkingSlots
+                    .FirstOrDefaultAsync(s => s.LocationId == locationId && s.SlotNumber == slotNumber);
+            if (slot is null)
+                continue;
+
+            user.PreferredSlotId = slot.Id;
         }
     }
 

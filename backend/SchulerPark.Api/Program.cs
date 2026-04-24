@@ -14,6 +14,7 @@ using SchulerPark.Infrastructure.Data;
 using SchulerPark.Infrastructure.Data.Seed;
 using SchulerPark.Infrastructure.Jobs;
 using SchulerPark.Infrastructure.Services;
+using SchulerPark.Infrastructure.Services.Placement;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,6 +103,8 @@ builder.Services.AddScoped<ILocationService, LocationService>();
 
 // Phase 5: Lottery services
 builder.Services.AddScoped<ILotteryService, LotteryService>();
+builder.Services.AddScoped<ISlotDistanceMetric, ManhattanDistanceMetric>();
+builder.Services.AddScoped<ISlotPlacer, PreferenceAwareSlotPlacer>();
 
 // Waitlist service
 builder.Services.AddScoped<IWaitlistService, WaitlistService>();
@@ -123,7 +126,9 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
-// Auto-migrate database (all environments — EF Core migrations are idempotent)
+// Auto-migrate database (all environments — EF Core migrations are idempotent).
+// Skip in the Testing environment, which uses the InMemory provider.
+if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -167,30 +172,34 @@ if (app.Environment.IsDevelopment())
 // Health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
-// Register Hangfire recurring jobs (use DI-based manager, not static API)
-var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-var berlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+// Register Hangfire recurring jobs (use DI-based manager, not static API).
+// Skip in Testing — the factory swaps Hangfire out and there's no Postgres backend.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+    var berlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
 
-// Lottery recurring job: 10 PM Europe/Berlin daily
-jobManager.AddOrUpdate<LotteryJob>(
-    "daily-lottery",
-    job => job.ExecuteAsync(),
-    "0 22 * * *",
-    new RecurringJobOptions { TimeZone = berlinTz });
+    // Lottery recurring job: 10 PM Europe/Berlin daily
+    jobManager.AddOrUpdate<LotteryJob>(
+        "daily-lottery",
+        job => job.ExecuteAsync(),
+        "0 22 * * *",
+        new RecurringJobOptions { TimeZone = berlinTz });
 
-// Confirmation expiry job: every hour
-jobManager.AddOrUpdate<ConfirmationExpiryJob>(
-    "confirmation-expiry",
-    job => job.ExecuteAsync(),
-    "0 * * * *",
-    new RecurringJobOptions { TimeZone = berlinTz });
+    // Confirmation expiry job: every hour
+    jobManager.AddOrUpdate<ConfirmationExpiryJob>(
+        "confirmation-expiry",
+        job => job.ExecuteAsync(),
+        "0 * * * *",
+        new RecurringJobOptions { TimeZone = berlinTz });
 
-// Data retention job: weekly, Sunday 2 AM
-jobManager.AddOrUpdate<DataRetentionJob>(
-    "data-retention",
-    job => job.ExecuteAsync(),
-    "0 2 * * 0",
-    new RecurringJobOptions { TimeZone = berlinTz });
+    // Data retention job: weekly, Sunday 2 AM
+    jobManager.AddOrUpdate<DataRetentionJob>(
+        "data-retention",
+        job => job.ExecuteAsync(),
+        "0 2 * * 0",
+        new RecurringJobOptions { TimeZone = berlinTz });
+}
 
 // SPA fallback: serve index.html for non-API, non-file routes
 app.MapFallbackToFile("index.html");

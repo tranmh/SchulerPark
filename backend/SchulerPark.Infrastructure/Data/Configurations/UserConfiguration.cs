@@ -24,5 +24,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.Email).IsUnique();
         builder.HasIndex(u => u.AzureAdObjectId).IsUnique()
             .HasFilter("\"AzureAdObjectId\" is not null");
+
+        builder.HasOne(u => u.PreferredLocation)
+            .WithMany()
+            .HasForeignKey(u => u.PreferredLocationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(u => u.PreferredSlot)
+            .WithMany()
+            .HasForeignKey(u => u.PreferredSlotId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

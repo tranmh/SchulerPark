@@ -14,6 +14,8 @@ export interface ParkingSlot {
   slotNumber: string;
   label: string | null;
   isActive: boolean;
+  gridRow: number | null;
+  gridColumn: number | null;
 }
 
 export interface BlockedDay {
@@ -35,6 +37,7 @@ export interface Booking {
   confirmedAt: string | null;
   createdAt: string;
   confirmationDeadline: string | null;
+  fallbackReason: string | null;
 }
 
 export interface Availability {
@@ -46,7 +49,7 @@ export interface Availability {
 }
 
 export interface CreateBookingRequest {
-  locationId: string;
+  locationId: string | null;
   date: string;
   timeSlot: TimeSlot;
 }
@@ -59,7 +62,7 @@ export interface MyBookingsResponse {
 }
 
 export interface CreateWeekBookingRequest {
-  locationId: string;
+  locationId: string | null;
   weekStartDate: string;
   timeSlot: TimeSlot;
 }

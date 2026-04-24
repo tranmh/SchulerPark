@@ -15,14 +15,17 @@ public class LotteryService : ILotteryService
     private readonly ILogger<LotteryService> _logger;
     private readonly IEmailService _emailService;
     private readonly IPushNotificationService _pushService;
+    private readonly ISlotPlacer _placer;
 
     public LotteryService(AppDbContext db, ILogger<LotteryService> logger,
-        IEmailService emailService, IPushNotificationService pushService)
+        IEmailService emailService, IPushNotificationService pushService,
+        ISlotPlacer placer)
     {
         _db = db;
         _logger = logger;
         _emailService = emailService;
         _pushService = pushService;
+        _placer = placer;
     }
 
     public async Task RunAllLotteriesAsync(DateOnly date)
@@ -60,15 +63,17 @@ public class LotteryService : ILotteryService
             return;
         }
 
-        // 2. Fetch pending bookings (include User for email notifications)
+        // 2. Fetch pending bookings (include User + PreferredSlot for placement)
         var pendingBookings = await _db.Bookings
             .Include(b => b.User)
             .Where(b => b.LocationId == locationId && b.Date == date
                 && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending)
             .ToListAsync();
 
-        // 3. Fetch location for algorithm
-        var location = await _db.Locations.FindAsync(locationId);
+        // 3. Fetch location (with grid cells for placement) + algorithm
+        var location = await _db.Locations
+            .Include(l => l.GridCells)
+            .FirstOrDefaultAsync(l => l.Id == locationId);
         var algorithm = location!.DefaultAlgorithm;
 
         if (pendingBookings.Count == 0)
@@ -109,28 +114,53 @@ public class LotteryService : ILotteryService
             .OrderByDescending(h => h.Date)
             .ToListAsync();
 
-        // 6. Execute lottery
-        List<LotteryResult> results;
+        // 6. Execute lottery — first pick winners, then place slots via preference-aware placer.
+        List<Booking> winners;
+        List<Booking> losers;
         if (availableSlots.Count == 0)
         {
-            // All lose
-            results = pendingBookings.Select(b =>
-                new LotteryResult(b.Id, b.UserId, false, null)).ToList();
+            winners = [];
+            losers = [.. pendingBookings];
         }
         else if (pendingBookings.Count <= availableSlots.Count)
         {
-            // Everyone wins — assign slots randomly
-            var rng = Random.Shared;
-            var shuffledSlots = new Queue<ParkingSlot>(availableSlots.OrderBy(_ => rng.Next()));
-            results = pendingBookings.Select(b =>
-                new LotteryResult(b.Id, b.UserId, true, shuffledSlots.Dequeue().Id)).ToList();
+            winners = [.. pendingBookings];
+            losers = [];
         }
         else
         {
-            // Oversubscribed — run strategy
+            // Oversubscribed — strategy picks winners (we discard its slot assignments).
             var strategy = ResolveStrategy(algorithm);
-            results = strategy.Execute(pendingBookings, availableSlots, history);
+            var strategyResults = strategy.Execute(pendingBookings, availableSlots, history);
+            var winnerIds = strategyResults.Where(r => r.Won).Select(r => r.BookingId).ToHashSet();
+            winners = pendingBookings.Where(b => winnerIds.Contains(b.Id)).ToList();
+            losers = pendingBookings.Where(b => !winnerIds.Contains(b.Id)).ToList();
         }
+
+        // Eager-load preferred slots referenced by winners (used by Pass 2 of the placer).
+        var preferredSlotIds = winners
+            .Select(w => w.User.PreferredSlotId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+        var preferredSlots = preferredSlotIds.Count == 0
+            ? new Dictionary<Guid, ParkingSlot>()
+            : (await _db.ParkingSlots
+                .Where(s => preferredSlotIds.Contains(s.Id))
+                .ToListAsync())
+                .ToDictionary(s => s.Id);
+
+        var gridCells = location.GridCells.ToList();
+        var placements = winners.Count == 0
+            ? []
+            : _placer.Place(winners, availableSlots, location, gridCells, preferredSlots);
+
+        var results = winners.Select(b => new LotteryResult(
+                b.Id, b.UserId, true,
+                placements.TryGetValue(b.Id, out var sid) ? sid : null))
+            .Concat(losers.Select(b => new LotteryResult(b.Id, b.UserId, false, null)))
+            .ToList();
 
         // 7. Apply results
         foreach (var result in results)
