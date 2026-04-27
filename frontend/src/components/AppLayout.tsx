@@ -21,8 +21,12 @@ const adminNavItems = [
   { to: '/admin/lottery-history', label: 'Lottery History', icon: HistoryIcon },
 ];
 
+const superAdminNavItems = [
+  { to: '/admin/users', label: 'Users', icon: UsersIcon },
+];
+
 export function AppLayout({ children }: Props) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -76,6 +80,30 @@ export function AppLayout({ children }: Props) {
               ))}
             </>
           )}
+
+          {isSuperAdmin && (
+            <>
+              <div className="mt-4 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Super Admin
+              </div>
+              {superAdminNavItems.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-gray-800 text-white'
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon />
+                  {label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* User section */}
@@ -83,11 +111,15 @@ export function AppLayout({ children }: Props) {
           <div className="mb-2">
             <div className="text-sm font-medium">{user?.displayName}</div>
             <div className="text-xs text-gray-400">{user?.email}</div>
-            {isAdmin && (
+            {isSuperAdmin ? (
+              <span className="mt-1 inline-block rounded bg-violet-600 px-1.5 py-0.5 text-xs font-medium">
+                SuperAdmin
+              </span>
+            ) : isAdmin ? (
               <span className="mt-1 inline-block rounded bg-amber-600 px-1.5 py-0.5 text-xs font-medium">
                 Admin
               </span>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-2">
             <NavLink to="/profile"
@@ -183,6 +215,15 @@ function HistoryIcon() {
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+        d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2a4 4 0 11-8 0 4 4 0 018 0zm6-3a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
 }

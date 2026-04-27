@@ -8,6 +8,7 @@ using SchulerPark.Core.Enums;
 
 public static class SeedData
 {
+    private static readonly Guid SuperAdminUserId = Guid.Parse("a0000000-0000-0000-0000-000000000000");
     private static readonly Guid AdminUserId = Guid.Parse("a0000000-0000-0000-0000-000000000001");
     private static readonly Guid TestUser1Id = Guid.Parse("a0000000-0000-0000-0000-000000000002");
     private static readonly Guid TestUser2Id = Guid.Parse("a0000000-0000-0000-0000-000000000003");
@@ -41,6 +42,16 @@ public static class SeedData
     {
         var baseUsers = new[]
         {
+            new User
+            {
+                Id = SuperAdminUserId,
+                Email = "superadmin@schulerpark.local",
+                DisplayName = "Super Administrator",
+                Role = UserRole.SuperAdmin,
+                CarLicensePlate = "GP-SA 0001",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
             new User
             {
                 Id = AdminUserId,
@@ -123,7 +134,9 @@ public static class SeedData
         {
             if (!await context.Users.AnyAsync(u => u.Id == user.Id))
             {
-                var password = user.Id == AdminUserId ? "Admin123!" : "Test1234!";
+                var password = (user.Id == AdminUserId || user.Id == SuperAdminUserId)
+                    ? "Admin123!"
+                    : "Test1234!";
                 user.PasswordHash = passwordHasher.HashPassword(user, password);
                 context.Users.Add(user);
             }

@@ -32,3 +32,6 @@ Thumbs.db
 
 # Docker
 postgres_data/
+
+# Bootstrap-generated SuperAdmin credentials (written to disk on first startup)
+admin.yml

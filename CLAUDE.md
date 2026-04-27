@@ -65,7 +65,9 @@ If all pass, auto-deploys to production via SSH (`appleboy/ssh-action`).
 Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PATH`.
 
 ### Default Credentials
-- Admin: `admin@schulerpark.local` / `Admin123!`
+- SuperAdmin (dev seed): `superadmin@schulerpark.local` / `Admin123!`
+- Admin (dev seed): `admin@schulerpark.local` / `Admin123!`
+- Production SuperAdmin is generated on first startup if no users exist; credentials are written to `admin.yml` next to the running binary (see `BootstrapAdmin`).
 
 ## Code Conventions
 - **C#:** PascalCase for public members, nullable reference types enabled, implicit usings

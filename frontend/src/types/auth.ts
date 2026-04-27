@@ -3,7 +3,7 @@ export interface User {
   email: string;
   displayName: string;
   carLicensePlate: string | null;
-  role: 'User' | 'Admin';
+  role: 'User' | 'Admin' | 'SuperAdmin';
   hasAzureAd: boolean;
   preferredLocationId: string | null;
   preferredSlotId: string | null;

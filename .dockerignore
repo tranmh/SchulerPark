@@ -11,6 +11,7 @@
 .env
 .env.*
 !.env.example
+admin.yml
 Caddyfile
 scripts/
 db_backups/

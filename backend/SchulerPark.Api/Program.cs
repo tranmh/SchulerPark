@@ -91,10 +91,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Authorization policies
+// Authorization policies. Role hierarchy is inclusive: SuperAdmin satisfies AdminOnly.
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin", "SuperAdmin"));
+    options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin"));
 });
 
 // Phase 4: Booking services
@@ -133,6 +134,11 @@ if (!app.Environment.IsEnvironment("Testing"))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    // Bootstrap a SuperAdmin on first startup (no users yet). Runs in all
+    // non-Testing environments so production gets a credential file written
+    // to disk on first boot. Idempotent — does nothing once any user exists.
+    await BootstrapAdmin.BootstrapAsync(app.Services);
 
     if (app.Environment.IsDevelopment())
     {

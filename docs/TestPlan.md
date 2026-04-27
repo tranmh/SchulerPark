@@ -1,5 +1,7 @@
 # SchulerPark — End-to-End Test Plan
 
+Covers all phases through the 3-tier role system (SuperAdmin / Admin / User) added in 2026-04.
+
 ## 1. Start the Stack
 
 ```bash
@@ -8,7 +10,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Wait ~30 seconds for PostgreSQL + app startup + auto-migration.
+Wait ~30 seconds for PostgreSQL + app startup + auto-migration + first-run bootstrap.
 
 ## 2. Verify Services Are Running
 
@@ -24,13 +26,28 @@ curl http://localhost:8080/api/health
 
 Expect: `{"status":"healthy","timestamp":"..."}`
 
+### 2.1 Verify First-Run Bootstrap (clean DB only)
+
+If you started against an empty database, `BootstrapAdmin` should have created a SuperAdmin and written its credentials to disk.
+
+- [ ] Inside the app container, check for the credentials file:
+  ```bash
+  docker compose exec app cat /app/admin.yml
+  ```
+  Expect a YAML file with `email: superadmin@schulerpark.local` (or the value of `BOOTSTRAP_SUPERADMIN_EMAIL`) and a generated `password`.
+- [ ] Restart the app container and confirm the file is **not** rewritten — bootstrap is idempotent once any user exists.
+
+> **Dev seed override:** when running with the development seed, both `superadmin@schulerpark.local` and `admin@schulerpark.local` are created with password `Admin123!`. The bootstrap is a no-op in that case.
+
 ## 3. Test Auth Flow
 
 - [ ] Open **http://localhost:8080** — should show login page (Tailwind centered card)
 - [ ] Register a new user: click "Register", fill email/name/password (min 8 chars)
 - [ ] After registration, should redirect to Dashboard
 - [ ] Logout, then login with `admin@schulerpark.local` / `Admin123!`
-- [ ] Should see Dashboard + admin sidebar items
+  - Sidebar shows the **Admin** section (Locations, Parking Slots, Grid Layout, Blocked Days, All Bookings, Lottery History) and an **amber "Admin"** badge near your name.
+- [ ] Logout, then login with `superadmin@schulerpark.local` / `Admin123!`
+  - Sidebar shows the same Admin section **plus** a **"Super Admin"** section containing **Users**, and a **violet "SuperAdmin"** badge near your name.
 
 ## 4. Test Booking Flow (as regular user)
 
@@ -43,43 +60,70 @@ Expect: `{"status":"healthy","timestamp":"..."}`
 - [ ] Go to **"My Bookings"** — should see booking with **Pending** status
 - [ ] Try booking the same location/date/slot again — should get duplicate error
 
+### 4.1 Week Booking
+
+- [ ] On the Booking page, switch to **Week** mode
+- [ ] Pick a Monday in the upcoming week and a time slot
+- [ ] Submit — should create five Pending bookings (Mon–Fri) in **My Bookings**
+- [ ] Any day already booked should be skipped without erroring out the whole week
+
 ## 5. Test Lottery (as admin)
 
 - [ ] Login as `admin@schulerpark.local` / `Admin123!`
 - [ ] Open **Swagger**: http://localhost:8080/swagger
-- [ ] Find `POST /api/lottery/run` and execute with `date` = tomorrow's date (e.g., `2026-04-09`)
+- [ ] Find `POST /api/lottery/run` and execute with `date` = tomorrow's date (e.g., `2026-04-28`)
 - [ ] Or use curl:
   ```bash
-  # First get a JWT token
-  curl -X POST http://localhost:8080/api/auth/login \
+  TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@schulerpark.local","password":"Admin123!"}'
+    -d '{"email":"admin@schulerpark.local","password":"Admin123!"}' | jq -r .accessToken)
 
-  # Use the accessToken from response
-  curl -X POST "http://localhost:8080/api/lottery/run?date=2026-04-09" \
-    -H "Authorization: Bearer <YOUR_TOKEN>"
+  curl -X POST "http://localhost:8080/api/lottery/run?date=$(date -d '+1 day' +%Y-%m-%d)" \
+    -H "Authorization: Bearer $TOKEN"
   ```
 - [ ] Go to **My Bookings** (for the user who booked) — status should change to **Won** (since slots > bookings)
 - [ ] The **"Confirm Usage"** button should appear with a deadline countdown
 
 ## 6. Test Confirmation & Expiry
 
-- [ ] As the user with a Won booking, click **"Confirm Usage"**
-- [ ] Status should change to **Confirmed**
+- [ ] As the user with a Won booking, click **"Confirm Usage"** — status should change to **Confirmed**
 - [ ] To test expiry: create another booking, run lottery, but do NOT confirm
-- [ ] Check **Hangfire Dashboard**: http://localhost:8080/hangfire — verify "confirmation-expiry" job is registered
+- [ ] Open **Hangfire Dashboard** http://localhost:8080/hangfire and verify three recurring jobs are registered: `daily-lottery`, `confirmation-expiry`, `data-retention`
+- [ ] Trigger `confirmation-expiry` manually from the Hangfire UI to simulate an expired Won booking — status should flip to **Expired** and any waitlisted user should be promoted (see §7)
 
-## 7. Test Email Notifications
+## 7. Test Waitlist Auto-Promotion
+
+- [ ] Set up: user A and user B both have Pending bookings for the same `(location, date, timeSlot)`. Run the lottery so A is **Won** and B is **Lost** (manipulate slot count or use a small location like Netphen)
+- [ ] As user A, cancel the Won booking from **My Bookings**
+- [ ] User B's booking should automatically flip to **Won** with the freed slot assigned. Email + push notification should fire (see MailHog at http://localhost:8025)
+- [ ] If a user's `PreferredSlotId` matches the freed slot, they should be promoted ahead of users with no preference (verify in DB if needed)
+
+## 8. Test Email Notifications
 
 - [ ] Open **MailHog**: http://localhost:8025
 - [ ] Check inbox — should see emails for:
   - Booking created confirmation
   - Lottery result (Won/Lost)
+  - Waitlist promotion (from §7)
 - [ ] Create a booking and cancel it — cancellation email should appear
 
-## 8. Test Admin Features
+## 9. Test Push Notifications
 
-Login as admin, then test:
+- [ ] On HTTPS or `localhost`, log in as a regular user. Open browser DevTools → Application → Service Workers — confirm the SW is active.
+- [ ] Visit **Profile** and enable push notifications. Browser should prompt for permission; allow.
+- [ ] Behind the scenes the frontend calls `GET /api/push/vapid-public-key` and `POST /api/push/subscribe`. Verify with:
+  ```bash
+  USER=$(curl -s -X POST http://localhost:8080/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"<your-user>","password":"<pwd>"}' | jq -r .accessToken)
+  curl -s -H "Authorization: Bearer $USER" http://localhost:8080/api/push/vapid-public-key
+  ```
+- [ ] Trigger a waitlist promotion (§7) — the OS-level push notification should fire even if the tab is closed.
+- [ ] Disable push from Profile (calls `DELETE /api/push/subscribe`) — subsequent triggers should not deliver notifications.
+
+## 10. Test Admin Features (regular Admin)
+
+Login as `admin@schulerpark.local` / `Admin123!`. The Admin role can manage day-to-day operations but cannot manage users.
 
 - [ ] **Locations** (`/admin/locations`): Create a new location, edit it, change algorithm, deactivate
 - [ ] **Parking Slots** (`/admin/slots`): Select a location, create slots, edit, deactivate
@@ -88,21 +132,75 @@ Login as admin, then test:
   - [ ] Back as admin, click the blocked date again to unblock
 - [ ] **All Bookings** (`/admin/bookings`): Filter by location, status, date range
 - [ ] **Lottery History** (`/admin/lottery-history`): See past lottery runs
+- [ ] Visit `/admin/users` directly — should redirect to `/` (Admin lacks SuperAdmin)
+- [ ] Curl `/api/admin/users` with the Admin's JWT — should return **403 Forbidden**
 
-## 9. Test DSGVO + Profile Features
+## 11. Test SuperAdmin Role Management
+
+Login as `superadmin@schulerpark.local` / `Admin123!`. The SuperAdmin role inherits everything Admin can do, plus user management at `/admin/users`.
+
+### 11.1 Inclusive admin policy
+
+- [ ] As SuperAdmin, open `/admin/locations`, `/admin/slots`, `/admin/bookings` etc. — all should load (the `AdminOnly` policy accepts SuperAdmin).
+- [ ] As SuperAdmin, run the lottery from Swagger (`POST /api/lottery/run`) — should succeed.
+
+### 11.2 Users page (UI)
+
+- [ ] Click **Users** in the Super Admin section. Page lists all users with columns: User, Role, Status, Auth, Actions.
+- [ ] Use the search box to find a specific user by email or name.
+- [ ] Filter by Role — verify counts change.
+- [ ] **Promote** a regular user to Admin via the role dropdown. The next time **that user** logs in, the JWT carries the new role and they see the Admin sidebar.
+- [ ] **Demote** them back to User. Same JWT round-trip caveat (the page footer reminds you of this).
+- [ ] **Disable** a user — Status badge flips to "Disabled" and any active refresh tokens are revoked. The disabled user can no longer log in.
+- [ ] **Enable** the user again — they can log in.
+- [ ] **Delete** a user (with confirm dialog) — they're hard-removed and disappear from the list.
+
+### 11.3 Self-protection guards
+
+Each guard returns **400 Bad Request** with a problem-details message; the UI surfaces it in the red error banner.
+
+- [ ] Try changing your own role — the role dropdown is disabled in the UI. Bypass via curl:
+  ```bash
+  SU=$(curl -s -X POST http://localhost:8080/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"superadmin@schulerpark.local","password":"Admin123!"}' | jq -r .accessToken)
+  MYID=$(curl -s -H "Authorization: Bearer $SU" http://localhost:8080/api/auth/me | jq -r .id)
+
+  curl -i -X PUT "http://localhost:8080/api/admin/users/$MYID/role" \
+    -H "Authorization: Bearer $SU" -H "Content-Type: application/json" \
+    -d '{"role":"Admin"}'
+  ```
+  Expect **400** ("You cannot change your own role.").
+- [ ] Try disabling yourself: `PUT /api/admin/users/$MYID/disable` → 400.
+- [ ] Try deleting yourself: `DELETE /api/admin/users/$MYID` → 400.
+
+### 11.4 Last-SuperAdmin guard
+
+- [ ] In a fresh dev DB there is exactly one SuperAdmin (`superadmin@schulerpark.local`). Promote a second user to SuperAdmin via the Users page.
+- [ ] Demote the second SuperAdmin back to Admin — succeeds.
+- [ ] Now there is one SuperAdmin again. From the **second user's** session (still Admin if you didn't refresh), confirm they cannot reach `/admin/users`.
+- [ ] Promote a different user to SuperAdmin, then from that new SuperAdmin try to delete the original `superadmin@schulerpark.local`. After deletion, only one SuperAdmin remains.
+- [ ] Try deleting the last remaining SuperAdmin from another SuperAdmin's session (you'll need a third one to do this) — expect **400** ("Cannot delete the last remaining SuperAdmin."). Same guard applies to demote and disable.
+
+### 11.5 Negative — non-SuperAdmin access
+
+- [ ] Login as a regular User → `/admin/users` redirects home; `GET /api/admin/users` → 403.
+- [ ] Login as Admin → same behaviour (Admin is not SuperAdmin).
+
+## 12. Test DSGVO + Profile Features
 
 - [ ] As any user, go to **Profile** (button in sidebar bottom)
 - [ ] Edit display name and license plate — click Save
 - [ ] Verify **Preferred Parking Location** dropdown lists all active locations and persists after Save + reload
-- [ ] Verify **Preferred Parking Slot** dropdown is **disabled** until a preferred location is chosen (detailed tests in Section 11)
-- [ ] Click **"Download My Data"** — should download a JSON file with all your data
+- [ ] Verify **Preferred Parking Slot** dropdown is **disabled** until a preferred location is chosen (detailed tests in §14)
+- [ ] Click **"Download My Data"** — should download a JSON file with all your data (includes Role)
 - [ ] Click **"Delete My Account"** — confirm in dialog — should log you out
-- [ ] Try logging in again with that user — should fail (soft-deleted)
+- [ ] Try logging in again with that user — should fail (soft-deleted, awaiting retention job)
 - [ ] Visit **http://localhost:8080/privacy** (no login needed) — should show privacy notice
 
-## 10. Test Grid Layout (Phase 11)
+## 13. Test Grid Layout
 
-Login as admin, then test:
+Login as admin (or superadmin), then test:
 
 - [ ] **Grid Layout** (`/admin/grid-layout`): Should appear in admin sidebar
 - [ ] Select a location (e.g., Goeppingen)
@@ -127,13 +225,13 @@ Test user grid view:
   - [ ] Legend should appear below the grid
 - [ ] Select a location without a grid configured — no grid should appear (backwards compatible)
 
-## 11. Test Preferred Parking Slot (Lottery + Nearest-Fallback)
+## 14. Test Preferred Parking Slot (Lottery + Nearest-Fallback)
 
 This section exercises the preferred-slot picker and the lottery placement
 algorithm (exact match → Manhattan-nearest → random fallback). Assumes the
 seed DB is in place (20 users, grid layouts for all 6 locations).
 
-### 11.1 Profile UI
+### 14.1 Profile UI
 
 - [ ] Log in as `lisa.weber@schuler.de` / `Test1234!`
 - [ ] Go to **Profile**. The Preferred Parking Slot dropdown should be **disabled** and show "No preference"
@@ -143,9 +241,8 @@ seed DB is in place (20 users, grid layouts for all 6 locations).
 - [ ] Change **Preferred Parking Location** to *Goeppingen*. The Slot dropdown should **reset to "No preference"** and re-populate with Goeppingen's slots
 - [ ] Set **Preferred Parking Location** back to "No preference". Slot dropdown becomes **disabled** again
 
-### 11.2 API validation (use Swagger or curl)
+### 14.2 API validation (use Swagger or curl)
 
-Get a JWT first:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
@@ -163,17 +260,16 @@ SLOT=$(curl -s -H "Authorization: Bearer $TOKEN" \
   ```
 - [ ] `PUT /api/profile` with a slot belonging to a different location → **400 Bad Request** ("Preferred slot does not belong to the preferred location.")
   ```bash
-  # Weingarten slot paired with Goeppingen as the preferred location:
   curl -i -X PUT http://localhost:8080/api/profile \
     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     -d "{\"displayName\":\"Lisa Weber\",\"carLicensePlate\":null,\"preferredLocationId\":\"b0000000-0000-0000-0000-000000000001\",\"preferredSlotId\":\"$SLOT\"}"
   ```
 
-### 11.3 Lottery — exact preferred slot (happy path)
+### 14.3 Lottery — exact preferred slot (happy path)
 
-- [ ] As Lisa, set preferred location = Weingarten and preferred slot = `P001` (via UI, Section 11.1)
-- [ ] Create a booking for **tomorrow, Morning** at Weingarten (UI or API)
-- [ ] Log in as `admin@schulerpark.local` and run the lottery for tomorrow via Swagger or:
+- [ ] As Lisa, set preferred location = Weingarten and preferred slot = `P001`
+- [ ] Create a booking for **tomorrow, Morning** at Weingarten
+- [ ] As admin, run the lottery for tomorrow:
   ```bash
   ADMIN=$(curl -s -X POST http://localhost:8080/api/auth/login \
     -H "Content-Type: application/json" \
@@ -191,14 +287,11 @@ SLOT=$(curl -s -H "Authorization: Bearer $TOKEN" \
   ```
   Expect: `Won | P001`.
 
-### 11.4 Lottery — nearest-slot fallback
+### 14.4 Lottery — nearest-slot fallback
 
-Two users prefer the *same* slot; only one can get it, the other must receive
-the Manhattan-nearest available slot.
-
-- [ ] Set a second user's (e.g., `noah.zimmermann@schuler.de` / `Test1234!`) preferred location to Weingarten and preferred slot to **P001** (same as Lisa)
-- [ ] Ensure both users have a **Pending** booking for the **same date + Morning** at Weingarten
-- [ ] Run the lottery as admin (see 11.3)
+- [ ] Set `noah.zimmermann@schuler.de`'s preferred location to Weingarten and preferred slot to **P001** (same as Lisa)
+- [ ] Ensure both have a Pending booking for the same date + Morning at Weingarten
+- [ ] Run the lottery as admin (see §14.3)
 - [ ] Inspect assignments:
   ```sql
   SELECT u."Email", s."SlotNumber", s."GridRow", s."GridColumn"
@@ -208,35 +301,37 @@ the Manhattan-nearest available slot.
   WHERE b."LocationId" = 'b0000000-0000-0000-0000-000000000005'
     AND b."Date" = CURRENT_DATE + 1 AND b."TimeSlot" = 'Morning';
   ```
-  Expect: the **earlier-created booking** gets `P001` (row 1, col 0); the other gets a slot one Manhattan step away — typically `P002` (row 1, col 1) or `P004` (row 2, col 0).
-- [ ] Verify neither user got an unrelated far slot (e.g., `P018` at row 6)
+  Expect: the **earlier-created booking** gets `P001`; the other gets a slot one Manhattan step away (typically `P002` or `P004`).
+- [ ] Verify neither user got an unrelated far slot (e.g., `P018`)
 
-### 11.5 Lottery — preferred slot unavailable
+### 14.5 Lottery — preferred slot blocked
 
-- [ ] In the admin **Blocked Days** UI, block Weingarten's `P001` specifically for some future date
+- [ ] Block Weingarten's `P001` for some future date (Blocked Days UI)
 - [ ] As Lisa (preferred = Weingarten/P001), book that date + Morning
-- [ ] Run the lottery. Lisa should still **win a slot** (not Lost), and the assigned slot should be the Manhattan-nearest free neighbour (e.g., P002 or P004) — **no error** is thrown
+- [ ] Run the lottery — Lisa should still **win a slot** (not Lost), assigned to the Manhattan-nearest free neighbour. No error thrown.
 
-### 11.6 Waitlist promotion respects preferred slot (optional)
+## 15. Test Error Handling
 
-- [ ] Arrange: user A wins Weingarten P001 for a date; user B (preferred slot = P001, same date) is Lost; user C (no preference, same date) is also Lost
-- [ ] User A cancels the booking via **My Bookings**
-- [ ] User B's booking should be promoted to **Won** ahead of user C, even if C has a higher history weight — because B explicitly preferred the freed slot
-- [ ] Verify in DB:
-  ```sql
-  SELECT "Email", b."Status" FROM "Bookings" b
-    JOIN "Users" u ON u."Id" = b."UserId"
-  WHERE b."ParkingSlotId" IS NOT NULL AND u."Email" IN ('<user-B>', '<user-C>');
-  ```
+- [ ] `POST /api/bookings` with a past date → 400 with ProblemDetails + traceId
+- [ ] `/api/admin/locations` as a non-admin User → 403
+- [ ] `/api/admin/users` as Admin (not SuperAdmin) → 403
+- [ ] Any `/api/*` endpoint without a token → 401
+- [ ] Disabled user attempts to log in → 401
 
-## 12. Test Error Handling
-
-- [ ] Try `POST /api/bookings` with a past date — should get 400 with ProblemDetails + traceId
-- [ ] Try accessing `/api/admin/locations` as a non-admin user — should get 403
-- [ ] Try accessing any API endpoint without a token — should get 401
-
-## 13. Cleanup
+## 16. Run Automated Tests
 
 ```bash
-docker compose down -v
+# Backend
+cd backend && dotnet test
+
+# Frontend
+cd ../frontend && npm run lint && npm run build
+```
+
+Expect 54 backend tests passing, lint clean (or only pre-existing warnings), Vite build successful.
+
+## 17. Cleanup
+
+```bash
+docker compose down -v   # -v also wipes the postgres volume so bootstrap re-runs next time
 ```

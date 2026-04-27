@@ -6,10 +6,15 @@ import type { ReactNode } from 'react';
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  requireSuperAdmin?: boolean;
 }
 
-export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isAdmin } = useAuth();
+export function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireSuperAdmin = false,
+}: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, isAdmin, isSuperAdmin } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner fullScreen />;
@@ -17,6 +22,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireSuperAdmin && !isSuperAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   if (requireAdmin && !isAdmin) {

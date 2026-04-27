@@ -18,7 +18,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  // True for Admin or SuperAdmin — kept inclusive so existing admin gates still work.
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   authConfig: AuthConfig | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, displayName: string, password: string) => Promise<void>;
@@ -117,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: !!user,
       isLoading,
-      isAdmin: user?.role === 'Admin',
+      isAdmin: user?.role === 'Admin' || user?.role === 'SuperAdmin',
+      isSuperAdmin: user?.role === 'SuperAdmin',
       authConfig,
       login,
       register,
