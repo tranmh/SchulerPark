@@ -50,6 +50,14 @@ services:
       - "443:443/udp"
     environment:
       SITE_DOMAIN: "${SITE_DOMAIN:-schulerpark.example.com}"
+      # Clear daemon-injected corporate proxy so Caddy reaches `app:8080` over the docker network
+      # instead of routing upstream requests through the corporate HTTP proxy.
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      NO_PROXY: "*"
+      no_proxy: "*"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -76,7 +84,7 @@ services:
       BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
     volumes:
       - ./scripts/db-backup.sh:/usr/local/bin/db-backup.sh:ro
-      - db_backups:/backups
+      - /dbbackup:/backups
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -92,4 +100,3 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  db_backups:
