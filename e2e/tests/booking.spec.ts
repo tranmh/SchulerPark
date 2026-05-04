@@ -49,8 +49,9 @@ test.describe('Booking Flow', () => {
     await loginAsTestUser(page);
     await page.goto('/booking');
 
-    // Step 1: Select location
-    await page.getByText('Goeppingen').click();
+    // Step 1: Select location — use exact name match because admin tests can
+    // leave behind locations whose addresses contain "Goeppingen".
+    await page.getByRole('button', { name: /^Goeppingen/ }).click();
 
     // Step 2: Date picker should appear
     await expect(page.getByText(/select a date at goeppingen/i)).toBeVisible({ timeout: 5000 });

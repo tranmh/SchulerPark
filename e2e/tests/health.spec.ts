@@ -9,12 +9,21 @@ test.describe('Health & Infrastructure', () => {
     expect(body.status).toBe('healthy');
   });
 
-  test('swagger is accessible in development', async ({ page }) => {
-    const response = await page.goto('/swagger');
-    // Swagger may or may not be available depending on environment
-    // In dev mode it should return 200
-    if (response && response.ok()) {
-      await expect(page.locator('body')).toContainText(/swagger|SchulerPark API/i);
+  test('swagger is accessible in development', async ({ page, request }) => {
+    // Hit the API host directly (not the SPA / Vite proxy), since /swagger lives
+    // on the backend, not the frontend.
+    const apiBase = process.env.API_BASE_URL || 'http://localhost:5000';
+    const response = await request.get(`${apiBase}/swagger`).catch(() => null);
+    if (!response) {
+      test.skip(true, 'API host not reachable from this environment.');
+      return;
     }
+    if (!response.ok()) {
+      test.skip(true, `Swagger not enabled (status ${response.status()}).`);
+      return;
+    }
+    const body = await response.text();
+    expect(body).toMatch(/swagger|SchulerPark API/i);
+    void page;
   });
 });
