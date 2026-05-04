@@ -102,18 +102,18 @@ export function ProfilePage() {
         <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
         <div className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input value={user?.email ?? ''} disabled
+            <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700">Email</label>
+            <input id="profile-email" value={user?.email ?? ''} disabled
               className="mt-1 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Display Name</label>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+            <label htmlFor="profile-display-name" className="block text-sm font-medium text-gray-700">Display Name</label>
+            <input id="profile-display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Car License Plate</label>
-            <input value={carLicensePlate} onChange={(e) => setCarLicensePlate(e.target.value)}
+            <label htmlFor="profile-car-license" className="block text-sm font-medium text-gray-700">Car License Plate</label>
+            <input id="profile-car-license" value={carLicensePlate} onChange={(e) => setCarLicensePlate(e.target.value)}
               placeholder="e.g. GP-AB 1234"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
           </div>

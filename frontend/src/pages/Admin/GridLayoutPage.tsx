@@ -211,8 +211,9 @@ export function GridLayoutPage() {
       {/* Location selector + grid dimensions */}
       <div className="mt-6 flex flex-wrap items-end gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Location</label>
+          <label htmlFor="grid-location" className="block text-sm font-medium text-gray-700">Location</label>
           <select
+            id="grid-location"
             value={locationId}
             onChange={(e) => handleLocationChange(e.target.value)}
             className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"

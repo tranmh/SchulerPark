@@ -84,8 +84,8 @@ export function SlotsPage() {
       {error && <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700">Location</label>
-        <select value={selectedLocationId ?? ''} onChange={(e) => setSelectedLocationId(e.target.value)}
+        <label htmlFor="slots-location" className="block text-sm font-medium text-gray-700">Location</label>
+        <select id="slots-location" value={selectedLocationId ?? ''} onChange={(e) => setSelectedLocationId(e.target.value)}
           className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm">
           {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
@@ -134,13 +134,13 @@ export function SlotsPage() {
             <h3 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Slot' : 'New Slot'}</h3>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Slot Number</label>
-                <input value={formSlotNumber} onChange={(e) => setFormSlotNumber(e.target.value)}
+                <label htmlFor="slot-number" className="block text-sm font-medium text-gray-700">Slot Number</label>
+                <input id="slot-number" value={formSlotNumber} onChange={(e) => setFormSlotNumber(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. P001" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Label (optional)</label>
-                <input value={formLabel} onChange={(e) => setFormLabel(e.target.value)}
+                <label htmlFor="slot-label" className="block text-sm font-medium text-gray-700">Label (optional)</label>
+                <input id="slot-label" value={formLabel} onChange={(e) => setFormLabel(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. Near entrance" />
               </div>
               {editingId && (

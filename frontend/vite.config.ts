@@ -54,6 +54,11 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    // WSL2 + /mnt/c/ does not deliver inotify events reliably; poll for HMR.
+    watch: {
+      usePolling: true,
+      interval: 500,
+    },
   },
   build: {
     outDir: 'dist',
