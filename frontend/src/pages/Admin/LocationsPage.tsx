@@ -137,13 +137,13 @@ export function LocationsPage() {
             <h3 className="text-lg font-semibold text-gray-900">{editingId ? 'Edit Location' : 'New Location'}</h3>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input value={formName} onChange={(e) => setFormName(e.target.value)}
+                <label htmlFor="location-name" className="block text-sm font-medium text-gray-700">Name</label>
+                <input id="location-name" value={formName} onChange={(e) => setFormName(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
-                <input value={formAddress} onChange={(e) => setFormAddress(e.target.value)}
+                <label htmlFor="location-address" className="block text-sm font-medium text-gray-700">Address</label>
+                <input id="location-address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
               </div>
               {editingId && (

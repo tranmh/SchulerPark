@@ -84,8 +84,8 @@ export function BlockedDaysPage() {
       {error && <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700">Location</label>
-        <select value={selectedLocationId ?? ''} onChange={(e) => setSelectedLocationId(e.target.value)}
+        <label htmlFor="blocked-days-location" className="block text-sm font-medium text-gray-700">Location</label>
+        <select id="blocked-days-location" value={selectedLocationId ?? ''} onChange={(e) => setSelectedLocationId(e.target.value)}
           className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm">
           {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
@@ -105,7 +105,7 @@ export function BlockedDaysPage() {
               <p className="text-sm text-gray-400">No blocked days for this location.</p>
             ) : (
               blockedDays.filter((b) => !b.parkingSlotId).map((b) => (
-                <div key={b.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2">
+                <div key={b.id} data-testid="blocked-day-row" data-block-id={b.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2">
                   <div>
                     <span className="text-sm font-medium text-gray-900">{b.date}</span>
                     {b.reason && <span className="ml-2 text-sm text-gray-500">— {b.reason}</span>}
@@ -125,8 +125,8 @@ export function BlockedDaysPage() {
           <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900">Block {selectedDate}</h3>
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">Reason (optional)</label>
-              <input value={reason} onChange={(e) => setReason(e.target.value)}
+              <label htmlFor="block-reason" className="block text-sm font-medium text-gray-700">Reason (optional)</label>
+              <input id="block-reason" value={reason} onChange={(e) => setReason(e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. Public holiday" />
             </div>
             <div className="mt-4 flex justify-end gap-3">
