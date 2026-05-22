@@ -1,12 +1,13 @@
+import { useTranslation } from 'react-i18next';
 import type { BookingStatus } from '../types/booking';
 
-const statusConfig: Record<BookingStatus, { label: string; classes: string }> = {
-  Pending: { label: 'Pending', classes: 'bg-amber-100 text-amber-800' },
-  Won: { label: 'Won — Confirm!', classes: 'bg-green-100 text-green-800' },
-  Lost: { label: 'Lost', classes: 'bg-red-100 text-red-800' },
-  Confirmed: { label: 'Confirmed', classes: 'bg-blue-100 text-blue-800' },
-  Cancelled: { label: 'Cancelled', classes: 'bg-gray-100 text-gray-500' },
-  Expired: { label: 'Expired', classes: 'bg-gray-100 text-gray-500' },
+const statusStyles: Record<BookingStatus, { dot: string; pill: string }> = {
+  Pending:   { dot: 'bg-amber-500',   pill: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  Won:       { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+  Lost:      { dot: 'bg-rose-500',    pill: 'bg-rose-50 text-rose-700 ring-rose-200' },
+  Confirmed: { dot: 'bg-brand-500',   pill: 'bg-brand-50 text-brand-800 ring-brand-200' },
+  Cancelled: { dot: 'bg-ink-300',     pill: 'bg-ink-100 text-ink-500 ring-line' },
+  Expired:   { dot: 'bg-ink-300',     pill: 'bg-ink-100 text-ink-500 ring-line' },
 };
 
 interface Props {
@@ -14,10 +15,14 @@ interface Props {
 }
 
 export function BookingStatusBadge({ status }: Props) {
-  const config = statusConfig[status];
+  const { t } = useTranslation();
+  const style = statusStyles[status];
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${config.classes}`}>
-      {config.label}
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ring-1 ring-inset ${style.pill}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      {t(`components.status.${status}`)}
     </span>
   );
 }

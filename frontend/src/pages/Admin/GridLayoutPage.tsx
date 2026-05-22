@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { GridEditor } from '../../components/grid/GridEditor';
 import { SlotPalette } from '../../components/grid/SlotPalette';
 import { CellTypePicker } from '../../components/grid/CellTypePicker';
 import type { Tool } from '../../components/grid/CellTypePicker';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { AdminLocation } from '../../types/admin';
 import type { GridSlot, GridCellType, SaveGridConfigurationRequest } from '../../types/grid';
 
@@ -19,6 +21,7 @@ interface PlacedCell {
 }
 
 export function GridLayoutPage() {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState<AdminLocation[]>([]);
   const [locationId, setLocationId] = useState<string>('');
   const [slots, setSlots] = useState<GridSlot[]>([]);
@@ -90,9 +93,7 @@ export function GridLayoutPage() {
     }
   };
 
-  const placedSlotIds = new Set<string>(
-    Array.from(placedSlots.values()).map((s) => s.slotId)
-  );
+  const placedSlotIds = new Set<string>(Array.from(placedSlots.values()).map((s) => s.slotId));
 
   const placeSlotAt = (row: number, col: number, slotId: string) => {
     const key = `${row},${col}`;
@@ -101,7 +102,6 @@ export function GridLayoutPage() {
     const slot = slots.find((s) => s.id === slotId);
     if (!slot) return;
 
-    // Remove if already placed elsewhere
     const newSlots = new Map(placedSlots);
     for (const [k, v] of newSlots) {
       if (v.slotId === slotId) {
@@ -134,7 +134,6 @@ export function GridLayoutPage() {
       return;
     }
 
-    // Cell type tools
     if (placedSlots.has(key)) return;
     const cellType = selectedTool as GridCellType;
     const label = cellType === 'Label' ? prompt('Enter label text:') ?? '' : null;
@@ -182,7 +181,10 @@ export function GridLayoutPage() {
 
     try {
       await adminService.saveGridConfiguration(locationId, {
-        gridRows, gridColumns, slotPositions, cells,
+        gridRows,
+        gridColumns,
+        slotPositions,
+        cells,
       });
       setSuccess('Grid layout saved successfully.');
     } catch (err: unknown) {
@@ -194,89 +196,132 @@ export function GridLayoutPage() {
     }
   };
 
-  if (loading) {
-    return <div className="flex h-64 items-center justify-center text-gray-400">Loading...</div>;
-  }
+  if (loading) return <LoadingSpinner />;
+
+  const stats = {
+    placed: placedSlots.size,
+    capacity: gridRows * gridColumns,
+    cells: placedCells.size,
+  };
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Grid Layout</h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Configure the 2D parking layout for each location. Drag slots onto the grid or select a tool and click cells.
-      </p>
-
-      {error && <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}
-
-      {/* Location selector + grid dimensions */}
-      <div className="mt-6 flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <label htmlFor="grid-location" className="block text-sm font-medium text-gray-700">Location</label>
-          <select
-            id="grid-location"
-            value={locationId}
-            onChange={(e) => handleLocationChange(e.target.value)}
-            className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">Select location...</option>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+          <h1 className="text-[26px] font-bold tracking-tight text-ink-900">{t('admin.gridLayout')}</h1>
+          <p className="mt-1 max-w-2xl text-[13.5px] text-ink-400">
+            Place parking slots, roads, obstacles, entrances and labels on a 2D grid. Drag slots from the tray or click cells with
+            a tool selected. Right-click to remove.
+          </p>
         </div>
         {locationId && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Rows</label>
-              <input
-                type="number" min={1} max={30} value={gridRows}
-                onChange={(e) => setGridRows(Math.min(30, Math.max(1, +e.target.value)))}
-                className="mt-1 w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Columns</label>
-              <input
-                type="number" min={1} max={30} value={gridColumns}
-                onChange={(e) => setGridColumns(Math.min(30, Math.max(1, +e.target.value)))}
-                className="mt-1 w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleClear}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-line-strong bg-white px-3.5 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken"
             >
-              Clear Grid
+              Clear grid
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-500 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600 disabled:opacity-60"
             >
-              {saving ? 'Saving...' : 'Save Layout'}
+              {saving ? 'Saving…' : 'Save layout'}
             </button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-[13px] text-rose-800">{error}</div>
+      )}
+      {success && (
+        <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-800">
+          <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {success}
+        </div>
+      )}
+
+      {/* Controls bar */}
+      <div className="mt-6 flex flex-wrap items-end gap-4">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
+          <select
+            id="grid-location"
+            value={locationId}
+            onChange={(e) => handleLocationChange(e.target.value)}
+            className="w-64 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+          >
+            <option value="">Select location…</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        {locationId && (
+          <>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Rows</label>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={gridRows}
+                onChange={(e) => setGridRows(Math.min(30, Math.max(1, +e.target.value)))}
+                className="w-20 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 num"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Columns</label>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={gridColumns}
+                onChange={(e) => setGridColumns(Math.min(30, Math.max(1, +e.target.value)))}
+                className="w-20 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 num"
+              />
+            </div>
           </>
         )}
       </div>
 
       {locationId && (
-        <div className="mt-6 flex gap-6">
-          {/* Sidebar: slot palette + tool picker */}
-          <div className="w-56 shrink-0 space-y-6">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-gray-700">Tool</h3>
-              <CellTypePicker selected={selectedTool} onChange={(t) => { setSelectedTool(t); setSelectedSlotId(null); }} />
-            </div>
+        <div className="mt-7 grid gap-6 lg:grid-cols-[260px_1fr]">
+          <div className="space-y-5">
+            <CellTypePicker
+              selected={selectedTool}
+              onChange={(t) => {
+                setSelectedTool(t);
+                setSelectedSlotId(null);
+              }}
+            />
             <SlotPalette
               slots={slots}
               placedSlotIds={placedSlotIds}
               selectedSlotId={selectedSlotId}
-              onSelect={(id) => { setSelectedSlotId(id); setSelectedTool('slot'); }}
+              onSelect={(id) => {
+                setSelectedSlotId(id);
+                setSelectedTool('slot');
+              }}
             />
           </div>
 
-          {/* Grid canvas */}
-          <div className="flex-1">
+          <div>
+            <div className="mb-3 flex items-center justify-between text-[12.5px] text-ink-400">
+              <div>
+                <b className="text-ink-700 num">{gridRows}</b> rows × <b className="text-ink-700 num">{gridColumns}</b> columns
+              </div>
+              <div>
+                <b className="text-ink-700 num">{stats.placed}</b> slot{stats.placed !== 1 ? 's' : ''} placed ·{' '}
+                <b className="text-ink-700 num">{stats.cells}</b> cell{stats.cells !== 1 ? 's' : ''} marked
+              </div>
+            </div>
             <GridEditor
               rows={gridRows}
               columns={gridColumns}
@@ -286,8 +331,9 @@ export function GridLayoutPage() {
               onCellDrop={handleCellDrop}
               onCellRightClick={handleCellRightClick}
             />
-            <p className="mt-2 text-xs text-gray-400">
-              Left-click to place. Right-click to remove. Drag slots from the palette.
+            <p className="mt-3 text-[11.5px] text-ink-400">
+              <b className="text-ink-700">Left-click</b> places · <b className="text-ink-700">Right-click</b> removes ·{' '}
+              <b className="text-ink-700">Drag</b> slots from the tray to position them.
             </p>
           </div>
         </div>

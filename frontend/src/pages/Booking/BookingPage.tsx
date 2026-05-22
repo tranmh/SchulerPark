@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { bookingService } from '../../services/bookingService';
 import { locationService } from '../../services/locationService';
@@ -7,10 +8,9 @@ import { LocationSelector } from '../../components/LocationSelector';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
 import { ParkingGridView } from '../../components/grid/ParkingGridView';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { Location, Availability, Booking, TimeSlot, SkippedDay } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
-
-const STEPS = ['Location', 'Date', 'Time Slot', 'Confirm'];
 
 function getWeekFriday(mondayStr: string): string {
   const [y, m, d] = mondayStr.split('-').map(Number);
@@ -18,22 +18,25 @@ function getWeekFriday(mondayStr: string): string {
   return `${fri.getFullYear()}-${String(fri.getMonth() + 1).padStart(2, '0')}-${String(fri.getDate()).padStart(2, '0')}`;
 }
 
-function formatDateDE(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-DE', {
-    weekday: 'short', day: 'numeric', month: 'short',
-  });
-}
-
 export function BookingPage() {
+  const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedLocation = searchParams.get('location');
 
+  const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-GB';
+
+  const formatDateShort = (dateStr: string) =>
+    new Date(dateStr + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' });
+
+  const formatDateLong = (dateStr: string) =>
+    new Date(dateStr + 'T00:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const STEPS = [t('booking.stepLocation'), t('booking.stepDate'), t('booking.stepTimeSlot'), t('booking.stepConfirm')];
+
   const [step, setStep] = useState(preselectedLocation ? 2 : 1);
   const [locationId, setLocationId] = useState<string | null>(preselectedLocation);
-  // True when the current location came from the user's preference (not manual/URL).
-  // Used to send locationId: null to the API so the backend resolver can fall back.
   const [locationFromPreference, setLocationFromPreference] = useState(false);
   const [date, setDate] = useState<string | null>(null);
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null);
@@ -46,16 +49,13 @@ export function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [gridAvailability, setGridAvailability] = useState<GridAvailability | null>(null);
 
-  // Week booking result
   const [weekResult, setWeekResult] = useState<{
     created: Booking[];
     skipped: SkippedDay[];
   } | null>(null);
 
-  // Single booking fallback summary (only shown when the server reports a fallback)
   const [singleResult, setSingleResult] = useState<Booking | null>(null);
 
-  // Load locations — then preselect preferred if no URL-provided location
   useEffect(() => {
     locationService.getLocations()
       .then((locs) => {
@@ -69,22 +69,20 @@ export function BookingPage() {
           }
         }
       })
-      .catch(() => setError('Failed to load locations.'))
+      .catch(() => setError(t('booking.loadLocationsFailed')))
       .finally(() => setLoading(false));
-  }, [preselectedLocation, user?.preferredLocationId]);
+  }, [preselectedLocation, user?.preferredLocationId, t]);
 
-  // Load availability when location changes
   useEffect(() => {
     if (!locationId) return;
     setAvailability([]);
     locationService.getAvailability(locationId)
       .then(setAvailability)
-      .catch(() => setError('Failed to load availability.'));
-  }, [locationId]);
+      .catch(() => setError(t('booking.loadAvailabilityFailed')));
+  }, [locationId, t]);
 
   const selectedLocation = locations.find((l) => l.id === locationId);
 
-  // Compute blocked dates (location-wide: where both morning and afternoon are 0 available)
   const blockedDates = useMemo(() => {
     const dateMap = new Map<string, { morning: number; afternoon: number }>();
     for (const a of availability) {
@@ -100,7 +98,6 @@ export function BookingPage() {
     return blocked;
   }, [availability]);
 
-  // Availability map for calendar dots
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { morning: number; afternoon: number }>();
     for (const a of availability) {
@@ -112,10 +109,8 @@ export function BookingPage() {
     return map;
   }, [availability]);
 
-  // Availability for selected date
   const dateAvailability = date ? availabilityMap.get(date) : undefined;
 
-  // Min/max dates
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split('T')[0];
@@ -145,7 +140,9 @@ export function BookingPage() {
     setGridAvailability(null);
     if (locationId && date && !weekMode) {
       locationService.getGridAvailability(locationId, date, ts)
-        .then((ga) => { if (ga.gridRows > 0) setGridAvailability(ga); })
+        .then((ga) => {
+          if (ga.gridRows > 0) setGridAvailability(ga);
+        })
         .catch(() => {});
     }
   };
@@ -154,14 +151,15 @@ export function BookingPage() {
     if (!locationId || !date || !timeSlot) return;
     setIsSubmitting(true);
     setError(null);
-    // When the location came from the user's preference, send null so the API
-    // can resolve + fall back. When the user picked a location explicitly
-    // (step 1 or URL param), honor that exact choice without fallback.
     const submittedLocationId = locationFromPreference ? null : locationId;
 
     try {
       if (weekMode) {
-        const result = await bookingService.createWeek({ locationId: submittedLocationId, weekStartDate: date, timeSlot });
+        const result = await bookingService.createWeek({
+          locationId: submittedLocationId,
+          weekStartDate: date,
+          timeSlot,
+        });
         const hasFallback = result.createdBookings.some((b) => b.fallbackReason);
         if (result.skippedDays.length > 0 || hasFallback) {
           setWeekResult({ created: result.createdBookings, skipped: result.skippedDays });
@@ -178,70 +176,73 @@ export function BookingPage() {
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        ?? 'Failed to create booking.';
+        ?? t('booking.createFailed');
       setError(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <div className="flex h-64 items-center justify-center text-gray-400">Loading...</div>;
-  }
+  if (loading) return <LoadingSpinner />;
 
-  // Single-booking fallback summary (only shown when server reports a fallback)
+  /* -------- Single-booking fallback summary ------------------------- */
   if (singleResult) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Booking Created</h1>
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-          <div className="mb-4 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {singleResult.fallbackReason}
+        <PageHeader title={t('booking.singleResultTitle')} subtitle={t('booking.singleResultSubtitle')} />
+        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-6 shadow-card">
+          <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
+            <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{singleResult.fallbackReason}</span>
           </div>
-          <dl className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <dt className="text-gray-500">Location</dt>
-              <dd className="font-medium text-gray-900">{singleResult.locationName}</dd>
-            </div>
-            <div className="flex justify-between text-sm">
-              <dt className="text-gray-500">Date</dt>
-              <dd className="font-medium text-gray-900">{formatDateDE(singleResult.date)}</dd>
-            </div>
-            <div className="flex justify-between text-sm">
-              <dt className="text-gray-500">Time Slot</dt>
-              <dd className="font-medium text-gray-900">{singleResult.timeSlot}</dd>
-            </div>
-          </dl>
+          <SummaryRow label={t('booking.labelLocation')} value={singleResult.locationName} />
+          <SummaryRow label={t('booking.labelDate')} value={formatDateShort(singleResult.date)} />
+          <SummaryRow label={t('booking.labelTimeSlot')} value={t(`components.timeSlot.${singleResult.timeSlot}`)} />
           <button
             type="button"
             onClick={() => navigate('/my-bookings')}
-            className="mt-6 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="mt-6 rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            Go to My Bookings
+            {t('booking.goToMyBookings')}
           </button>
         </div>
       </div>
     );
   }
 
-  // Week booking result summary
+  /* -------- Week booking result summary ----------------------------- */
   if (weekResult) {
     const fallbackBookings = weekResult.created.filter((b) => b.fallbackReason);
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Week Booking Summary</h1>
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-          <div className="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-            {weekResult.created.length} booking{weekResult.created.length !== 1 ? 's' : ''} created successfully.
+        <PageHeader title={t('booking.weekResultTitle')} subtitle={t('booking.weekResultSubtitle')} />
+        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-6 shadow-card">
+          <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">
+            <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>
+              <Trans
+                i18nKey="booking.weekCreated"
+                count={weekResult.created.length}
+                values={{ count: weekResult.created.length }}
+                components={{ strong: <span className="font-semibold" /> }}
+              />
+            </span>
           </div>
+
           {fallbackBookings.length > 0 && (
-            <div className="mb-4">
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Days booked at a fallback location:</h3>
-              <ul className="space-y-1">
+            <div className="mb-5">
+              <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.fallbackHeading')}</h3>
+              <ul className="space-y-1.5">
                 {fallbackBookings.map((b) => (
-                  <li key={b.id} className="flex items-start gap-2 text-sm text-amber-800">
-                    <span className="mt-1.5 inline-block h-2 w-2 flex-shrink-0 rounded-full bg-amber-400" />
-                    <span>{formatDateDE(b.date)} → <strong>{b.locationName}</strong>. {b.fallbackReason}</span>
+                  <li key={b.id} className="flex items-start gap-2 text-[13px] text-amber-800">
+                    <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                    <span>
+                      {formatDateShort(b.date)} → <strong>{b.locationName}</strong>. {b.fallbackReason}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -249,118 +250,178 @@ export function BookingPage() {
           )}
           {weekResult.skipped.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Skipped days:</h3>
-              <ul className="space-y-1">
+              <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.skippedHeading')}</h3>
+              <ul className="space-y-1.5">
                 {weekResult.skipped.map((s) => (
-                  <li key={s.date} className="flex items-center gap-2 text-sm text-amber-700">
-                    <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-                    {formatDateDE(s.date)} — {s.reason}
+                  <li key={s.date} className="flex items-center gap-2 text-[13px] text-amber-700">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    {formatDateShort(s.date)} — {s.reason}
                   </li>
                 ))}
               </ul>
             </div>
           )}
+
           <button
             type="button"
             onClick={() => navigate('/my-bookings')}
-            className="mt-6 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="mt-6 rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600"
           >
-            Go to My Bookings
+            {t('booking.goToMyBookings')}
           </button>
         </div>
       </div>
     );
   }
 
+  /* -------- Main flow ----------------------------------------------- */
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Book a Parking Spot</h1>
+      <PageHeader
+        title={t('booking.pageTitle')}
+        subtitle={
+          selectedLocation
+            ? (weekMode
+                ? t('booking.pickWeekSubtitle', { location: selectedLocation.name })
+                : t('booking.pickDateSubtitle', { location: selectedLocation.name }))
+            : t('booking.selectLocationSubtitle')
+        }
+      />
 
-      {/* Step indicator */}
-      <div className="mt-6 flex gap-2">
+      {/* Stepper */}
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         {STEPS.map((label, i) => {
           const stepNum = i + 1;
           const isCurrent = step === stepNum;
           const isDone = step > stepNum;
+
+          let cls = 'inline-flex items-center gap-2 rounded-full pr-3.5 py-1 pl-1 text-[12.5px] font-medium transition-colors';
+          let circleCls = 'grid h-5 w-5 place-items-center rounded-full text-[10.5px] font-semibold';
+
+          if (isCurrent) {
+            cls += ' bg-brand-100 text-brand-800';
+            circleCls += ' bg-brand-500 text-white';
+          } else if (isDone) {
+            cls += ' bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer';
+            circleCls += ' bg-emerald-500 text-white';
+          } else {
+            cls += ' bg-line/60 text-ink-300';
+            circleCls += ' bg-line-strong text-white';
+          }
+
           return (
-            <button
-              key={label}
-              type="button"
-              onClick={() => { if (isDone) setStep(stepNum); }}
-              disabled={!isDone}
-              className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                isCurrent
-                  ? 'bg-blue-100 text-blue-800'
-                  : isDone
-                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                    : 'bg-gray-100 text-gray-400'
-              }`}
-            >
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                isCurrent ? 'bg-blue-500 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-gray-300 text-white'
-              }`}>
-                {isDone ? '\u2713' : stepNum}
-              </span>
-              {label}
-            </button>
+            <div key={label} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDone) setStep(stepNum);
+                }}
+                disabled={!isDone}
+                className={cls}
+              >
+                <span className={circleCls}>{isDone ? '✓' : stepNum}</span>
+                {label}
+              </button>
+              {i < STEPS.length - 1 && (
+                <svg className="h-3.5 w-3.5 text-ink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </div>
           );
         })}
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-[13px] text-rose-800">
+          <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{error}</span>
+        </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-7">
         {/* Step 1: Location */}
         {step === 1 && (
           <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-700">Select a location</h2>
-            <LocationSelector
-              locations={locations}
-              selectedId={locationId}
-              onChange={handleLocationSelect}
-            />
+            <h2 className="mb-4 text-[15px] font-semibold text-ink-700">{t('booking.selectLocation')}</h2>
+            <LocationSelector locations={locations} selectedId={locationId} onChange={handleLocationSelect} />
           </div>
         )}
 
         {/* Step 2: Date */}
         {step === 2 && (
           <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-700">
-              Select a {weekMode ? 'week' : 'date'} at {selectedLocation?.name}
-            </h2>
-
-            {/* Week mode toggle */}
-            <label className="mb-4 flex items-center gap-2 text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={weekMode}
-                onChange={(e) => { setWeekMode(e.target.checked); setDate(null); }}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[15px] font-semibold text-ink-700">
+                {weekMode
+                  ? t('booking.selectWeekAt', { location: selectedLocation?.name ?? '' })
+                  : t('booking.selectDateAt', { location: selectedLocation?.name ?? '' })}
+              </h2>
+              <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-700">
+                <span className="relative inline-flex h-5 w-9 items-center">
+                  <input
+                    type="checkbox"
+                    checked={weekMode}
+                    onChange={(e) => {
+                      setWeekMode(e.target.checked);
+                      setDate(null);
+                    }}
+                    className="peer sr-only"
+                  />
+                  <span className="absolute inset-0 rounded-full bg-line-strong peer-checked:bg-brand-500 transition-colors" />
+                  <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+                </span>
+                {t('booking.bookEntireWeek')}
+              </label>
+            </div>
+            <div className="grid gap-7 lg:grid-cols-[420px_1fr]">
+              <CalendarPicker
+                selectedDate={date}
+                onSelect={handleDateSelect}
+                blockedDates={blockedDates}
+                availability={availabilityMap}
+                minDate={minDate}
+                maxDate={maxDate}
+                weekMode={weekMode}
               />
-              Book entire week (Mon - Fri)
-            </label>
-
-            <CalendarPicker
-              selectedDate={date}
-              onSelect={handleDateSelect}
-              blockedDates={blockedDates}
-              availability={availabilityMap}
-              minDate={minDate}
-              maxDate={maxDate}
-              weekMode={weekMode}
-            />
+              <div className="space-y-4">
+                <div className="rounded-card border border-line bg-brand-50/40 p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-500 text-white">
+                      <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-[12.5px] leading-relaxed text-brand-900">
+                      <Trans i18nKey="booking.lotteryInfo" components={{ b: <b /> }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-card border border-line bg-white p-5 text-[12.5px] text-ink-500">
+                  <div className="font-semibold text-ink-700">{t('booking.tip')}</div>
+                  <Trans
+                    i18nKey="booking.calendarLegend"
+                    components={{
+                      green: <span className="text-emerald-700" />,
+                      amber: <span className="text-amber-700" />,
+                      rose: <span className="text-rose-700" />,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Step 3: Time Slot */}
         {step === 3 && (
           <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-700">
-              Select a time slot for {weekMode && date
-                ? `${formatDateDE(date)} - ${formatDateDE(getWeekFriday(date))}`
-                : date}
+            <h2 className="mb-4 text-[15px] font-semibold text-ink-700">
+              {weekMode && date
+                ? t('booking.selectTimeSlotForWeek', { start: formatDateShort(date), end: formatDateShort(getWeekFriday(date)) })
+                : date && t('booking.selectTimeSlotFor', { date: formatDateLong(date) })}
             </h2>
             <TimeSlotSelector
               value={timeSlot}
@@ -374,67 +435,85 @@ export function BookingPage() {
         {/* Step 4: Review & Submit */}
         {step === 4 && (
           <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-700">Review your booking</h2>
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <dl className="space-y-3">
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Location</dt>
-                  <dd className="text-sm font-medium text-gray-900">{selectedLocation?.name}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">{weekMode ? 'Week' : 'Date'}</dt>
-                  <dd className="text-sm font-medium text-gray-900">
-                    {weekMode && date
-                      ? `${formatDateDE(date)} - ${formatDateDE(getWeekFriday(date))}`
-                      : date && new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
-                          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-                        })
-                    }
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Time Slot</dt>
-                  <dd className="text-sm font-medium text-gray-900">{timeSlot}</dd>
-                </div>
+            <h2 className="mb-4 text-[15px] font-semibold text-ink-700">{t('booking.reviewTitle')}</h2>
+            <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+              <div className="rounded-card border border-line bg-white p-6 shadow-card">
+                <SummaryRow label={t('booking.labelLocation')} value={selectedLocation?.name ?? '—'} />
+                <SummaryRow
+                  label={weekMode ? t('booking.labelWeek') : t('booking.labelDate')}
+                  value={
+                    weekMode && date
+                      ? `${formatDateShort(date)} – ${formatDateShort(getWeekFriday(date))}`
+                      : date
+                        ? formatDateLong(date)
+                        : '—'
+                  }
+                />
+                <SummaryRow label={t('booking.labelTimeSlot')} value={timeSlot ? t(`components.timeSlot.${timeSlot}`) : '—'} />
                 {weekMode && (
-                  <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                    Individual bookings will be created for each weekday. Days that are blocked or already booked will be skipped.
+                  <div className="mt-4 flex items-start gap-2 rounded-lg bg-brand-50 px-3 py-2.5 text-[12px] text-brand-800">
+                    <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('booking.weekInfo')}
                   </div>
                 )}
-              </dl>
 
-              {gridAvailability && !weekMode && (
-                <div className="mt-6">
-                  <h3 className="mb-2 text-sm font-medium text-gray-700">Parking Layout</h3>
-                  <ParkingGridView availability={gridAvailability} />
+                {gridAvailability && !weekMode && (
+                  <div className="mt-6">
+                    <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.parkingLayout')}</h3>
+                    <ParkingGridView availability={gridAvailability} />
+                  </div>
+                )}
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken"
+                  >
+                    {t('booking.startOver')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="rounded-lg bg-brand-500 px-5 py-2 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600 disabled:opacity-60"
+                  >
+                    {isSubmitting ? t('booking.submitting') : weekMode ? t('booking.bookingWeek') : t('booking.confirmBooking')}
+                  </button>
                 </div>
-              )}
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Start over
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSubmitting
-                    ? 'Booking...'
-                    : weekMode
-                      ? 'Book Entire Week'
-                      : 'Confirm Booking'}
-                </button>
               </div>
+              <aside className="rounded-card border border-line bg-surface-warm p-5 text-[12.5px] leading-relaxed text-ink-500">
+                <div className="font-semibold text-ink-900 text-[13px]">{t('booking.whatHappensNext')}</div>
+                <ol className="mt-3 space-y-2.5">
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">1.</span>{t('booking.next1')}</li>
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">2.</span><Trans i18nKey="booking.next2" components={{ b: <b /> }} /></li>
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">3.</span><Trans i18nKey="booking.next3" components={{ b: <b /> }} /></li>
+                </ol>
+              </aside>
             </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div>
+      <h1 className="text-[26px] font-bold tracking-tight text-ink-900">{title}</h1>
+      {subtitle && <p className="mt-1 text-[13.5px] text-ink-400">{subtitle}</p>}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-line py-3 last:border-b-0">
+      <div className="text-[12.5px] text-ink-400">{label}</div>
+      <div className="text-[13.5px] font-medium text-ink-900">{value}</div>
     </div>
   );
 }

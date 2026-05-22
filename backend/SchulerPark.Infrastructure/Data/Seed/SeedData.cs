@@ -132,7 +132,7 @@ public static class SeedData
 
         foreach (var user in users)
         {
-            if (!await context.Users.AnyAsync(u => u.Id == user.Id))
+            if (!await context.Users.AnyAsync(u => u.Id == user.Id || u.Email == user.Email))
             {
                 var password = (user.Id == AdminUserId || user.Id == SuperAdminUserId)
                     ? "Admin123!"

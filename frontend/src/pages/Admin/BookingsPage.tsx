@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { BookingStatusBadge } from '../../components/BookingStatusBadge';
 import type { AdminLocation, AdminBooking } from '../../types/admin';
@@ -7,6 +8,7 @@ import type { BookingStatus } from '../../types/booking';
 const STATUS_OPTIONS = ['All', 'Pending', 'Won', 'Lost', 'Confirmed', 'Cancelled', 'Expired'];
 
 export function BookingsPage() {
+  const { t } = useTranslation();
   const [locations, setLocations] = useState<AdminLocation[]>([]);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -14,7 +16,6 @@ export function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
   const [locationFilter, setLocationFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [fromFilter, setFromFilter] = useState('');
@@ -40,85 +41,169 @@ export function BookingsPage() {
       });
       setBookings(res.bookings);
       setTotalCount(res.totalCount);
-    } catch { setError('Failed to load bookings.'); }
-    finally { setLoading(false); }
+    } catch {
+      setError('Failed to load bookings.');
+    } finally {
+      setLoading(false);
+    }
   }, [locationFilter, statusFilter, fromFilter, toFilter, page]);
 
-  useEffect(() => { loadBookings(); }, [loadBookings]);
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">All Bookings</h1>
-      <p className="mt-1 text-sm text-gray-500">{totalCount} booking{totalCount !== 1 ? 's' : ''} total</p>
+      <h1 className="text-[26px] font-bold tracking-tight text-ink-900">{t('admin.allBookings')}</h1>
+      <p className="mt-1 text-[13.5px] text-ink-400">
+        <span className="font-medium text-ink-700 num">{totalCount}</span> booking{totalCount !== 1 ? 's' : ''} match your filters.
+      </p>
 
-      {error && <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && (
+        <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-[13px] text-rose-800">{error}</div>
+      )}
 
       {/* Filters */}
-      <div className="mt-4 flex flex-wrap gap-3">
-        <select value={locationFilter} onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-          <option value="">All Locations</option>
-          {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-
-        <input type="date" value={fromFilter} onChange={(e) => { setFromFilter(e.target.value); setPage(1); }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="From" />
-        <input type="date" value={toFilter} onChange={(e) => { setToFilter(e.target.value); setPage(1); }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="To" />
+      <div className="mt-5 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
+          <select
+            value={locationFilter}
+            onChange={(e) => {
+              setLocationFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+          >
+            <option value="">All locations</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">From</label>
+          <input
+            type="date"
+            value={fromFilter}
+            onChange={(e) => {
+              setFromFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 num"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">To</label>
+          <input
+            type="date"
+            value={toFilter}
+            onChange={(e) => {
+              setToFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 num"
+          />
+        </div>
       </div>
 
       {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
+        <table className="min-w-full num">
+          <thead className="bg-surface-warm">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Time</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">User</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Slot</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+              <Th>Date</Th>
+              <Th>Time</Th>
+              <Th>Location</Th>
+              <Th>User</Th>
+              <Th>Slot</Th>
+              <Th>Status</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-line">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">Loading...</td></tr>
-            ) : bookings.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">No bookings found.</td></tr>
-            ) : bookings.map((b) => (
-              <tr key={b.id}>
-                <td className="px-4 py-3 text-sm text-gray-900">{b.date}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{b.timeSlot}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{b.locationName}</td>
-                <td className="px-4 py-3 text-sm">
-                  <div className="text-gray-900">{b.userDisplayName}</div>
-                  <div className="text-xs text-gray-400">{b.userEmail}</div>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{b.parkingSlotNumber ?? '—'}</td>
-                <td className="px-4 py-3"><BookingStatusBadge status={b.status as BookingStatus} /></td>
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-ink-400">Loading…</td>
               </tr>
-            ))}
+            ) : bookings.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-ink-400">No bookings match your filters.</td>
+              </tr>
+            ) : (
+              bookings.map((b) => (
+                <tr key={b.id} className="hover:bg-surface-warm/60">
+                  <Td className="font-medium text-ink-900">{b.date}</Td>
+                  <Td className="text-ink-500">{b.timeSlot}</Td>
+                  <Td className="text-ink-700">{b.locationName}</Td>
+                  <Td>
+                    <div className="text-ink-900">{b.userDisplayName}</div>
+                    <div className="text-[11.5px] text-ink-400">{b.userEmail}</div>
+                  </Td>
+                  <Td className="font-semibold text-ink-700">
+                    {b.parkingSlotNumber ?? <span className="font-normal text-ink-300">—</span>}
+                  </Td>
+                  <Td>
+                    <BookingStatusBadge status={b.status as BookingStatus} />
+                  </Td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50">Previous</button>
-          <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50">Next</button>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
+          >
+            ← Previous
+          </button>
+          <span className="text-[12.5px] text-ink-400">
+            Page <span className="font-semibold text-ink-700 num">{page}</span> of <span className="num">{totalPages}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
+          >
+            Next →
+          </button>
         </div>
       )}
     </div>
   );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">
+      {children}
+    </th>
+  );
+}
+function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-4 py-3.5 text-[13.5px] text-ink-700 ${className}`}>{children}</td>;
 }

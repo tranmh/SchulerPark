@@ -5,25 +5,25 @@ interface Props {
 }
 
 const statusStyles: Record<SlotStatus, string> = {
-  Free: 'bg-green-100 border-green-400 text-green-800',
-  Booked: 'bg-red-100 border-red-400 text-red-800',
-  Blocked: 'bg-gray-200 border-gray-400 text-gray-500',
-  Own: 'bg-blue-100 border-blue-500 text-blue-800 ring-2 ring-blue-300',
-  Inactive: 'bg-gray-100 border-gray-300 text-gray-400 opacity-50',
+  Free:     'bg-emerald-50 border-emerald-300 text-emerald-800',
+  Booked:   'bg-rose-50 border-rose-300 text-rose-800',
+  Blocked:  'bg-ink-100 border-ink-200 text-ink-500',
+  Own:      'bg-brand-100 border-brand-400 text-brand-800 ring-2 ring-brand-300/50',
+  Inactive: 'bg-line/50 border-line text-ink-300 opacity-60',
 };
 
 const cellTypeStyles: Record<GridCellType, string> = {
-  Empty: 'bg-white border-gray-100',
-  Road: 'bg-gray-600 border-gray-700',
-  Obstacle: 'bg-gray-800 border-gray-900',
-  Entrance: 'bg-emerald-200 border-emerald-400',
-  Label: 'bg-yellow-100 border-yellow-400',
+  Empty:    'bg-white border-line border-dashed',
+  Road:     'bg-ink-500 border-ink-600',
+  Obstacle: 'bg-ink-800 border-ink-900',
+  Entrance: 'bg-brand-300 border-brand-400 text-white',
+  Label:    'bg-yellow-100 border-yellow-300 text-yellow-900',
 };
 
 const legendItems: { status: SlotStatus; label: string }[] = [
-  { status: 'Free', label: 'Available' },
-  { status: 'Booked', label: 'Booked' },
-  { status: 'Own', label: 'Your Booking' },
+  { status: 'Free',    label: 'Available' },
+  { status: 'Booked',  label: 'Booked' },
+  { status: 'Own',     label: 'Your booking' },
   { status: 'Blocked', label: 'Blocked' },
 ];
 
@@ -42,9 +42,9 @@ export function ParkingGridView({ availability }: Props) {
 
   return (
     <div>
-      <div className="overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-2">
+      <div className="overflow-auto rounded-card border border-line bg-surface-warm p-3 scroll-thin">
         <div
-          className="grid gap-1"
+          className="grid gap-1.5"
           style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(44px, 1fr))` }}
         >
           {gridCells.map(({ row, col }) => {
@@ -52,8 +52,9 @@ export function ParkingGridView({ availability }: Props) {
             const slot = slotMap.get(key);
             const cell = cellMap.get(key);
 
-            let className = 'flex min-h-[44px] items-center justify-center rounded border text-xs font-medium ';
-            let content = '';
+            let className =
+              'flex min-h-[44px] items-center justify-center rounded-md border text-[11px] font-semibold num ';
+            let content: React.ReactNode = '';
 
             if (slot) {
               className += statusStyles[slot.status];
@@ -63,14 +64,18 @@ export function ParkingGridView({ availability }: Props) {
               if (cell.cellType === 'Label') content = cell.label ?? '';
               if (cell.cellType === 'Entrance') content = '\u2B95';
             } else {
-              className += 'bg-white border-gray-100';
+              className += 'bg-white border-line';
             }
 
             return (
               <div
                 key={key}
                 className={className}
-                title={slot ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} - ${slot.status}` : undefined}
+                title={
+                  slot
+                    ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} - ${slot.status}`
+                    : undefined
+                }
               >
                 {content}
               </div>
@@ -79,12 +84,11 @@ export function ParkingGridView({ availability }: Props) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-4">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {legendItems.map(({ status, label }) => (
           <div key={status} className="flex items-center gap-1.5">
-            <div className={`h-3 w-3 rounded border ${statusStyles[status]}`} />
-            <span className="text-xs text-gray-600">{label}</span>
+            <span className={`h-3 w-3 rounded-sm border ${statusStyles[status]}`} />
+            <span className="text-[11.5px] text-ink-500">{label}</span>
           </div>
         ))}
       </div>

@@ -22,24 +22,21 @@ interface Props {
 }
 
 const cellTypeStyles: Record<GridCellType, string> = {
-  Empty: 'bg-white border-gray-200',
-  Road: 'bg-gray-600 border-gray-700',
-  Obstacle: 'bg-gray-800 border-gray-900',
-  Entrance: 'bg-emerald-200 border-emerald-400',
-  Label: 'bg-yellow-100 border-yellow-400',
-};
-
-const cellTypeText: Record<GridCellType, string> = {
-  Empty: '',
-  Road: '',
-  Obstacle: '',
-  Entrance: '',
-  Label: '',
+  Empty:    'bg-white border-line',
+  Road:     'bg-ink-500 border-ink-600',
+  Obstacle: 'bg-ink-800 border-ink-900',
+  Entrance: 'bg-brand-300 border-brand-400 text-white',
+  Label:    'bg-yellow-100 border-yellow-300 text-yellow-900',
 };
 
 export function GridEditor({
-  rows, columns, placedSlots, placedCells,
-  onCellClick, onCellDrop, onCellRightClick,
+  rows,
+  columns,
+  placedSlots,
+  placedCells,
+  onCellClick,
+  onCellDrop,
+  onCellRightClick,
 }: Props) {
   const cells: { row: number; col: number }[] = [];
   for (let r = 0; r < rows; r++) {
@@ -49,9 +46,9 @@ export function GridEditor({
   }
 
   return (
-    <div className="overflow-auto rounded-lg border border-gray-300 bg-gray-100 p-2">
+    <div className="overflow-auto rounded-card border border-line bg-surface-warm p-3 scroll-thin">
       <div
-        className="grid gap-1"
+        className="grid gap-1.5"
         style={{
           gridTemplateColumns: `repeat(${columns}, minmax(48px, 1fr))`,
         }}
@@ -61,25 +58,30 @@ export function GridEditor({
           const slot = placedSlots.get(key);
           const cell = placedCells.get(key);
 
-          let className = 'flex min-h-[48px] items-center justify-center rounded border text-xs font-medium transition-colors ';
-          let content = '';
+          let className =
+            'flex min-h-[48px] items-center justify-center rounded-md border text-[11px] font-semibold num transition-colors ';
+          let content: React.ReactNode = '';
 
           if (slot) {
-            className += 'bg-blue-100 border-blue-400 text-blue-800 cursor-pointer';
+            className += 'bg-brand-100 border-brand-400 text-brand-800 cursor-pointer hover:bg-brand-200';
             content = slot.slotNumber;
           } else if (cell) {
             className += cellTypeStyles[cell.cellType] + ' cursor-pointer';
-            content = cell.cellType === 'Label' ? (cell.label ?? 'Label') : cellTypeText[cell.cellType];
+            content = cell.cellType === 'Label' ? (cell.label ?? 'Label') : '';
             if (cell.cellType === 'Entrance') content = '\u2B95';
           } else {
-            className += 'bg-white border-gray-200 border-dashed cursor-pointer hover:bg-gray-50';
+            className += 'bg-white border-line border-dashed cursor-pointer hover:bg-brand-50/30 hover:border-brand-300';
           }
 
           return (
             <div
               key={key}
               className={className}
-              title={slot ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} [${row},${col}]` : `[${row},${col}]`}
+              title={
+                slot
+                  ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} [${row},${col}]`
+                  : `[${row},${col}]`
+              }
               onClick={() => onCellClick(row, col)}
               onContextMenu={(e) => {
                 e.preventDefault();
