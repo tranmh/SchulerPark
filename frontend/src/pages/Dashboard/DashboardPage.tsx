@@ -130,7 +130,7 @@ export function DashboardPage() {
             </div>
           </div>
         ) : (
-          <StatCard label={t('dashboard.statLotteryCutoff')} value="16:00" hint={t('dashboard.statLotteryHint')} />
+          <StatCard label={t('dashboard.statLotteryCutoff')} value="22:00" hint={t('dashboard.statLotteryHint')} />
         )}
       </div>
 
