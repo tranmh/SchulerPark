@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import de from './locales/de.json';
 
-const STORAGE_KEY = 'schulerpark.lang';
+const STORAGE_KEY = 'louise.lang';
 const SUPPORTED = ['de', 'en'] as const;
 type Lang = typeof SUPPORTED[number];
 
@@ -14,6 +14,7 @@ function readStoredLang(): Lang {
   } catch {
     // ignore (private mode, etc.)
   }
+  if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')) return 'en';
   return 'de';
 }
 

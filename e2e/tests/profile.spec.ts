@@ -15,8 +15,8 @@ test.describe('Profile & DSGVO', () => {
     await page.getByRole('link', { name: /profile/i }).click();
     await expect(page).toHaveURL('/profile');
 
-    await expect(page.getByText('Display Name')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Car License Plate')).toBeVisible();
+    await expect(page.getByText(/display name/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/car licence plate/i)).toBeVisible();
   });
 
   test('profile page has data export button', async ({ page }) => {
@@ -35,6 +35,6 @@ test.describe('Profile & DSGVO', () => {
 
   test('privacy page is accessible without login', async ({ page }) => {
     await page.goto('/privacy');
-    await expect(page.getByText(/privacy/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /privacy/i })).toBeVisible();
   });
 });

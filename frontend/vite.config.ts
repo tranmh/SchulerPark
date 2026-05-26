@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'SchulerPark - Parkplatz Buchungssystem',
-        short_name: 'SchulerPark',
+        name: 'LouisE - Parkplatz Buchungssystem',
+        short_name: 'LouisE',
         description: 'Parking slot booking system for Schuler office locations',
         theme_color: '#111827',
         background_color: '#f9fafb',

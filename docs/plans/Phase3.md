@@ -91,8 +91,8 @@ public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
 ```bash
 dotnet ef migrations add AddRefreshTokens \
-    --project SchulerPark.Infrastructure \
-    --startup-project SchulerPark.Api \
+    --project LouisE.Infrastructure \
+    --startup-project LouisE.Api \
     --output-dir Data/Migrations
 ```
 
@@ -105,8 +105,8 @@ dotnet ef migrations add AddRefreshTokens \
 public class JwtSettings
 {
     public string Secret { get; set; } = string.Empty;       // min 32 bytes for HMAC-SHA256
-    public string Issuer { get; set; } = "SchulerPark";
-    public string Audience { get; set; } = "SchulerPark";
+    public string Issuer { get; set; } = "LouisE";
+    public string Audience { get; set; } = "LouisE";
     public int ExpiryMinutes { get; set; } = 60;
     public int RefreshExpiryDays { get; set; } = 7;
 }
@@ -211,7 +211,7 @@ Dependencies: `AppDbContext`, `ITokenService`, `IPasswordHasher<User>`, `IOption
 - Extracts claims: `oid`, `email`/`preferred_username`, `name`
 - Returns null when Azure AD is not configured
 
-**Modify:** `Infrastructure/SchulerPark.Infrastructure.csproj` — add:
+**Modify:** `Infrastructure/LouisE.Infrastructure.csproj` — add:
 ```xml
 <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.*" />
 ```
@@ -325,8 +325,8 @@ Dev credentials: `admin@schulerpark.local` / `Admin123!`
 {
   "Jwt": {
     "Secret": "DEVELOPMENT_ONLY_SECRET_CHANGE_IN_PRODUCTION_MIN_32_CHARS!!",
-    "Issuer": "SchulerPark",
-    "Audience": "SchulerPark",
+    "Issuer": "LouisE",
+    "Audience": "LouisE",
     "ExpiryMinutes": 60,
     "RefreshExpiryDays": 7
   },
@@ -515,7 +515,7 @@ interface Props { children: ReactNode; requireAdmin?: boolean; }
 | `Core/Entities/User.cs` | Add RefreshTokens navigation |
 | `Infrastructure/Data/AppDbContext.cs` | Add RefreshTokens DbSet |
 | `Infrastructure/Data/Seed/SeedData.cs` | Real password hash for admin |
-| `Infrastructure/SchulerPark.Infrastructure.csproj` | Add Microsoft.Extensions.Identity.Core |
+| `Infrastructure/LouisE.Infrastructure.csproj` | Add Microsoft.Extensions.Identity.Core |
 | `Api/Program.cs` | JWT auth, DI, middleware, Swagger auth |
 
 ### New Frontend Files (7)
@@ -558,8 +558,8 @@ interface Props { children: ReactNode; requireAdmin?: boolean; }
 | `email` | User.Email | Display/lookup |
 | `name` | User.DisplayName | Display |
 | `role` | "User" or "Admin" | [Authorize] policies |
-| `iss` | "SchulerPark" | Validation |
-| `aud` | "SchulerPark" | Validation |
+| `iss` | "LouisE" | Validation |
+| `aud` | "LouisE" | Validation |
 | `jti` | new Guid | Unique token ID |
 | `exp` | iat + 60 min | Expiry |
 

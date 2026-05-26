@@ -7,7 +7,7 @@ test.describe('Admin → All Bookings (read-only view)', () => {
   let baseURL: string;
 
   test.beforeAll(async () => {
-    baseURL = process.env.BASE_URL || 'http://localhost:5173';
+    baseURL = process.env.BASE_URL || 'http://localhost:8080';
     api = await AdminApi.create(baseURL);
   });
   test.afterAll(async () => { await api.dispose(); });
@@ -15,9 +15,9 @@ test.describe('Admin → All Bookings (read-only view)', () => {
   test('renders bookings page with a total count', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/bookings');
-    await expect(page.getByRole('heading', { name: 'All Bookings' })).toBeVisible();
-    // Match either "X bookings total" or "0 bookings total"
-    await expect(page.getByText(/booking[s]? total/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /all bookings/i })).toBeVisible();
+    // Match either "X bookings match your filters" or "0 bookings match your filters"
+    await expect(page.getByText(/booking[s]? match your filters/i)).toBeVisible();
   });
 
   test('status filter narrows results', async ({ page }) => {
@@ -33,15 +33,17 @@ test.describe('Admin → All Bookings (read-only view)', () => {
       r.url().includes('/api/admin/bookings') && r.url().includes('status=Pending') && r.status() === 200
     );
 
-    // All visible status badges (if any) should read "Pending"
-    const badges = page.locator('table tbody td:last-child span');
+    // All visible status badges (if any) should read "Pending".
+    // BookingStatusBadge renders an outer <span> pill wrapping an inner dot
+    // <span> and the status text — match only the outer pill.
+    const badges = page.locator('table tbody td:last-child > span');
     const count = await badges.count();
     if (count > 0) {
       for (let i = 0; i < count; i++) {
         await expect(badges.nth(i)).toHaveText(/Pending/i);
       }
     } else {
-      await expect(page.getByText(/no bookings found/i)).toBeVisible();
+      await expect(page.getByText(/no bookings match your filters/i)).toBeVisible();
     }
   });
 
@@ -57,8 +59,8 @@ test.describe('Admin → All Bookings (read-only view)', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/bookings');
 
-    await expect(page.getByText('0 bookings total')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(/no bookings found/i)).toBeVisible();
+    await expect(page.getByText(/0 bookings match your filters/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/no bookings match your filters/i)).toBeVisible();
   });
 
   test('renders error state when bookings API returns 500 (mocked)', async ({ page }) => {
@@ -98,7 +100,7 @@ test.describe('Admin → All Bookings (read-only view)', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/bookings');
 
-    await expect(page.getByText('25 bookings total')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/25 bookings match your filters/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Next' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Previous' })).toBeDisabled();
   });

@@ -55,10 +55,10 @@ export function AppLayout({ children }: Props) {
         <div className="flex h-16 items-center justify-between px-5">
           <div className="flex items-center gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-700 text-[13px] font-extrabold tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
-              SP
+              LE
             </span>
             <div className="leading-tight">
-              <div className="text-[15px] font-semibold tracking-tight">SchulerPark</div>
+              <div className="text-[15px] font-semibold tracking-tight">LouisE</div>
               <div className="text-[10.5px] text-ink-400">{t('nav.tagline')}</div>
             </div>
           </div>

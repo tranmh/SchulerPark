@@ -1,4 +1,4 @@
-# SchulerPark - Parking Slot Booking System
+# LouisE - Parking Slot Booking System
 
 ## Context
 Build a greenfield parking slot booking system for multiple office locations (Goeppingen, Erfurt, Hessdorf, Gemmingen). Employees book morning or afternoon parking slots, a fair lottery assigns slots when demand exceeds supply, and users confirm actual usage. The app must support Azure AD SSO with local auth fallback. DSGVO-compliant (German GDPR).
@@ -44,7 +44,7 @@ Build a greenfield parking slot booking system for multiple office locations (Go
 │   └── vite.config.ts
 │
 ├── backend/
-│   ├── SchulerPark.Api/          # API host
+│   ├── LouisE.Api/          # API host
 │   │   ├── Controllers/
 │   │   │   ├── AuthController.cs
 │   │   │   ├── BookingController.cs
@@ -53,11 +53,11 @@ Build a greenfield parking slot booking system for multiple office locations (Go
 │   │   │   └── AdminController.cs
 │   │   ├── Middleware/
 │   │   └── Program.cs
-│   ├── SchulerPark.Core/         # Domain layer
+│   ├── LouisE.Core/         # Domain layer
 │   │   ├── Entities/
 │   │   ├── Enums/
 │   │   └── Interfaces/
-│   ├── SchulerPark.Infrastructure/ # Data + services
+│   ├── LouisE.Infrastructure/ # Data + services
 │   │   ├── Data/
 │   │   │   ├── AppDbContext.cs
 │   │   │   ├── Migrations/
@@ -76,7 +76,7 @@ Build a greenfield parking slot booking system for multiple office locations (Go
 │   │       ├── LotteryJob.cs
 │   │       ├── ConfirmationExpiryJob.cs
 │   │       └── DataRetentionJob.cs
-│   └── SchulerPark.sln
+│   └── LouisE.sln
 ```
 
 ---
@@ -215,9 +215,9 @@ GET    /api/privacy                       # Privacy notice / DSGVO info
 1. Create monorepo folder structure
 2. Initialize .NET 10 solution with 3 projects:
    - `dotnet new sln` in `/backend`
-   - `dotnet new webapi` for SchulerPark.Api
-   - `dotnet new classlib` for SchulerPark.Core
-   - `dotnet new classlib` for SchulerPark.Infrastructure
+   - `dotnet new webapi` for LouisE.Api
+   - `dotnet new classlib` for LouisE.Core
+   - `dotnet new classlib` for LouisE.Infrastructure
    - Add project references (Api → Infrastructure → Core)
 3. Install NuGet packages:
    - Api: `Microsoft.Identity.Web`, `Hangfire`, `Swashbuckle`

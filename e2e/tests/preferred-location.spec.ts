@@ -47,7 +47,7 @@ test.describe('Preferred parking location', () => {
     await uiLogin(page, LISA_EMAIL, LISA_PASSWORD);
     await page.goto('/profile');
 
-    const select = page.getByLabel('Preferred Parking Location');
+    const select = page.locator('#preferredLocation');
     await expect(select).toBeVisible({ timeout: 5000 });
     await expect(select).toHaveValue('');
 
@@ -57,7 +57,7 @@ test.describe('Preferred parking location', () => {
 
     // Reload and verify the choice round-tripped from the server.
     await page.reload();
-    await expect(page.getByLabel('Preferred Parking Location')).toHaveValue(WEINGARTEN_ID);
+    await expect(page.locator('#preferredLocation')).toHaveValue(WEINGARTEN_ID);
   });
 
   test('booking page auto-preselects the preferred location and skips step 1', async ({ page, request }) => {
@@ -82,7 +82,7 @@ test.describe('Preferred parking location', () => {
     await expect(page.getByRole('heading', { name: /select a date at weingarten/i }))
       .toBeVisible({ timeout: 10000 });
     // Step 1 "Select a location" copy should NOT be visible.
-    await expect(page.getByText('Select a location')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Select a location' })).toBeHidden();
   });
 
   test('API fallback: booking with preferred=Goeppingen on a Goeppingen-blocked date assigns another location', async ({ request }) => {

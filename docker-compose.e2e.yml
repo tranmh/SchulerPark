@@ -1,17 +1,17 @@
-# Dev overrides — auto-loaded by `docker compose up`
-# Production skips this file: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# E2E overrides — use free host ports to avoid clashing with other local stacks.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
 services:
   db:
     ports:
-      - "5432:5432"
+      - "5434:5432"
 
   mailhog:
     image: mailhog/mailhog:latest
     container_name: louise-mailhog
     restart: unless-stopped
     ports:
-      - "1026:1025"
-      - "8026:8025"
+      - "1027:1025"
+      - "8027:8025"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025"]
       interval: 10s
@@ -23,19 +23,19 @@ services:
     container_name: louise-app
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8090:8080"
     depends_on:
       db:
         condition: service_healthy
     environment:
       ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:-changeme}"
       Jwt__Secret: "${JWT_SECRET:-CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS}"
-      AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
-      AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
-      AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
-      Smtp__Host: "${SMTP_HOST:-mailhog}"
-      Smtp__Port: "${SMTP_PORT:-1025}"
-      Smtp__Username: "${SMTP_USERNAME}"
-      Smtp__Password: "${SMTP_PASSWORD}"
-      Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.local}"
+      AzureAd__TenantId: "${AZURE_AD_TENANT_ID:-}"
+      AzureAd__ClientId: "${AZURE_AD_CLIENT_ID:-}"
+      AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET:-}"
+      Smtp__Host: "mailhog"
+      Smtp__Port: "1025"
+      Smtp__Username: ""
+      Smtp__Password: ""
+      Smtp__FromAddress: "noreply@schulerpark.local"
       ASPNETCORE_ENVIRONMENT: Development

@@ -49,45 +49,45 @@ Create a .NET 10 solution with three projects following clean-architecture layer
 1. In `/backend`, create the solution:
    ```bash
    cd backend
-   dotnet new sln -n SchulerPark
+   dotnet new sln -n LouisE
    ```
 2. Create the **API** project:
    ```bash
-   dotnet new webapi -n SchulerPark.Api -o SchulerPark.Api --framework net10.0
+   dotnet new webapi -n LouisE.Api -o LouisE.Api --framework net10.0
    ```
 3. Create the **Core** (domain) class library:
    ```bash
-   dotnet new classlib -n SchulerPark.Core -o SchulerPark.Core --framework net10.0
+   dotnet new classlib -n LouisE.Core -o LouisE.Core --framework net10.0
    ```
 4. Create the **Infrastructure** (data + services) class library:
    ```bash
-   dotnet new classlib -n SchulerPark.Infrastructure -o SchulerPark.Infrastructure --framework net10.0
+   dotnet new classlib -n LouisE.Infrastructure -o LouisE.Infrastructure --framework net10.0
    ```
 5. Add all three projects to the solution:
    ```bash
-   dotnet sln add SchulerPark.Api/SchulerPark.Api.csproj
-   dotnet sln add SchulerPark.Core/SchulerPark.Core.csproj
-   dotnet sln add SchulerPark.Infrastructure/SchulerPark.Infrastructure.csproj
+   dotnet sln add LouisE.Api/LouisE.Api.csproj
+   dotnet sln add LouisE.Core/LouisE.Core.csproj
+   dotnet sln add LouisE.Infrastructure/LouisE.Infrastructure.csproj
    ```
 6. Set up **project references** (dependency graph: Api → Infrastructure → Core):
    ```bash
-   dotnet add SchulerPark.Api reference SchulerPark.Infrastructure
-   dotnet add SchulerPark.Api reference SchulerPark.Core
-   dotnet add SchulerPark.Infrastructure reference SchulerPark.Core
+   dotnet add LouisE.Api reference LouisE.Infrastructure
+   dotnet add LouisE.Api reference LouisE.Core
+   dotnet add LouisE.Infrastructure reference LouisE.Core
    ```
 7. Create placeholder directory structure inside each project:
-   - `SchulerPark.Api/Controllers/`
-   - `SchulerPark.Api/Middleware/`
-   - `SchulerPark.Core/Entities/`
-   - `SchulerPark.Core/Enums/`
-   - `SchulerPark.Core/Interfaces/`
-   - `SchulerPark.Infrastructure/Data/`
-   - `SchulerPark.Infrastructure/Data/Migrations/`
-   - `SchulerPark.Infrastructure/Data/Seed/`
-   - `SchulerPark.Infrastructure/Repositories/`
-   - `SchulerPark.Infrastructure/Services/`
-   - `SchulerPark.Infrastructure/Services/Strategies/`
-   - `SchulerPark.Infrastructure/Jobs/`
+   - `LouisE.Api/Controllers/`
+   - `LouisE.Api/Middleware/`
+   - `LouisE.Core/Entities/`
+   - `LouisE.Core/Enums/`
+   - `LouisE.Core/Interfaces/`
+   - `LouisE.Infrastructure/Data/`
+   - `LouisE.Infrastructure/Data/Migrations/`
+   - `LouisE.Infrastructure/Data/Seed/`
+   - `LouisE.Infrastructure/Repositories/`
+   - `LouisE.Infrastructure/Services/`
+   - `LouisE.Infrastructure/Services/Strategies/`
+   - `LouisE.Infrastructure/Jobs/`
 
 **Verification:**
 - `dotnet build` succeeds from `/backend`.
@@ -100,7 +100,7 @@ Create a .NET 10 solution with three projects following clean-architecture layer
 
 Install all required NuGet packages per project.
 
-**SchulerPark.Api:**
+**LouisE.Api:**
 | Package | Purpose |
 |---|---|
 | `Microsoft.Identity.Web` | Azure AD OIDC authentication |
@@ -110,7 +110,7 @@ Install all required NuGet packages per project.
 | `Swashbuckle.AspNetCore` | Swagger / OpenAPI documentation |
 
 ```bash
-cd SchulerPark.Api
+cd LouisE.Api
 dotnet add package Microsoft.Identity.Web
 dotnet add package Microsoft.Identity.Web.UI
 dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
@@ -118,7 +118,7 @@ dotnet add package Hangfire.AspNetCore
 dotnet add package Swashbuckle.AspNetCore
 ```
 
-**SchulerPark.Infrastructure:**
+**LouisE.Infrastructure:**
 | Package | Purpose |
 |---|---|
 | `Npgsql.EntityFrameworkCore.PostgreSQL` | EF Core PostgreSQL provider |
@@ -127,14 +127,14 @@ dotnet add package Swashbuckle.AspNetCore
 | `Hangfire.PostgreSql` | Hangfire PostgreSQL storage backend |
 
 ```bash
-cd SchulerPark.Infrastructure
+cd LouisE.Infrastructure
 dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet add package Microsoft.EntityFrameworkCore.Design
 dotnet add package MailKit
 dotnet add package Hangfire.PostgreSql
 ```
 
-**SchulerPark.Core:**
+**LouisE.Core:**
 - No external dependencies (pure domain layer).
 
 **Verification:**
@@ -224,7 +224,7 @@ Create a `Dockerfile` at repo root with three build stages.
 - Copy `backend/*.sln` and all `**/*.csproj` files
 - Run `dotnet restore`
 - Copy remaining backend source
-- Run `dotnet publish SchulerPark.Api -c Release -o /app/publish`
+- Run `dotnet publish LouisE.Api -c Release -o /app/publish`
 - Output: `/app/publish`
 
 **Stage 3 — Runtime:**
@@ -234,10 +234,10 @@ Create a `Dockerfile` at repo root with three build stages.
 - Copy frontend `dist/` to `wwwroot/` folder within published output
 - Expose port `8080`
 - Set `ASPNETCORE_URLS=http://+:8080`
-- Entrypoint: `dotnet SchulerPark.Api.dll`
+- Entrypoint: `dotnet LouisE.Api.dll`
 
 **Verification:**
-- `docker build -t schulerpark .` completes successfully.
+- `docker build -t louise .` completes successfully.
 - Image size is reasonable (< 500 MB).
 
 ---
@@ -248,22 +248,22 @@ Create `docker-compose.yml` at repo root defining two services.
 
 **Service: `db` (PostgreSQL)**
 - Image: `postgres:16-alpine`
-- Container name: `schulerpark-db`
+- Container name: `louise-db`
 - Environment variables (from `.env`):
-  - `POSTGRES_DB=schulerpark`
-  - `POSTGRES_USER=schulerpark`
+  - `POSTGRES_DB=louise`
+  - `POSTGRES_USER=louise`
   - `POSTGRES_PASSWORD=${DB_PASSWORD}`
 - Volumes: `postgres_data:/var/lib/postgresql/data`
-- Healthcheck: `pg_isready -U schulerpark`
+- Healthcheck: `pg_isready -U louise`
 - Ports: `5432:5432` (for local dev access)
 
 **Service: `app`**
 - Build context: `.` (uses root Dockerfile)
-- Container name: `schulerpark-app`
+- Container name: `louise-app`
 - Ports: `8080:8080`
 - Depends on: `db` (condition: `service_healthy`)
 - Environment variables:
-  - `ConnectionStrings__Default=Host=db;Port=5432;Database=schulerpark;Username=schulerpark;Password=${DB_PASSWORD}`
+  - `ConnectionStrings__Default=Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD}`
   - `ASPNETCORE_ENVIRONMENT=Development`
 
 **Named Volume:**
@@ -321,7 +321,7 @@ SMTP_HOST=
 SMTP_PORT=587
 SMTP_USERNAME=
 SMTP_PASSWORD=
-SMTP_FROM_ADDRESS=noreply@schulerpark.local
+SMTP_FROM_ADDRESS=noreply@louise.local
 
 # App
 ASPNETCORE_ENVIRONMENT=Development
@@ -333,7 +333,7 @@ ASPNETCORE_ENVIRONMENT=Development
 
 ### Step 9: Configure Backend Program.cs (Minimal Setup)
 
-Update `Program.cs` in `SchulerPark.Api` to include minimal startup configuration needed for Phase 1 verification:
+Update `Program.cs` in `LouisE.Api` to include minimal startup configuration needed for Phase 1 verification:
 
 **Tasks:**
 1. Configure Kestrel to listen on port 8080.
@@ -452,19 +452,19 @@ After Phase 1 is complete, the repository will contain:
 │   ├── vite.config.ts
 │   └── index.html
 ├── backend/
-│   ├── SchulerPark.sln
-│   ├── SchulerPark.Api/
-│   │   ├── SchulerPark.Api.csproj
+│   ├── LouisE.sln
+│   ├── LouisE.Api/
+│   │   ├── LouisE.Api.csproj
 │   │   ├── Program.cs
 │   │   ├── Controllers/
 │   │   └── Middleware/
-│   ├── SchulerPark.Core/
-│   │   ├── SchulerPark.Core.csproj
+│   ├── LouisE.Core/
+│   │   ├── LouisE.Core.csproj
 │   │   ├── Entities/
 │   │   ├── Enums/
 │   │   └── Interfaces/
-│   └── SchulerPark.Infrastructure/
-│       ├── SchulerPark.Infrastructure.csproj
+│   └── LouisE.Infrastructure/
+│       ├── LouisE.Infrastructure.csproj
 │       ├── Data/
 │       │   ├── Migrations/
 │       │   └── Seed/

@@ -5,11 +5,11 @@ import { BookingStatusBadge } from './BookingStatusBadge';
 describe('BookingStatusBadge', () => {
   it.each([
     ['Pending', 'Pending', 'amber'],
-    ['Won', 'Won — Confirm!', 'green'],
-    ['Lost', 'Lost', 'red'],
-    ['Confirmed', 'Confirmed', 'blue'],
-    ['Cancelled', 'Cancelled', 'gray'],
-    ['Expired', 'Expired', 'gray'],
+    ['Won', 'Won — Confirm', 'emerald'],
+    ['Lost', 'Lost', 'rose'],
+    ['Confirmed', 'Confirmed', 'brand'],
+    ['Cancelled', 'Cancelled', 'ink'],
+    ['Expired', 'Expired', 'ink'],
   ] as const)('renders %s status with correct label and color', (status, label, color) => {
     render(<BookingStatusBadge status={status} />);
     const badge = screen.getByText(label);

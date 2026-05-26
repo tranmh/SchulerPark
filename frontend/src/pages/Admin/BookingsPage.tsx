@@ -68,8 +68,9 @@ export function BookingsPage() {
       {/* Filters */}
       <div className="mt-5 flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
+          <label htmlFor="bookings-location" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
           <select
+            id="bookings-location"
             value={locationFilter}
             onChange={(e) => {
               setLocationFilter(e.target.value);
@@ -84,8 +85,9 @@ export function BookingsPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Status</label>
+          <label htmlFor="bookings-status" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Status</label>
           <select
+            id="bookings-status"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
@@ -99,8 +101,9 @@ export function BookingsPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">From</label>
+          <label htmlFor="bookings-from" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">From</label>
           <input
+            id="bookings-from"
             type="date"
             value={fromFilter}
             onChange={(e) => {
@@ -111,8 +114,9 @@ export function BookingsPage() {
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">To</label>
+          <label htmlFor="bookings-to" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">To</label>
           <input
+            id="bookings-to"
             type="date"
             value={toFilter}
             onChange={(e) => {

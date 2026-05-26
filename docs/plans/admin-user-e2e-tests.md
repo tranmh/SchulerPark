@@ -20,7 +20,7 @@ The work happens in the `arbiter-e2e-tests` worktree. Approved decisions:
 
 ### What runs against the real stack
 
-The dev seed (`backend/SchulerPark.Infrastructure/Data/Seed/SeedData.cs`) provides everything we need:
+The dev seed (`backend/LouisE.Infrastructure/Data/Seed/SeedData.cs`) provides everything we need:
 - Admin user `admin@schulerpark.local` / `Admin123!`
 - 6 locations (Goeppingen, Erfurt, Hessdorf, Gemmingen, Weingarten, Netphen)
 - ~20 test users (`anna.mueller@schuler.de` / `Test1234!`, `finn.werner@schuler.de` / `Test1234!`, etc.)
@@ -90,7 +90,7 @@ Backend controllers / services or frontend service code — only if a test surfa
 ## Execution Plan
 
 1. **Stack up**
-   - Terminal A: `cd backend && dotnet run --project SchulerPark.Api` (binds `:5000`)
+   - Terminal A: `cd backend && dotnet run --project LouisE.Api` (binds `:5000`)
    - Terminal B: `cd frontend && npm install && npm run dev` (Vite at `:5173`, proxies `/api` → `:5000`)
    - Wait until `GET http://localhost:5173/api/health` returns 200.
 2. **Add Playwright env override**

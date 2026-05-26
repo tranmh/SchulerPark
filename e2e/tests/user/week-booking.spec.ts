@@ -19,6 +19,35 @@ test.describe('User → Week booking', () => {
       while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
       return d.toISOString().split('T')[0];
     })();
+
+    // Clean up any existing Finn bookings that conflict with the target week,
+    // location and time slot. Without this the API returns 400 ("all days
+    // skipped") whenever a prior run already booked this user/location/week.
+    const weekDates = (() => {
+      const ds: string[] = [];
+      const start = new Date(monday + 'T00:00:00');
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        ds.push(d.toISOString().split('T')[0]);
+      }
+      return new Set(ds);
+    })();
+    const myRes = await request.get('/api/bookings/my?pageSize=100', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (myRes.ok()) {
+      const my: { bookings: Array<{ id: string; date: string; locationId: string; timeSlot: string }> }
+        = await myRes.json();
+      for (const b of my.bookings) {
+        if (weekDates.has(b.date) && b.locationId === loc.id && b.timeSlot === 'Morning') {
+          await request.delete(`/api/bookings/${b.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+      }
+    }
+
     const res = await request.post('/api/bookings/week', {
       headers: { Authorization: `Bearer ${token}` },
       data: { locationId: loc.id, weekStartDate: monday, timeSlot: 'Morning' },
@@ -34,13 +63,22 @@ test.describe('User → Week booking', () => {
     await loginAsFinn(page);
     await page.goto('/booking');
 
-    await page.getByRole('button', { name: /^Goeppingen/ }).click();
+    await page.getByRole('button', { name: /^G Goeppingen/ }).click();
 
-    // Toggle week mode
-    await page.getByRole('checkbox', { name: /book entire week/i }).check();
+    // Toggle week mode. The checkbox is visually hidden behind a styled
+    // <span> sibling that intercepts pointer events, so click the label.
+    await page.locator('label:has-text("Book entire week")').click();
 
-    // Click a Monday day-cell for next week
-    const day = String(new Date(nextMonday() + 'T00:00:00').getDate());
+    // Navigate the calendar forward until next Monday's month is visible.
+    const target = new Date(nextMonday() + 'T00:00:00');
+    const now = new Date();
+    const monthDelta = (target.getFullYear() - now.getFullYear()) * 12
+      + (target.getMonth() - now.getMonth());
+    for (let i = 0; i < monthDelta; i++) {
+      await page.getByRole('button', { name: /next month/i }).click();
+    }
+
+    const day = String(target.getDate());
     await page.getByRole('button', { name: day, exact: true }).first().click();
 
     // Time slot

@@ -28,7 +28,7 @@ public class SmtpSettings
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string FromAddress { get; set; } = "noreply@schulerpark.local";
-    public string FromName { get; set; } = "SchulerPark";
+    public string FromName { get; set; } = "LouisE";
     public bool IsConfigured => !string.IsNullOrEmpty(Host);
 }
 ```

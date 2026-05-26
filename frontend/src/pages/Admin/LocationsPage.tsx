@@ -210,7 +210,7 @@ export function LocationsPage() {
       {modalOpen && (
         <Modal title={editingId ? 'Edit location' : 'New location'} onClose={() => setModalOpen(false)}>
           <div className="space-y-4">
-            <FormField label="Name">
+            <FormField label="Name" htmlFor="location-name">
               <input
                 id="location-name"
                 value={formName}
@@ -218,7 +218,7 @@ export function LocationsPage() {
                 className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
               />
             </FormField>
-            <FormField label="Address">
+            <FormField label="Address" htmlFor="location-address">
               <input
                 id="location-address"
                 value={formAddress}
@@ -297,10 +297,10 @@ function Pill({
   );
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
       {children}
     </div>
   );

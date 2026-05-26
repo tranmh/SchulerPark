@@ -66,9 +66,9 @@ export function LoginPage() {
         <div className="relative z-10 flex h-full flex-col p-12 text-white">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-brand-300 to-brand-700 text-[14px] font-extrabold tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
-              SP
+              LE
             </span>
-            <span className="text-[15px] font-semibold tracking-tight">SchulerPark</span>
+            <span className="text-[15px] font-semibold tracking-tight">LouisE</span>
           </div>
 
           <div className="mt-auto">
@@ -94,9 +94,9 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-700 text-[14px] font-extrabold text-white">
-              SP
+              LE
             </span>
-            <span className="text-[15px] font-semibold tracking-tight text-ink-900">SchulerPark</span>
+            <span className="text-[15px] font-semibold tracking-tight text-ink-900">LouisE</span>
           </div>
           <h1 className="text-[24px] font-bold tracking-tight text-ink-900">{t('auth.welcomeBack')}</h1>
           <p className="mt-1 text-[13.5px] text-ink-400">{t('auth.welcomeBackSubtitle')}</p>

@@ -2,7 +2,7 @@
 
 ## Context
 
-SchulerPark already lets a user set a **preferred location** (`User.PreferredLocationId`); if the preferred location is unavailable on a given date, `BookingService.ResolveLocationAsync` picks a random alternative.
+LouisE already lets a user set a **preferred location** (`User.PreferredLocationId`); if the preferred location is unavailable on a given date, `BookingService.ResolveLocationAsync` picks a random alternative.
 
 Users now also want to pin a **preferred parking slot** inside their preferred location (e.g., "slot A-12, closest to the entrance"). When a user wins the daily lottery, they should get that slot if it's free; if someone else takes it first, they should get the **nearest available** slot on the grid rather than a random one.
 
@@ -26,7 +26,7 @@ Outcome: a user sets a preferred location + preferred slot in their profile; the
 Both algorithms implement the same interface and are interchangeable. The placement pipeline (direct-match pass → nearest pass → random pass) is identical — only the distance metric differs.
 
 ```csharp
-// backend/SchulerPark.Core/Interfaces/ISlotDistanceMetric.cs  (new)
+// backend/LouisE.Core/Interfaces/ISlotDistanceMetric.cs  (new)
 public interface ISlotDistanceMetric
 {
     // Returns int.MaxValue if unreachable or coords missing.
@@ -117,25 +117,25 @@ Tiebreakers are deterministic: `(distance, row, col, SlotNumber)`. Tests stay st
 
 ### Backend
 
-- **Add** `backend/SchulerPark.Core/Interfaces/ISlotDistanceMetric.cs` — interface above.
-- **Add** `backend/SchulerPark.Infrastructure/Services/Placement/ManhattanDistanceMetric.cs` — trivial implementation.
-- **Add** `backend/SchulerPark.Infrastructure/Services/Placement/BfsDistanceMetric.cs` — obstacle-aware variant (ship later, or ship both and default-register Manhattan).
-- **Add** `backend/SchulerPark.Core/Interfaces/ISlotPlacer.cs` + `backend/SchulerPark.Infrastructure/Services/Placement/PreferenceAwareSlotPlacer.cs` — holds the 3-pass pipeline. Constructor injects `ISlotDistanceMetric`.
-- **Modify** `backend/SchulerPark.Core/Entities/User.cs` — add `Guid? PreferredSlotId` + `ParkingSlot? PreferredSlot` navigation.
-- **Modify** `backend/SchulerPark.Infrastructure/Data/Configurations/UserConfiguration.cs` — add `HasOne(u => u.PreferredSlot).WithMany().HasForeignKey(u => u.PreferredSlotId).OnDelete(DeleteBehavior.SetNull);`.
-- **Add migration** — `dotnet ef migrations add AddUserPreferredSlot` in `SchulerPark.Infrastructure`. Adds nullable FK column.
-- **Modify** `backend/SchulerPark.Api/DTOs/Profile/UpdateProfileRequest.cs` — add `Guid? PreferredSlotId`.
-- **Modify** `backend/SchulerPark.Api/DTOs/Auth/UserDto.cs` — add `Guid? PreferredSlotId`.
-- **Modify** `backend/SchulerPark.Api/Controllers/ProfileController.cs`:
+- **Add** `backend/LouisE.Core/Interfaces/ISlotDistanceMetric.cs` — interface above.
+- **Add** `backend/LouisE.Infrastructure/Services/Placement/ManhattanDistanceMetric.cs` — trivial implementation.
+- **Add** `backend/LouisE.Infrastructure/Services/Placement/BfsDistanceMetric.cs` — obstacle-aware variant (ship later, or ship both and default-register Manhattan).
+- **Add** `backend/LouisE.Core/Interfaces/ISlotPlacer.cs` + `backend/LouisE.Infrastructure/Services/Placement/PreferenceAwareSlotPlacer.cs` — holds the 3-pass pipeline. Constructor injects `ISlotDistanceMetric`.
+- **Modify** `backend/LouisE.Core/Entities/User.cs` — add `Guid? PreferredSlotId` + `ParkingSlot? PreferredSlot` navigation.
+- **Modify** `backend/LouisE.Infrastructure/Data/Configurations/UserConfiguration.cs` — add `HasOne(u => u.PreferredSlot).WithMany().HasForeignKey(u => u.PreferredSlotId).OnDelete(DeleteBehavior.SetNull);`.
+- **Add migration** — `dotnet ef migrations add AddUserPreferredSlot` in `LouisE.Infrastructure`. Adds nullable FK column.
+- **Modify** `backend/LouisE.Api/DTOs/Profile/UpdateProfileRequest.cs` — add `Guid? PreferredSlotId`.
+- **Modify** `backend/LouisE.Api/DTOs/Auth/UserDto.cs` — add `Guid? PreferredSlotId`.
+- **Modify** `backend/LouisE.Api/Controllers/ProfileController.cs`:
   - In `UpdateProfile`, after validating `PreferredLocationId`: if `request.PreferredSlotId.HasValue`, require `request.PreferredLocationId.HasValue` AND that the slot exists, is active, and `slot.LocationId == request.PreferredLocationId.Value`. Throw `ValidationException` on mismatch.
   - Persist `user.PreferredSlotId = request.PreferredSlotId;`.
   - Include `PreferredSlotId` in `ToDto`.
-- **Modify** `backend/SchulerPark.Infrastructure/Services/LotteryService.cs` (lines 113–133):
+- **Modify** `backend/LouisE.Infrastructure/Services/LotteryService.cs` (lines 113–133):
   - Inject `ISlotPlacer` via constructor.
   - For both the "demand ≤ supply" and "demand > supply" branches: compute winners, then call `_placer.Place(winners, availableSlots, location, cells)` to produce the final slot assignments. Discard any `AssignedSlotId` the strategy filled in.
   - Eager-load `b.User` (already done) + also eager-load `PreferredSlot` via `.Include(b => b.User).ThenInclude(u => u.PreferredSlot)` so Pass 2 doesn't re-query per winner. Load `GridCell`s once per location at the start of `RunLotteryForSlotAsync`.
-- **Modify** `backend/SchulerPark.Infrastructure/Services/WaitlistService.cs` (`TryPromoteWaitlistAsync`, ~line 69-72): in the candidate ranking, add `.ThenByDescending(u => u.User.PreferredSlotId == freedSlotId)` as the first tiebreaker after the primary ordering, so a user who specifically preferred this freed slot jumps ahead of equal-weight peers.
-- **DI registration** in `backend/SchulerPark.Api/Program.cs`: `AddScoped<ISlotDistanceMetric, ManhattanDistanceMetric>()` and `AddScoped<ISlotPlacer, PreferenceAwareSlotPlacer>()`.
+- **Modify** `backend/LouisE.Infrastructure/Services/WaitlistService.cs` (`TryPromoteWaitlistAsync`, ~line 69-72): in the candidate ranking, add `.ThenByDescending(u => u.User.PreferredSlotId == freedSlotId)` as the first tiebreaker after the primary ordering, so a user who specifically preferred this freed slot jumps ahead of equal-weight peers.
+- **DI registration** in `backend/LouisE.Api/Program.cs`: `AddScoped<ISlotDistanceMetric, ManhattanDistanceMetric>()` and `AddScoped<ISlotPlacer, PreferenceAwareSlotPlacer>()`.
 
 ### Frontend
 
@@ -148,11 +148,11 @@ Tiebreakers are deterministic: `(distance, row, col, SlotNumber)`. Tests stay st
 
 ### Tests
 
-- **Unit** (`backend/SchulerPark.Tests/Unit/`):
+- **Unit** (`backend/LouisE.Tests/Unit/`):
   - `ManhattanDistanceMetricTests.cs` — same row, same col, diagonals, missing coords.
   - `BfsDistanceMetricTests.cs` — open grid (should match Manhattan), grid with obstacles (should differ), unreachable target.
   - `PreferenceAwareSlotPlacerTests.cs` — single winner with preferred free; two winners with same preferred (first-CreatedAt wins); preferred inactive / not in pool falls through to nearest; all-random fallback when nobody has preference.
-- **Integration** (`backend/SchulerPark.Tests/Integration/`):
+- **Integration** (`backend/LouisE.Tests/Integration/`):
   - `AuthTests.cs` / new `ProfilePreferredSlotTests.cs` — `PUT /api/profile` accepts + persists a valid slot; rejects a slot from a different location; rejects a slot with no `PreferredLocationId`.
   - Extend `BookingTests.cs` with a lottery test: seed two users both preferring slot A; run lottery; assert winner A gets slot A, winner B gets the Manhattan-nearest available slot.
 - **E2E** (`e2e/tests/preferred-slot.spec.ts`, mirror the existing `preferred-location.spec.ts`):

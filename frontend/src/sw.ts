@@ -26,7 +26,7 @@ registerRoute(
 
 // Push notification handler
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() ?? { title: 'SchulerPark', body: 'New notification' };
+  const data = event.data?.json() ?? { title: 'LouisE', body: 'New notification' };
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,

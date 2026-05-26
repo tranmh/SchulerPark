@@ -10,7 +10,13 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8080',
+    locale: 'en-US',
+    extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
     headless: true,
+    // The PWA service worker registers with a NetworkOnly strategy for /api/*.
+    // page.route() does not intercept SW-mediated fetches by default, which
+    // makes mocked API tests unreliable. Block SWs in test runs.
+    serviceWorkers: 'block',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
     video: {

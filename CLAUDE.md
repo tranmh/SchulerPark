@@ -1,4 +1,4 @@
-# SchulerPark - Parking Slot Booking System
+# LouisE - Parking Slot Booking System
 
 ## Project Overview
 Multi-location parking slot booking system with fair lottery assignment for Schuler office locations (Goeppingen, Erfurt, Hessdorf, Gemmingen, Weingarten, Netphen).
@@ -28,7 +28,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 # Backend (from /backend)
 dotnet restore
 dotnet build
-dotnet run --project SchulerPark.Api
+dotnet run --project LouisE.Api
 
 # Frontend (from /frontend)
 npm install

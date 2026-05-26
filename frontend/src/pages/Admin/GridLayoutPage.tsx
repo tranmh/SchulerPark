@@ -250,7 +250,7 @@ export function GridLayoutPage() {
       {/* Controls bar */}
       <div className="mt-6 flex flex-wrap items-end gap-4">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
+          <label htmlFor="grid-location" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
           <select
             id="grid-location"
             value={locationId}
@@ -266,8 +266,9 @@ export function GridLayoutPage() {
         {locationId && (
           <>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Rows</label>
+              <label htmlFor="grid-rows" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Rows</label>
               <input
+                id="grid-rows"
                 type="number"
                 min={1}
                 max={30}
@@ -277,8 +278,9 @@ export function GridLayoutPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Columns</label>
+              <label htmlFor="grid-columns" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Columns</label>
               <input
+                id="grid-columns"
                 type="number"
                 min={1}
                 max={30}

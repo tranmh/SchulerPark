@@ -23,7 +23,7 @@ test.describe('Health & Infrastructure', () => {
       return;
     }
     const body = await response.text();
-    expect(body).toMatch(/swagger|SchulerPark API/i);
+    expect(body).toMatch(/swagger|LouisE API/i);
     void page;
   });
 });

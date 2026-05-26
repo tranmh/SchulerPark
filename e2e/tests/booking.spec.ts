@@ -21,7 +21,7 @@ test.describe('Booking Flow', () => {
 
     await page.getByRole('link', { name: /book a spot/i }).click();
     await expect(page).toHaveURL('/booking');
-    await expect(page.getByText('Book a Parking Spot')).toBeVisible();
+    await expect(page.getByText(/book a parking spot/i)).toBeVisible();
   });
 
   test('booking page shows step indicators', async ({ page }) => {
@@ -29,10 +29,10 @@ test.describe('Booking Flow', () => {
     await page.goto('/booking');
 
     // Step indicators in the booking wizard
-    await expect(page.getByRole('button', { name: /Location/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Date/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Time Slot/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Confirm/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Location/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Date/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /time slot/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Confirm/i })).toBeVisible();
   });
 
   test('booking page shows locations to select', async ({ page }) => {
@@ -40,7 +40,7 @@ test.describe('Booking Flow', () => {
     await page.goto('/booking');
 
     // Step 1: should see location options
-    await expect(page.getByText('Select a location')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Select a location' })).toBeVisible();
     await expect(page.getByText('Goeppingen').first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Erfurt').first()).toBeVisible();
   });
@@ -51,7 +51,7 @@ test.describe('Booking Flow', () => {
 
     // Step 1: Select location — use exact name match because admin tests can
     // leave behind locations whose addresses contain "Goeppingen".
-    await page.getByRole('button', { name: /^Goeppingen/ }).click();
+    await page.getByRole('button', { name: /^G Goeppingen/ }).click();
 
     // Step 2: Date picker should appear
     await expect(page.getByText(/select a date at goeppingen/i)).toBeVisible({ timeout: 5000 });
@@ -62,7 +62,7 @@ test.describe('Booking Flow', () => {
 
     await page.getByRole('link', { name: /my bookings/i }).click();
     await expect(page).toHaveURL('/my-bookings');
-    await expect(page.getByRole('heading', { name: 'My Bookings' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /my bookings/i })).toBeVisible();
 
     // Should show either booking cards with Pending badges, or the empty state message
     const hasPending = await page.getByText('Pending').first().isVisible().catch(() => false);

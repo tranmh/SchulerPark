@@ -103,7 +103,7 @@ export function BlockedDaysPage() {
       )}
 
       <div className="mt-6">
-        <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
+        <label htmlFor="blocked-days-location" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
         <select
           id="blocked-days-location"
           value={selectedLocationId ?? ''}
@@ -173,7 +173,7 @@ export function BlockedDaysPage() {
               <p className="mt-1 text-[12.5px] text-ink-400">No bookings will be possible on this day.</p>
             </div>
             <div className="px-6 py-5">
-              <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Reason (optional)</label>
+              <label htmlFor="block-reason" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Reason (optional)</label>
               <input
                 id="block-reason"
                 value={reason}

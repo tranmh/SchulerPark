@@ -46,10 +46,10 @@ test.describe('Admin → Permissions / RBAC', () => {
 
   test('regular user does not see admin sidebar navigation', async ({ page }) => {
     await loginAsAnna(page);
-    await expect(page.getByRole('link', { name: 'Locations' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Parking Slots' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'All Bookings' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Lottery History' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Locations', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Parking Slots', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'All Bookings', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Lottery History', exact: true })).toHaveCount(0);
   });
 
   test('regular user receives 403 from /api/admin/locations', async ({ request }) => {

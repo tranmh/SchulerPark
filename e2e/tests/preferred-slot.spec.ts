@@ -45,11 +45,11 @@ test.describe('Preferred parking slot', () => {
     await uiLogin(page, LISA_EMAIL, LISA_PASSWORD);
     await page.goto('/profile');
 
-    const slot = page.getByLabel('Preferred Parking Slot');
+    const slot = page.locator('#preferredSlot');
     await expect(slot).toBeVisible({ timeout: 5000 });
     await expect(slot).toBeDisabled();
 
-    await page.getByLabel('Preferred Parking Location').selectOption({ label: 'Weingarten' });
+    await page.locator('#preferredLocation').selectOption({ label: 'Weingarten' });
     await expect(slot).toBeEnabled({ timeout: 5000 });
   });
 
@@ -57,9 +57,9 @@ test.describe('Preferred parking slot', () => {
     await uiLogin(page, LISA_EMAIL, LISA_PASSWORD);
     await page.goto('/profile');
 
-    await page.getByLabel('Preferred Parking Location').selectOption({ label: 'Weingarten' });
+    await page.locator('#preferredLocation').selectOption({ label: 'Weingarten' });
 
-    const slot = page.getByLabel('Preferred Parking Slot');
+    const slot = page.locator('#preferredSlot');
     await expect(slot).toBeEnabled({ timeout: 5000 });
 
     // Pick the first real slot option (index 0 is the "No preference" placeholder).
@@ -74,7 +74,7 @@ test.describe('Preferred parking slot', () => {
     await expect(page.getByText(/profile updated successfully/i)).toBeVisible({ timeout: 5000 });
 
     await page.reload();
-    await expect(page.getByLabel('Preferred Parking Slot')).toHaveValue(firstSlotValue);
+    await expect(page.locator('#preferredSlot')).toHaveValue(firstSlotValue);
   });
 
   test('profile page: changing preferred location clears the preferred slot', async ({ page, request }) => {
@@ -102,8 +102,8 @@ test.describe('Preferred parking slot', () => {
     await page.goto('/profile');
 
     // Change preferred location — slot select should reset to "No preference".
-    await page.getByLabel('Preferred Parking Location').selectOption(GOEPPINGEN_ID);
-    await expect(page.getByLabel('Preferred Parking Slot')).toHaveValue('');
+    await page.locator('#preferredLocation').selectOption(GOEPPINGEN_ID);
+    await expect(page.locator('#preferredSlot')).toHaveValue('');
   });
 
   test('API: rejects preferred slot without a preferred location', async ({ request }) => {

@@ -1,6 +1,6 @@
-# SchulerPark — Production Deployment Guide
+# LouisE — Production Deployment Guide
 
-Stepwise guide for deploying SchulerPark to a Rocky Linux 10 server behind a corporate proxy. Steps are split into **[USER]** (can run yourself) and **[ADMIN]** (needs root; request from server admin).
+Stepwise guide for deploying LouisE to a Rocky Linux 10 server behind a corporate proxy. Steps are split into **[USER]** (can run yourself) and **[ADMIN]** (needs root; request from server admin).
 
 ---
 
@@ -12,7 +12,7 @@ Stepwise guide for deploying SchulerPark to a Rocky Linux 10 server behind a cor
 | Server hostname | `park` |
 | Deploy user | `Prache.Maurya` (member of `docker` group, limited sudo for `dnf` only) |
 | Corporate proxy | `http://web.schuler.de:3128` |
-| Code location | `~/SchulerPark` on server |
+| Code location | `~/LouisE` on server |
 | DNS | `SITE_DOMAIN` must resolve to the server's public IP |
 
 Pre-installed on the server: **git**, **docker**, **docker compose**, **python3**.
@@ -92,7 +92,7 @@ sudo firewall-cmd --list-services   # should include http and https
 
 Rocky runs SELinux in enforcing mode. The Compose stack bind-mounts `Caddyfile` and `scripts/db-backup.sh` into containers; without relabeling, the containers get "Permission denied".
 
-Replace `<repo-path>` with the absolute path to the user's cloned repo (user provides via `readlink -f ~/SchulerPark`):
+Replace `<repo-path>` with the absolute path to the user's cloned repo (user provides via `readlink -f ~/LouisE`):
 
 ```bash
 sudo chcon -Rt container_file_t <repo-path>/Caddyfile <repo-path>/scripts/
@@ -112,10 +112,10 @@ git config --global https.proxy "http://web.schuler.de:3128"
 
 cd ~
 git clone https://github.com/tranmh/SchulerPark.git
-cd SchulerPark
+cd LouisE
 
 # Give admin the absolute path for step 4:
-readlink -f ~/SchulerPark
+readlink -f ~/LouisE
 ```
 
 ---
@@ -123,7 +123,7 @@ readlink -f ~/SchulerPark
 ## [USER] Step 6 — Create `.env` with secrets
 
 ```bash
-cd ~/SchulerPark
+cd ~/LouisE
 cp .env.production.example .env
 chmod 600 .env
 ```
@@ -183,7 +183,7 @@ If `docker pull` fails, go back to admin — step 2 isn't right.
 ## [USER] Step 8 — Build and start the stack
 
 ```bash
-cd ~/SchulerPark
+cd ~/LouisE
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build \
   --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy
@@ -221,7 +221,7 @@ Open `https://<SITE_DOMAIN>` in a browser. Log in with the seeded admin account:
 ## [USER] Step 10 — Updating later
 
 ```bash
-cd ~/SchulerPark
+cd ~/LouisE
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build \
   --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy
@@ -236,7 +236,7 @@ If a new clone is done (or SELinux context is lost), re-run step 4.
 
 ## Admin handoff — paste-ready block
 
-Copy this block into a ticket for the server admin. Fill in `<repo-path>` from `readlink -f ~/SchulerPark` first.
+Copy this block into a ticket for the server admin. Fill in `<repo-path>` from `readlink -f ~/LouisE` first.
 
 ```bash
 # 1. Packages

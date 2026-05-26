@@ -12,11 +12,11 @@ test.describe('Admin Features', () => {
   test('admin sees admin sidebar items', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await expect(page.getByRole('link', { name: 'Locations' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Parking Slots' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Blocked Days' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'All Bookings' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Lottery History' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Locations', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Parking Slots', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Blocked Days', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'All Bookings', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Lottery History', exact: true })).toBeVisible();
   });
 
   test('regular user does not see admin sidebar items', async ({ page }) => {
@@ -26,14 +26,14 @@ test.describe('Admin Features', () => {
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/', { timeout: 10000 });
 
-    await expect(page.getByRole('link', { name: 'Locations' })).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'All Bookings' })).not.toBeVisible();
+    await expect(page.getByRole('link', { name: 'Locations', exact: true })).not.toBeVisible();
+    await expect(page.getByRole('link', { name: 'All Bookings', exact: true })).not.toBeVisible();
   });
 
   test('admin locations page loads', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.getByRole('link', { name: 'Locations' }).click();
+    await page.getByRole('link', { name: 'Locations', exact: true }).click();
     await expect(page).toHaveURL('/admin/locations');
 
     // Should see seeded locations (use first() to avoid strict mode on name+address cells)
@@ -46,28 +46,28 @@ test.describe('Admin Features', () => {
   test('admin parking slots page loads', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.getByRole('link', { name: 'Parking Slots' }).click();
+    await page.getByRole('link', { name: 'Parking Slots', exact: true }).click();
     await expect(page).toHaveURL('/admin/slots');
   });
 
   test('admin blocked days page loads', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.getByRole('link', { name: 'Blocked Days' }).click();
+    await page.getByRole('link', { name: 'Blocked Days', exact: true }).click();
     await expect(page).toHaveURL('/admin/blocked-days');
   });
 
   test('admin all bookings page loads', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.getByRole('link', { name: 'All Bookings' }).click();
+    await page.getByRole('link', { name: 'All Bookings', exact: true }).click();
     await expect(page).toHaveURL('/admin/bookings');
   });
 
   test('admin lottery history page loads', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.getByRole('link', { name: 'Lottery History' }).click();
+    await page.getByRole('link', { name: 'Lottery History', exact: true }).click();
     await expect(page).toHaveURL('/admin/lottery-history');
   });
 

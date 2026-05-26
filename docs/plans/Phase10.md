@@ -40,18 +40,18 @@ A centered animated spinner with Tailwind, used by ProtectedRoute and anywhere "
 
 ### Step 5: Enhance ExceptionHandlingMiddleware
 
-**Modify:** `backend/SchulerPark.Api/Middleware/ExceptionHandlingMiddleware.cs`
+**Modify:** `backend/LouisE.Api/Middleware/ExceptionHandlingMiddleware.cs`
 - Add `TraceId` from `Activity.Current?.Id ?? context.TraceIdentifier` to ProblemDetails extensions
 - Add `Type` URIs for each error category
 
 ### Step 6: Add Input Validation to Backend
 
-**Modify:** `backend/SchulerPark.Api/Controllers/AdminController.cs`
+**Modify:** `backend/LouisE.Api/Controllers/AdminController.cs`
 - Validate CreateLocationRequest (name/address required, max length)
 - Validate CreateSlotRequest (slotNumber required)
 - Validate CreateBlockedDayRequest (date not in the past)
 
-**Modify:** `backend/SchulerPark.Api/Controllers/BookingController.cs`
+**Modify:** `backend/LouisE.Api/Controllers/BookingController.cs`
 - Validate CreateBookingRequest fields present
 
 These throw `ValidationException` which the middleware already handles.

@@ -1,11 +1,11 @@
-# SchulerPark — End-to-End Test Plan
+# LouisE — End-to-End Test Plan
 
 Covers all phases through the 3-tier role system (SuperAdmin / Admin / User) added in 2026-04.
 
 ## 1. Start the Stack
 
 ```bash
-cd SchulerPark
+cd LouisE
 cp .env.example .env
 docker compose up --build -d
 ```
@@ -18,7 +18,7 @@ Wait ~30 seconds for PostgreSQL + app startup + auto-migration + first-run boots
 docker compose ps
 ```
 
-Expect 3 containers: `schulerpark-db` (healthy), `schulerpark-app` (running), `schulerpark-mailhog` (running).
+Expect 3 containers: `louise-db` (healthy), `louise-app` (running), `louise-mailhog` (running).
 
 ```bash
 curl http://localhost:8080/api/health

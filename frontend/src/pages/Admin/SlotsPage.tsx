@@ -116,7 +116,7 @@ export function SlotsPage() {
       )}
 
       <div className="mt-6">
-        <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
+        <label htmlFor="slots-location" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
         <select
           id="slots-location"
           value={selectedLocationId ?? ''}
@@ -189,7 +189,7 @@ export function SlotsPage() {
       {modalOpen && (
         <Modal title={editingId ? 'Edit slot' : 'New slot'} onClose={() => setModalOpen(false)}>
           <div className="space-y-4">
-            <FormField label="Slot number">
+            <FormField label="Slot number" htmlFor="slot-number">
               <input
                 id="slot-number"
                 value={formSlotNumber}
@@ -198,7 +198,7 @@ export function SlotsPage() {
                 className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 num"
               />
             </FormField>
-            <FormField label="Label (optional)">
+            <FormField label="Label (optional)" htmlFor="slot-label">
               <input
                 id="slot-label"
                 value={formLabel}
@@ -267,10 +267,10 @@ function Pill({ tone, children }: { tone: 'active' | 'inactive'; children: React
     </span>
   );
 }
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
       {children}
     </div>
   );

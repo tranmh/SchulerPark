@@ -5,8 +5,8 @@ test.describe('Admin → Lottery History', () => {
   test('renders lottery history page with a total count', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/lottery-history');
-    await expect(page.getByRole('heading', { name: 'Lottery History' })).toBeVisible();
-    await expect(page.getByText(/run[s]? total/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /lottery history/i })).toBeVisible();
+    await expect(page.getByText(/run[s]? in total/i)).toBeVisible();
   });
 
   test('shows empty state when API returns no runs (mocked)', async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe('Admin → Lottery History', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/lottery-history');
 
-    await expect(page.getByText('0 runs total')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/0 runs in total/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/no lottery runs found/i)).toBeVisible();
   });
 
@@ -49,7 +49,7 @@ test.describe('Admin → Lottery History', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/lottery-history');
 
-    await expect(page.getByText('1 run total')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/1 run in total/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Mock Goeppingen')).toBeVisible();
     await expect(page.getByText('PureRandom')).toBeVisible();
     await expect(page.getByText('Morning')).toBeVisible();

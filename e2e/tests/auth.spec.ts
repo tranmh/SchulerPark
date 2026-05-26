@@ -5,16 +5,16 @@ test.describe('Authentication', () => {
     await page.goto('/');
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByText('SchulerPark')).toBeVisible();
+    await expect(page.getByText('LouisE').first()).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
     await expect(page.getByLabel('Password')).toBeVisible();
   });
 
   test('can navigate to register page', async ({ page }) => {
     await page.goto('/login');
-    await page.getByRole('link', { name: /register/i }).click();
+    await page.getByRole('link', { name: /create an account/i }).click();
     await expect(page).toHaveURL(/\/register/);
-    await expect(page.getByText('Create Account')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /create your account/i })).toBeVisible();
   });
 
   test('register a new user and land on dashboard', async ({ page }) => {
@@ -22,14 +22,14 @@ test.describe('Authentication', () => {
 
     await page.goto('/register');
     await page.getByLabel('Email').fill(uniqueEmail);
-    await page.getByLabel('Display Name').fill('Playwright User');
+    await page.getByLabel(/display name/i).fill('Playwright User');
     await page.getByLabel('Password', { exact: true }).fill('Test1234!');
-    await page.getByLabel('Confirm Password').fill('Test1234!');
-    await page.getByRole('button', { name: /register/i }).click();
+    await page.getByLabel(/confirm password/i).fill('Test1234!');
+    await page.getByRole('button', { name: /create account/i }).click();
 
     // Should redirect to dashboard
     await expect(page).toHaveURL('/', { timeout: 10000 });
-    await expect(page.getByText('SchulerPark')).toBeVisible();
+    await expect(page.getByText('LouisE').first()).toBeVisible();
     await expect(page.getByText('Playwright User')).toBeVisible();
   });
 
@@ -52,16 +52,16 @@ test.describe('Authentication', () => {
     await page.getByLabel('Password').fill('WrongPass!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
-    await expect(page.locator('.bg-red-50')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.bg-rose-50')).toBeVisible({ timeout: 5000 });
   });
 
   test('register with mismatched passwords shows error', async ({ page }) => {
     await page.goto('/register');
     await page.getByLabel('Email').fill('mismatch@schuler.de');
-    await page.getByLabel('Display Name').fill('Test');
+    await page.getByLabel(/display name/i).fill('Test');
     await page.getByLabel('Password', { exact: true }).fill('Test1234!');
-    await page.getByLabel('Confirm Password').fill('Different!');
-    await page.getByRole('button', { name: /register/i }).click();
+    await page.getByLabel(/confirm password/i).fill('Different!');
+    await page.getByRole('button', { name: /create account/i }).click();
 
     await expect(page.getByText('Passwords do not match')).toBeVisible();
   });

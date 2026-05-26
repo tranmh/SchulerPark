@@ -14,20 +14,20 @@ Users currently pick a location manually every time they book a parking slot. We
 
 ## Backend Changes
 
-### 1. Entity — `backend/SchulerPark.Core/Entities/User.cs`
+### 1. Entity — `backend/LouisE.Core/Entities/User.cs`
 Add:
 ```csharp
 public Guid? PreferredLocationId { get; set; }
 public Location? PreferredLocation { get; set; } // navigation
 ```
 
-### 2. EF Configuration — `backend/SchulerPark.Infrastructure/Data/Configurations/UserConfiguration.cs`
+### 2. EF Configuration — `backend/LouisE.Infrastructure/Data/Configurations/UserConfiguration.cs`
 Add FK: `User → Location` via `PreferredLocationId`, `OnDelete(DeleteBehavior.SetNull)`. No index needed (not queried by this column in hot paths).
 
 ### 3. Migration
 Create `AddUserPreferredLocation` migration via `dotnet ef migrations add`. Adds a nullable `PreferredLocationId uuid` column, an FK to `Locations(Id) ON DELETE SET NULL`, and regenerates the model snapshot.
 
-### 4. UserDto — `backend/SchulerPark.Api/DTOs/Auth/UserDto.cs`
+### 4. UserDto — `backend/LouisE.Api/DTOs/Auth/UserDto.cs`
 Append `Guid? PreferredLocationId`:
 ```csharp
 public record UserDto(Guid Id, string Email, string DisplayName, string? CarLicensePlate,
@@ -35,12 +35,12 @@ public record UserDto(Guid Id, string Email, string DisplayName, string? CarLice
 ```
 Update both `ProfileController.GetProfile/UpdateProfile` and `AuthController.ToUserDto`.
 
-### 5. UpdateProfileRequest — `backend/SchulerPark.Api/DTOs/Profile/UpdateProfileRequest.cs`
+### 5. UpdateProfileRequest — `backend/LouisE.Api/DTOs/Profile/UpdateProfileRequest.cs`
 ```csharp
 public record UpdateProfileRequest(string DisplayName, string? CarLicensePlate, Guid? PreferredLocationId);
 ```
 
-### 6. ProfileController — `backend/SchulerPark.Api/Controllers/ProfileController.cs`
+### 6. ProfileController — `backend/LouisE.Api/Controllers/ProfileController.cs`
 In `UpdateProfile`:
 - If `request.PreferredLocationId` is non-null, validate that a matching active Location exists; otherwise return 400 `ValidationException`.
 - Persist to `user.PreferredLocationId`.
@@ -48,13 +48,13 @@ In `UpdateProfile`:
 
 ### 7. Booking request DTOs
 Make `LocationId` nullable:
-- `backend/SchulerPark.Api/DTOs/Booking/CreateBookingRequest.cs` → `public record CreateBookingRequest(Guid? LocationId, DateOnly Date, string TimeSlot);`
-- `backend/SchulerPark.Api/DTOs/Booking/CreateWeekBookingRequest.cs` → same change
+- `backend/LouisE.Api/DTOs/Booking/CreateBookingRequest.cs` → `public record CreateBookingRequest(Guid? LocationId, DateOnly Date, string TimeSlot);`
+- `backend/LouisE.Api/DTOs/Booking/CreateWeekBookingRequest.cs` → same change
 
-### 8. BookingDto — `backend/SchulerPark.Api/DTOs/Booking/BookingDto.cs`
+### 8. BookingDto — `backend/LouisE.Api/DTOs/Booking/BookingDto.cs`
 Append `string? FallbackReason`. Populated only on create; `null` elsewhere. UI uses it to decide whether to show a fallback banner.
 
-### 9. Interface — `backend/SchulerPark.Core/Interfaces/IBookingService.cs`
+### 9. Interface — `backend/LouisE.Core/Interfaces/IBookingService.cs`
 Change signatures to accept nullable `Guid? locationId` and return fallback info:
 ```csharp
 Task<(Booking Booking, string? FallbackReason)> CreateBookingAsync(
@@ -65,7 +65,7 @@ Task<(List<(Booking Booking, string? FallbackReason)> Created,
     CreateWeekBookingAsync(Guid userId, Guid? locationId, DateOnly weekStartDate, TimeSlot timeSlot);
 ```
 
-### 10. BookingService — `backend/SchulerPark.Infrastructure/Services/BookingService.cs`
+### 10. BookingService — `backend/LouisE.Infrastructure/Services/BookingService.cs`
 
 Add a private resolver:
 ```csharp
@@ -87,12 +87,12 @@ Use this resolver in both `CreateBookingAsync` and each day of `CreateWeekBookin
 
 Keep existing validations (duplicate check, date range, etc.) running against the **resolved** location.
 
-### 11. BookingController — `backend/SchulerPark.Api/Controllers/BookingController.cs`
+### 11. BookingController — `backend/LouisE.Api/Controllers/BookingController.cs`
 - `Create`: pass `request.LocationId` (now nullable) to service; map returned `(Booking, FallbackReason)` to `BookingDto` with `FallbackReason`.
 - `CreateWeek`: pass `request.LocationId` (nullable); map `Created` list preserving `FallbackReason` per item.
 - `ToBookingDto` helper: add optional `string? fallbackReason` parameter.
 
-### 12. Tests — `backend/SchulerPark.Tests/Integration/BookingTests.cs`
+### 12. Tests — `backend/LouisE.Tests/Integration/BookingTests.cs`
 Update the local `UserDto` record so JSON deserialization keeps working after the field is added.
 
 ## Frontend Changes

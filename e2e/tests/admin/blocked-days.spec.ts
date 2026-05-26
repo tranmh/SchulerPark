@@ -8,7 +8,7 @@ test.describe('Admin → Blocked Days', () => {
   let testLocationId: string;
 
   test.beforeAll(async () => {
-    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:5173');
+    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
     const loc = await api.createLocation(uniqueName('BlockedDays-Loc'), 'Blocked Days Test');
     testLocationId = loc.id;
   });
@@ -26,7 +26,7 @@ test.describe('Admin → Blocked Days', () => {
 
     await loginAsAdmin(page);
     await page.goto('/admin/blocked-days');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#blocked-days-location').selectOption(testLocationId);
     await page.waitForResponse((r) => r.url().includes('/admin/blocked-days') && r.status() === 200);
 
     const row = page.locator('[data-testid="blocked-day-row"]', { hasText: reason });
@@ -41,7 +41,7 @@ test.describe('Admin → Blocked Days', () => {
 
     await loginAsAdmin(page);
     await page.goto('/admin/blocked-days');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#blocked-days-location').selectOption(testLocationId);
 
     const row = page.locator('[data-testid="blocked-day-row"]', { hasText: reason });
     await row.getByRole('button', { name: 'Remove' }).click();
@@ -57,7 +57,7 @@ test.describe('Admin → Blocked Days', () => {
   test('add-block modal opens when clicking a future calendar date and saves', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/blocked-days');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#blocked-days-location').selectOption(testLocationId);
 
     // Click a far-future date that's almost certainly not already blocked.
     // The calendar shows numbers 1..28-31 of the current month. Pick the 28th
@@ -73,8 +73,8 @@ test.describe('Admin → Blocked Days', () => {
     // Modal: "Block YYYY-MM-DD" heading
     await expect(page.getByRole('heading', { name: /^Block \d{4}-\d{2}-\d{2}$/ })).toBeVisible();
     const reason = `Modal-block ${Date.now()}`;
-    await page.getByLabel('Reason (optional)').fill(reason);
-    await page.getByRole('button', { name: 'Block Day' }).click();
+    await page.locator('#block-reason').fill(reason);
+    await page.getByRole('button', { name: /block day/i }).click();
 
     await expect(page.getByText(reason)).toBeVisible({ timeout: 10_000 });
   });

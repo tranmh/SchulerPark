@@ -92,21 +92,21 @@ Key design: strategies determine WHO wins, not WHICH slot. Slot assignment is al
 
 ### Step 7: Unit Tests (xUnit)
 
-**New project:** `backend/SchulerPark.Tests/SchulerPark.Tests.csproj`
+**New project:** `backend/LouisE.Tests/LouisE.Tests.csproj`
 - xUnit + FluentAssertions
-- References SchulerPark.Core and SchulerPark.Infrastructure
+- References LouisE.Core and LouisE.Infrastructure
 
-**New:** `SchulerPark.Tests/Strategies/PureRandomStrategyTests.cs`
+**New:** `LouisE.Tests/Strategies/PureRandomStrategyTests.cs`
 - All candidates appear in results
 - Winner count = min(candidates, slots)
 - Losers have no assigned slot
 
-**New:** `SchulerPark.Tests/Strategies/WeightedHistoryStrategyTests.cs`
+**New:** `LouisE.Tests/Strategies/WeightedHistoryStrategyTests.cs`
 - User with 3 consecutive losses has weight 2.5 (verify via deterministic inputs)
 - User with a recent win resets to weight 1.0
 - All candidates appear in results
 
-**New:** `SchulerPark.Tests/Strategies/RoundRobinStrategyTests.cs`
+**New:** `LouisE.Tests/Strategies/RoundRobinStrategyTests.cs`
 - Never-won user gets priority over recent winner
 - Ties are broken (both users in results, one wins)
 - All candidates appear in results
@@ -138,10 +138,10 @@ Test approach: Create in-memory entity lists (no DB needed since strategies are 
 | NEW | `Infrastructure/Jobs/LotteryJob.cs` |
 | NEW | `Api/Controllers/LotteryController.cs` |
 | MODIFY | `Api/Program.cs` |
-| NEW | `SchulerPark.Tests/SchulerPark.Tests.csproj` |
-| NEW | `SchulerPark.Tests/Strategies/PureRandomStrategyTests.cs` |
-| NEW | `SchulerPark.Tests/Strategies/WeightedHistoryStrategyTests.cs` |
-| NEW | `SchulerPark.Tests/Strategies/RoundRobinStrategyTests.cs` |
+| NEW | `LouisE.Tests/LouisE.Tests.csproj` |
+| NEW | `LouisE.Tests/Strategies/PureRandomStrategyTests.cs` |
+| NEW | `LouisE.Tests/Strategies/WeightedHistoryStrategyTests.cs` |
+| NEW | `LouisE.Tests/Strategies/RoundRobinStrategyTests.cs` |
 | NEW | `docs/plans/Phase5.md` |
 
 ---

@@ -2,7 +2,7 @@
 
 ## Context
 
-SchulerPark currently runs as a dev-only Docker Compose stack (app on port 8080, PostgreSQL, MailHog) with no TLS, no reverse proxy, no backups, and no PWA support. This phase adds production-readiness: Caddy for automatic HTTPS via Let's Encrypt, PostgreSQL scheduled backups, load-balancing support, and Progressive Web App capability. The swiss-manager project serves as the template for Caddyfile, db-backup, and Docker Compose profile patterns.
+LouisE currently runs as a dev-only Docker Compose stack (app on port 8080, PostgreSQL, MailHog) with no TLS, no reverse proxy, no backups, and no PWA support. This phase adds production-readiness: Caddy for automatic HTTPS via Let's Encrypt, PostgreSQL scheduled backups, load-balancing support, and Progressive Web App capability. The swiss-manager project serves as the template for Caddyfile, db-backup, and Docker Compose profile patterns.
 
 ---
 
@@ -20,7 +20,7 @@ Adapted from swiss-manager's Caddyfile — uses `{$SITE_DOMAIN}` env var (set in
 
 **New file:** `scripts/db-backup.sh`
 
-Adapted from swiss-manager's `scripts/db-backup.sh` — changes `openpairing2` prefix to `schulerpark`. Uses `PGHOST/PGUSER/PGPASSWORD/PGDATABASE` env vars that `pg_dump` reads automatically. Retention cleanup via `find -mtime`. Default 30-day retention.
+Adapted from swiss-manager's `scripts/db-backup.sh` — changes `openpairing2` prefix to `louise`. Uses `PGHOST/PGUSER/PGPASSWORD/PGDATABASE` env vars that `pg_dump` reads automatically. Retention cleanup via `find -mtime`. Default 30-day retention.
 
 ---
 
@@ -62,11 +62,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --
 
 ## Step 4: Backend Production Hardening
 
-### 4a. `backend/SchulerPark.Api/appsettings.Production.json` (new)
+### 4a. `backend/LouisE.Api/appsettings.Production.json` (new)
 
 Reduce log verbosity to Warning level for production.
 
-### 4b. `backend/SchulerPark.Api/Program.cs` (modify)
+### 4b. `backend/LouisE.Api/Program.cs` (modify)
 
 Two changes:
 
@@ -84,7 +84,7 @@ Two changes:
 
 Add `VitePWA` plugin with:
 - `registerType: 'autoUpdate'` — auto-update service worker (no prompt, appropriate for internal tool)
-- Manifest: name "SchulerPark", `theme_color: '#111827'` (matches sidebar), `display: 'standalone'`
+- Manifest: name "LouisE", `theme_color: '#111827'` (matches sidebar), `display: 'standalone'`
 - Workbox: precache static assets; runtime cache `/api/locations` with NetworkFirst (1h); all other `/api/` routes NetworkOnly (booking data must never be stale)
 
 ### 5c. `frontend/index.html` (modify)
@@ -121,11 +121,11 @@ Add `Caddyfile`, `scripts/`, `docs/`, `*.md` — not needed in Docker build cont
 | NEW | `Caddyfile` |
 | NEW | `scripts/db-backup.sh` |
 | NEW | `docker-compose.override.yml` |
-| NEW | `backend/SchulerPark.Api/appsettings.Production.json` |
+| NEW | `backend/LouisE.Api/appsettings.Production.json` |
 | NEW | `.env.production.example` |
 | NEW | `frontend/public/pwa-*.png`, `favicon.ico` |
 | MODIFY | `docker-compose.yml` |
-| MODIFY | `backend/SchulerPark.Api/Program.cs` |
+| MODIFY | `backend/LouisE.Api/Program.cs` |
 | MODIFY | `frontend/vite.config.ts` |
 | MODIFY | `frontend/index.html` |
 | MODIFY | `frontend/package.json` (via npm install) |

@@ -30,7 +30,7 @@ docker compose down
 **Default login:** `admin@schulerpark.local` / `Admin123!`
 
 **PWA verification:**
-- Open DevTools → Application → Manifest → should show SchulerPark manifest
+- Open DevTools → Application → Manifest → should show LouisE manifest
 - Application → Service Workers → should show `sw.js` registered
 
 ---
@@ -82,7 +82,7 @@ for i in {1..6}; do curl -sk https://localhost/api/health; echo; done
 
 ```bash
 # 1. Clone repo
-git clone <repo-url> && cd SchulerPark
+git clone <repo-url> && cd LouisE
 
 # 2. Create .env from production template
 cp .env.production.example .env
@@ -131,7 +131,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db-backup /
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db-backup ls -lh /backups/
 
 # Restore from backup
-gunzip -c backup_file.sql.gz | docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T db psql -U schulerpark schulerpark
+gunzip -c backup_file.sql.gz | docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T db psql -U louise louise
 
 # Rebuild and redeploy (zero-downtime with scaling)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --scale app=3

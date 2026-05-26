@@ -9,7 +9,7 @@ test.describe('Admin → Lottery Trigger (API + UI verification)', () => {
   let baseURL: string;
 
   test.beforeAll(async () => {
-    baseURL = process.env.BASE_URL || 'http://localhost:5173';
+    baseURL = process.env.BASE_URL || 'http://localhost:8080';
     api = await AdminApi.create(baseURL);
     const loc = await api.createLocation(uniqueName('Lottery-Loc'), 'Lottery Test');
     testLocationId = loc.id;

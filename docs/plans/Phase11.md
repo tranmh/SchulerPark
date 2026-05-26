@@ -23,27 +23,27 @@ Add a 2D grid-based visual layout for parking lots per location. Admins configur
 ### Database Changes
 
 #### Step 1: GridCellType Enum
-**New:** `backend/SchulerPark.Core/Enums/GridCellType.cs`
+**New:** `backend/LouisE.Core/Enums/GridCellType.cs`
 
 Values: Empty, Obstacle, Road, Entrance, Label
 
 #### Step 2: GridCell Entity
-**New:** `backend/SchulerPark.Core/Entities/GridCell.cs`
+**New:** `backend/LouisE.Core/Entities/GridCell.cs`
 
 Fields: Id, LocationId (FK), Row, Column, CellType, Label (optional)
 
 #### Step 3: Modify ParkingSlot Entity
-**Modify:** `backend/SchulerPark.Core/Entities/ParkingSlot.cs`
+**Modify:** `backend/LouisE.Core/Entities/ParkingSlot.cs`
 
 Add: `int? GridRow`, `int? GridColumn`
 
 #### Step 4: Modify Location Entity
-**Modify:** `backend/SchulerPark.Core/Entities/Location.cs`
+**Modify:** `backend/LouisE.Core/Entities/Location.cs`
 
 Add: `int? GridRows`, `int? GridColumns`, `ICollection<GridCell> GridCells`
 
 #### Step 5: GridCell EF Configuration
-**New:** `backend/SchulerPark.Infrastructure/Data/Configurations/GridCellConfiguration.cs`
+**New:** `backend/LouisE.Infrastructure/Data/Configurations/GridCellConfiguration.cs`
 
 Unique index on (LocationId, Row, Column).
 
@@ -64,20 +64,20 @@ Add `DbSet<GridCell> GridCells`.
 ### Backend API
 
 #### Step 10: Grid DTOs
-**New:** `backend/SchulerPark.Api/DTOs/Grid/`
+**New:** `backend/LouisE.Api/DTOs/Grid/`
 
 - `GridConfigurationDto` — response with grid dimensions, placed slots, cells
 - `SaveGridConfigurationRequest` — request with dimensions, slot positions, cells
 - `GridAvailabilityDto` — response with slot statuses (Free/Booked/Blocked/Own/Inactive)
 
 #### Step 11: Admin Grid Endpoints
-**Modify:** `backend/SchulerPark.Api/Controllers/AdminController.cs`
+**Modify:** `backend/LouisE.Api/Controllers/AdminController.cs`
 
 - `GET /api/admin/locations/{id}/grid` — load grid config
 - `PUT /api/admin/locations/{id}/grid` — save grid config (transactional full-replace)
 
 #### Step 12: User Grid Availability Endpoint
-**Modify:** `backend/SchulerPark.Api/Controllers/LocationController.cs`
+**Modify:** `backend/LouisE.Api/Controllers/LocationController.cs`
 
 - `GET /api/locations/{id}/grid-availability?date=&timeSlot=` — slot statuses for user view
 

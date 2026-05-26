@@ -1,4 +1,4 @@
-# SchulerPark
+# LouisE
 
 Parking slot booking system for multiple Schuler office locations. Employees book morning or afternoon parking slots, a fair lottery assigns slots when demand exceeds supply, and users confirm actual usage.
 
@@ -33,10 +33,10 @@ Parking slot booking system for multiple Schuler office locations. Employees boo
 ```
 
 **Layered backend:**
-- **SchulerPark.Core** — Domain entities, enums, interfaces, helpers (zero dependencies)
-- **SchulerPark.Infrastructure** — EF Core DbContext, services, Hangfire jobs, email
-- **SchulerPark.Api** — Controllers, DTOs, middleware, Hangfire configuration
-- **SchulerPark.Tests** — xUnit tests for lottery strategies
+- **LouisE.Core** — Domain entities, enums, interfaces, helpers (zero dependencies)
+- **LouisE.Infrastructure** — EF Core DbContext, services, Hangfire jobs, email
+- **LouisE.Api** — Controllers, DTOs, middleware, Hangfire configuration
+- **LouisE.Tests** — xUnit tests for lottery strategies
 
 ## Tech Stack
 
@@ -60,7 +60,7 @@ Parking slot booking system for multiple Schuler office locations. Employees boo
 
 ```bash
 git clone https://github.com/tranmh/SchulerPark.git
-cd SchulerPark
+cd LouisE
 cp .env.example .env
 # Edit .env with your database password and optional Azure AD / SMTP settings
 docker compose up --build
@@ -84,7 +84,7 @@ docker compose up --build
 cd backend
 dotnet restore
 dotnet build
-dotnet run --project SchulerPark.Api
+dotnet run --project LouisE.Api
 # API runs on http://localhost:5000
 # Swagger: http://localhost:5000/swagger
 ```
@@ -122,15 +122,15 @@ dotnet test
 ## Project Structure
 
 ```
-SchulerPark/
+LouisE/
 ├── backend/
-│   ├── SchulerPark.Api/            # ASP.NET Core Web API host
+│   ├── LouisE.Api/                 # ASP.NET Core Web API host
 │   │   ├── Controllers/            # Auth, Booking, Location, Admin, Profile, Lottery
 │   │   ├── DTOs/                   # Request/response records
 │   │   └── Middleware/             # Exception handling
-│   ├── SchulerPark.Core/           # Domain entities, enums, interfaces
-│   ├── SchulerPark.Infrastructure/ # EF Core, services, jobs, email
-│   └── SchulerPark.Tests/          # xUnit strategy tests
+│   ├── LouisE.Core/                # Domain entities, enums, interfaces
+│   ├── LouisE.Infrastructure/      # EF Core, services, jobs, email
+│   └── LouisE.Tests/               # xUnit strategy tests
 ├── frontend/
 │   └── src/
 │       ├── components/             # Shared UI (AppLayout, Calendar, StatusBadge, etc.)

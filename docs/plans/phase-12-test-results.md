@@ -27,7 +27,7 @@
 | Security headers | HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy |
 | Swagger NOT accessible in prod | 404 (correct) |
 | PWA manifest via Caddy | Valid |
-| DB backup | `schulerpark_20260416_065019.sql.gz` (13.1K) |
+| DB backup | `louise_20260416_065019.sql.gz` (13.1K) |
 
 ---
 

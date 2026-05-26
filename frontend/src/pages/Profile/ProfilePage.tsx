@@ -85,7 +85,7 @@ export function ProfilePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `schulerpark-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `louise-data-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -145,7 +145,7 @@ export function ProfilePage() {
       {/* Personal Information */}
       <Section title={t('profile.personalInfo')} subtitle={t('profile.personalInfoSubtitle')}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('profile.labelEmail')} helper={t('profile.emailHelper')}>
+          <Field label={t('profile.labelEmail')} helper={t('profile.emailHelper')} htmlFor="profile-email">
             <input
               id="profile-email"
               value={user?.email ?? ''}
@@ -153,7 +153,7 @@ export function ProfilePage() {
               className="w-full rounded-lg border border-line-strong bg-surface-sunken px-3.5 py-2.5 text-[14px] text-ink-400"
             />
           </Field>
-          <Field label={t('profile.labelDisplayName')}>
+          <Field label={t('profile.labelDisplayName')} htmlFor="profile-display-name">
             <input
               id="profile-display-name"
               value={displayName}
@@ -161,7 +161,7 @@ export function ProfilePage() {
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
           </Field>
-          <Field label={t('profile.labelCarPlate')}>
+          <Field label={t('profile.labelCarPlate')} htmlFor="profile-car-license">
             <input
               id="profile-car-license"
               value={carLicensePlate}
@@ -174,6 +174,7 @@ export function ProfilePage() {
           <Field
             label={t('profile.labelPreferredLocation')}
             helper={t('profile.preferredLocationHelper')}
+            htmlFor="preferredLocation"
           >
             <select
               id="preferredLocation"
@@ -196,6 +197,7 @@ export function ProfilePage() {
           <Field
             label={t('profile.labelPreferredSlot')}
             helper={t('profile.preferredSlotHelper')}
+            htmlFor="preferredSlot"
           >
             <select
               id="preferredSlot"
@@ -336,15 +338,17 @@ function Section({
 function Field({
   label,
   helper,
+  htmlFor,
   children,
 }: {
   label: string;
   helper?: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
       {children}
       {helper && <p className="mt-1 text-[11.5px] leading-relaxed text-ink-400">{helper}</p>}
     </div>

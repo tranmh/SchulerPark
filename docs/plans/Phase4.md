@@ -726,7 +726,7 @@ interface Props {
 Replace the inline Dashboard component in App.tsx.
 
 **Layout:**
-- Header: "SchulerPark" + user welcome + logout button (move from inline)
+- Header: "LouisE" + user welcome + logout button (move from inline)
 - Section 1: **Upcoming Bookings** — next 5 bookings (any status except Cancelled/Expired)
   - Each shows: date, time slot, location, status badge
   - "Won" bookings show prominent "Confirm" button

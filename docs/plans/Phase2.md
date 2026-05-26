@@ -143,8 +143,8 @@ Uses **fixed GUIDs** for idempotent seeding (checks existence before inserting).
 ```bash
 cd backend
 dotnet ef migrations add InitialCreate \
-    --project SchulerPark.Infrastructure \
-    --startup-project SchulerPark.Api \
+    --project LouisE.Infrastructure \
+    --startup-project LouisE.Api \
     --output-dir Data/Migrations
 ```
 

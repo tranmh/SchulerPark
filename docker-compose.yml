@@ -1,16 +1,16 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: schulerpark-db
+    container_name: louise-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: schulerpark
-      POSTGRES_USER: schulerpark
+      POSTGRES_DB: louise
+      POSTGRES_USER: louise
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U schulerpark"]
+      test: ["CMD-SHELL", "pg_isready -U louise"]
       interval: 5s
       timeout: 5s
       retries: 5

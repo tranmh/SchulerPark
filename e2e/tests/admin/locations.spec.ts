@@ -8,7 +8,7 @@ test.describe('Admin → Locations CRUD', () => {
   const created: string[] = [];
 
   test.beforeAll(async () => {
-    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:5173');
+    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
   });
 
   test.afterAll(async () => {
@@ -20,11 +20,11 @@ test.describe('Admin → Locations CRUD', () => {
 
   test('admin lands on locations page and seeded locations are visible', async ({ page }) => {
     await loginAsAdmin(page);
-    await page.getByRole('link', { name: 'Locations' }).click();
+    await page.getByRole('link', { name: 'Locations', exact: true }).click();
     await expect(page).toHaveURL('/admin/locations');
     await expect(page.getByRole('heading', { name: 'Locations' })).toBeVisible();
     await expect(page.getByText('Goeppingen').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New Location' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /new location/i })).toBeVisible();
   });
 
   test('create a new location via the UI', async ({ page }) => {
@@ -34,9 +34,9 @@ test.describe('Admin → Locations CRUD', () => {
     const name = uniqueName('Loc');
     const address = `${name} Strasse 1`;
 
-    await page.getByRole('button', { name: 'New Location' }).click();
-    await page.getByLabel('Name').fill(name);
-    await page.getByLabel('Address').fill(address);
+    await page.getByRole('button', { name: /new location/i }).click();
+    await page.locator('#location-name').fill(name);
+    await page.locator('#location-address').fill(address);
     await page.getByRole('button', { name: 'Save' }).click();
 
     const row = page.getByRole('row').filter({ hasText: name });
@@ -63,8 +63,8 @@ test.describe('Admin → Locations CRUD', () => {
 
     const renamed = `${original}-renamed`;
     const newAddress = `${renamed} address`;
-    await page.getByLabel('Name').fill(renamed);
-    await page.getByLabel('Address').fill(newAddress);
+    await page.locator('#location-name').fill(renamed);
+    await page.locator('#location-address').fill(newAddress);
     await page.getByRole('button', { name: 'Save' }).click();
 
     const renamedRow = page.getByRole('row').filter({ hasText: renamed });
@@ -82,7 +82,13 @@ test.describe('Admin → Locations CRUD', () => {
     await expect(page.getByText(name)).toBeVisible({ timeout: 10_000 });
 
     const row = page.getByRole('row').filter({ hasText: name });
+    const algoUpdate = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/locations/${loc.id}/algorithm`)
+        && r.request().method() === 'PUT'
+        && r.ok()
+    );
     await row.locator('select').selectOption('RoundRobin');
+    await algoUpdate;
 
     await page.reload();
     await page.waitForLoadState('networkidle');
@@ -111,13 +117,13 @@ test.describe('Admin → Locations CRUD', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/locations');
 
-    await page.getByRole('button', { name: 'New Location' }).click();
+    await page.getByRole('button', { name: /new location/i }).click();
     await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 
-    await page.getByLabel('Name').fill('Only Name');
+    await page.locator('#location-name').fill('Only Name');
     await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 
-    await page.getByLabel('Address').fill('Some Address');
+    await page.locator('#location-address').fill('Some Address');
     await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
 
     await page.getByRole('button', { name: 'Cancel' }).click();

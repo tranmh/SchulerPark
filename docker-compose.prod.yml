@@ -16,7 +16,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=schulerpark;Username=schulerpark;Password=${DB_PASSWORD:-changeme}"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:-changeme}"
       Jwt__Secret: "${JWT_SECRET}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
@@ -40,7 +40,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    container_name: schulerpark-caddy
+    container_name: louise-caddy
     restart: unless-stopped
     depends_on:
       - app
@@ -70,16 +70,16 @@ services:
 
   db-backup:
     image: postgres:16-alpine
-    container_name: schulerpark-db-backup
+    container_name: louise-db-backup
     restart: unless-stopped
     depends_on:
       - db
     environment:
       PGHOST: db
       PGPORT: "5432"
-      PGUSER: schulerpark
+      PGUSER: louise
       PGPASSWORD: ${DB_PASSWORD:-changeme}
-      PGDATABASE: schulerpark
+      PGDATABASE: louise
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
     volumes:

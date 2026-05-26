@@ -32,7 +32,7 @@ Set these in GitHub repo Settings > Secrets and variables > Actions:
 | `DEPLOY_HOST` | `203.0.113.10` | Server IP or hostname |
 | `DEPLOY_USER` | `deploy` | SSH username |
 | `DEPLOY_KEY` | `-----BEGIN OPENSSH...` | SSH private key (full content) |
-| `DEPLOY_PATH` | `/opt/schulerpark` | Absolute path to repo on server |
+| `DEPLOY_PATH` | `/opt/louise` | Absolute path to repo on server |
 
 ## Server Setup (one-time)
 
@@ -42,12 +42,12 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 
 # 2. Clone repo
-sudo mkdir -p /opt/schulerpark
-sudo chown $USER:$USER /opt/schulerpark
-git clone git@github.com:tranmh/SchulerPark.git /opt/schulerpark
+sudo mkdir -p /opt/louise
+sudo chown $USER:$USER /opt/louise
+git clone git@github.com:tranmh/LouisE.git /opt/louise
 
 # 3. Create production .env
-cd /opt/schulerpark
+cd /opt/louise
 cp .env.production.example .env
 # Edit .env with real values (DB_PASSWORD, JWT_SECRET, SITE_DOMAIN, SMTP, VAPID keys, etc.)
 

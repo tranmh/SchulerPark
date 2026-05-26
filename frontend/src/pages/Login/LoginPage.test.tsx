@@ -27,13 +27,14 @@ describe('LoginPage', () => {
   it('renders app title', () => {
     renderWithRouter(<LoginPage />);
 
-    expect(screen.getByText('SchulerPark')).toBeInTheDocument();
+    // "LouisE" appears in both the brand panel and the mobile header.
+    expect(screen.getAllByText('LouisE').length).toBeGreaterThan(0);
   });
 
   it('shows link to register page', () => {
     renderWithRouter(<LoginPage />);
 
-    expect(screen.getByRole('link', { name: /register/i })).toHaveAttribute('href', '/register');
+    expect(screen.getByRole('link', { name: /create an account/i })).toHaveAttribute('href', '/register');
   });
 
   it('calls login with email and password on submit', async () => {
@@ -98,7 +99,9 @@ describe('LoginPage', () => {
   it('does not show Azure AD button when disabled', () => {
     renderWithRouter(<LoginPage />);
 
-    expect(screen.queryByText(/microsoft/i)).not.toBeInTheDocument();
+    // The brand panel always carries an SSO note mentioning Microsoft; the
+    // assertion is about the *button*, not stray copy.
+    expect(screen.queryByRole('button', { name: /continue with microsoft/i })).not.toBeInTheDocument();
   });
 
   it('shows Azure AD button when enabled', () => {
@@ -106,7 +109,7 @@ describe('LoginPage', () => {
 
     renderWithRouter(<LoginPage />);
 
-    expect(screen.getByText(/sign in with microsoft/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue with microsoft/i })).toBeInTheDocument();
   });
 
   it('redirects when already authenticated', () => {

@@ -9,7 +9,7 @@ test.describe('Admin → Slots CRUD', () => {
   const createdSlotIds: string[] = [];
 
   test.beforeAll(async () => {
-    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:5173');
+    api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
     // All slot tests scope to a fresh isolated location.
     const loc = await api.createLocation(uniqueName('Slots-Loc'), 'Slots Test Strasse');
     testLocationId = loc.id;
@@ -31,7 +31,7 @@ test.describe('Admin → Slots CRUD', () => {
     await page.goto('/admin/slots');
 
     // Switch to the test location
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#slots-location').selectOption(testLocationId);
 
     await expect(page.getByText(slotNumber)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Seeded label')).toBeVisible();
@@ -40,12 +40,12 @@ test.describe('Admin → Slots CRUD', () => {
   test('create a slot via the UI', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/slots');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#slots-location').selectOption(testLocationId);
 
     const slotNumber = `UI-${Date.now().toString(36).slice(-6)}`;
-    await page.getByRole('button', { name: 'New Slot' }).click();
-    await page.getByLabel('Slot Number').fill(slotNumber);
-    await page.getByLabel('Label (optional)').fill('UI created');
+    await page.getByRole('button', { name: /new slot/i }).click();
+    await page.locator('#slot-number').fill(slotNumber);
+    await page.locator('#slot-label').fill('UI created');
     await page.getByRole('button', { name: 'Save' }).click();
 
     const row = page.getByRole('row').filter({ hasText: slotNumber });
@@ -66,11 +66,11 @@ test.describe('Admin → Slots CRUD', () => {
 
     await loginAsAdmin(page);
     await page.goto('/admin/slots');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#slots-location').selectOption(testLocationId);
 
     const row = page.getByRole('row').filter({ hasText: slotNumber });
     await row.getByRole('button', { name: 'Edit' }).click();
-    await page.getByLabel('Label (optional)').fill('New label');
+    await page.locator('#slot-label').fill('New label');
     await page.getByRole('button', { name: 'Save' }).click();
 
     const updatedRow = page.getByRole('row').filter({ hasText: slotNumber });
@@ -84,7 +84,7 @@ test.describe('Admin → Slots CRUD', () => {
 
     await loginAsAdmin(page);
     await page.goto('/admin/slots');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#slots-location').selectOption(testLocationId);
 
     const row = page.getByRole('row').filter({ hasText: slotNumber });
     await row.getByRole('button', { name: 'Deactivate' }).click();
@@ -96,12 +96,12 @@ test.describe('Admin → Slots CRUD', () => {
   test('save button is disabled when slot number is empty', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/slots');
-    await page.getByLabel('Location').selectOption(testLocationId);
+    await page.locator('#slots-location').selectOption(testLocationId);
 
-    await page.getByRole('button', { name: 'New Slot' }).click();
+    await page.getByRole('button', { name: /new slot/i }).click();
     await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 
-    await page.getByLabel('Slot Number').fill('SAVEABLE');
+    await page.locator('#slot-number').fill('SAVEABLE');
     await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
 
     await page.getByRole('button', { name: 'Cancel' }).click();

@@ -76,8 +76,9 @@ export function LotteryHistoryPage() {
       )}
 
       <div className="mt-5">
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
+        <label htmlFor="lottery-location" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
         <select
+          id="lottery-location"
           value={locationFilter}
           onChange={(e) => {
             setLocationFilter(e.target.value);
