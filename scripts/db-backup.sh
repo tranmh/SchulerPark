@@ -33,8 +33,9 @@ pg_dump | gzip > "$BACKUP_DIR/$FILENAME"
 SIZE=$(du -h "$BACKUP_DIR/$FILENAME" | cut -f1)
 log "Backup complete: $FILENAME ($SIZE)"
 
-# Clean up old backups
-DELETED=$(find "$BACKUP_DIR" -name "louise_*.sql.gz" -type f -mtime +"$BACKUP_RETENTION_DAYS" -print -delete | wc -l)
+# Clean up old backups. Match both the current `louise_` prefix and the legacy
+# `schulerpark_` prefix (pre-rebrand) so old-named dumps are reaped too.
+DELETED=$(find "$BACKUP_DIR" \( -name "louise_*.sql.gz" -o -name "schulerpark_*.sql.gz" \) -type f -mtime +"$BACKUP_RETENTION_DAYS" -print -delete | wc -l)
 if [ "$DELETED" -gt 0 ]; then
   log "Cleaned up $DELETED backup(s) older than $BACKUP_RETENTION_DAYS days."
 fi

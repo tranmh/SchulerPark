@@ -1,9 +1,19 @@
-{$SITE_DOMAIN:schulerpark.example.com} {
+{
+	default_sni 193.28.217.49
+}
+
+{$SITE_DOMAIN:schulerpark.example.com}, localhost, 193.28.217.49 {
+	# Intranet deployment: use Caddy's built-in self-signed CA instead of Let's Encrypt.
+	# Replace with `tls /path/to/cert /path/to/key` once Schuler IT issues an internal-CA cert.
+	tls internal
+
 	reverse_proxy app:8080
 
 	header {
 		# Security headers
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# HSTS disabled while running on Caddy's internal self-signed CA — once IT
+		# issues a real cert, restore: max-age=31536000; includeSubDomains; preload
+		Strict-Transport-Security "max-age=0"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
