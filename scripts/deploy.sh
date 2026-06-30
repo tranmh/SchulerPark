@@ -48,6 +48,10 @@ DB_USER="louise"
 DB_NAME="louise"
 BACKUP_GLOB="louise_*.sql.gz"         # db-backup.sh writes this prefix (legacy: schulerpark_*)
 HEALTH_URL="https://localhost/api/health"   # through Caddy; self-signed cert → curl -k
+# NB: all health curls pass --noproxy '*'. This box sits behind Schuler's McAfee
+# proxy (HTTP_PROXY/HTTPS_PROXY set); no_proxy is semicolon-separated, which curl
+# does NOT parse, so without --noproxy even 127.0.0.1/localhost is routed through
+# the proxy and returns 502 — a false smoke-test/health failure.
 HEALTH_TIMEOUT_SECONDS=180
 LOCK_FILE="/tmp/schulerpark-deploy.lock"
 STATE_FILE="/tmp/schulerpark-deploy.last"
@@ -173,7 +177,7 @@ wait_for_health() {
   local deadline=$(( $(date +%s) + HEALTH_TIMEOUT_SECONDS ))
   log "Polling $HEALTH_URL until healthy (timeout ${HEALTH_TIMEOUT_SECONDS}s; migrations run during this window)..."
   while [[ $(date +%s) -lt $deadline ]]; do
-    if curl -fsS -k --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
+    if curl -fsS -k --noproxy '*' --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
       echo >&2; log "App is healthy ($HEALTH_URL responded ok)."
       return 0
     fi
@@ -352,7 +356,7 @@ step_4_smoke() {
       docker logs --tail 120 "$SMOKE_APP_NAME" >&2 || true
       abort "App exited during smoke — common cause: failing EF migration or missing env"
     fi
-    if curl -fsS --max-time 5 "http://127.0.0.1:${SMOKE_HOST_PORT}/api/health" >/dev/null 2>&1; then
+    if curl -fsS --noproxy '*' --max-time 5 "http://127.0.0.1:${SMOKE_HOST_PORT}/api/health" >/dev/null 2>&1; then
       ok=1; break
     fi
     sleep 3
@@ -415,7 +419,7 @@ step_6_roll() {
 step_7_health_and_smoke() {
   step 7 "Health check + manual smoke prompt"
 
-  if ! curl -fsS -k --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; then
+  if ! curl -fsS -k --noproxy '*' --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; then
     log "Health check against $HEALTH_URL failed."
     if confirm "Rollback now (code-only)?" --always-prompt; then
       rollback_code_only; exit 1
