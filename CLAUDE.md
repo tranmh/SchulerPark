@@ -10,7 +10,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Scheduling:** Hangfire (lottery at 10 PM daily, expiry hourly, retention weekly — Europe/Berlin)
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
-- **Reverse Proxy:** Caddy 2 (automatic HTTPS via Let's Encrypt, security headers)
+- **Reverse Proxy:** Caddy 2, custom build with DNS-01 plugin (`Dockerfile.caddy`). Let's Encrypt via DNS-01 for `park.schuler.de` (intranet-safe, no inbound needed); internal CA for localhost/IP. Security headers + HSTS. See `docs/plans/phase-15-letsencrypt-dns01.md`.
 - **PWA:** vite-plugin-pwa (service worker, offline support, installable)
 
 ## Repo Structure

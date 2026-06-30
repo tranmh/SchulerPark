@@ -43,7 +43,12 @@ services:
           memory: 256M
 
   caddy:
-    image: caddy:2-alpine
+    # Custom build: stock caddy:2-alpine has no DNS plugins, which the DNS-01
+    # ACME challenge requires. See Dockerfile.caddy.
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    image: schulerpark-caddy
     container_name: louise-caddy
     restart: unless-stopped
     depends_on:
@@ -53,15 +58,21 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      SITE_DOMAIN: "${SITE_DOMAIN:-schulerpark.example.com}"
-      # Clear daemon-injected corporate proxy so Caddy reaches `app:8080` over the docker network
-      # instead of routing upstream requests through the corporate HTTP proxy.
-      HTTP_PROXY: ""
-      HTTPS_PROXY: ""
-      http_proxy: ""
-      https_proxy: ""
-      NO_PROXY: "*"
-      no_proxy: "*"
+      SITE_DOMAIN: "${SITE_DOMAIN:-park.schuler.de}"
+      # Let's Encrypt ACME contact + DNS-01 provider credentials.
+      ACME_EMAIL: "${ACME_EMAIL:-}"
+      CF_API_TOKEN: "${CF_API_TOKEN:-}"
+      # Caddy needs OUTBOUND internet for DNS-01: Let's Encrypt's ACME API and the
+      # DNS provider's API. This box sits behind Schuler's McAfee proxy — if direct
+      # outbound is blocked, set CADDY_HTTPS_PROXY in .env to the corporate proxy URL.
+      # Internal hops (app, db, the box itself) MUST bypass the proxy, or Caddy's
+      # reverse_proxy to app:8080 breaks.
+      HTTP_PROXY: "${CADDY_HTTP_PROXY:-}"
+      HTTPS_PROXY: "${CADDY_HTTPS_PROXY:-}"
+      http_proxy: "${CADDY_HTTP_PROXY:-}"
+      https_proxy: "${CADDY_HTTPS_PROXY:-}"
+      NO_PROXY: "app,db,localhost,127.0.0.1,193.28.217.49,.local"
+      no_proxy: "app,db,localhost,127.0.0.1,193.28.217.49,.local"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

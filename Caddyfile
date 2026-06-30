@@ -1,19 +1,36 @@
 {
+	# ACME contact address for Let's Encrypt (cert-expiry / recovery notices).
+	email {$ACME_EMAIL}
+
+	# Requests that arrive without SNI (e.g. direct-IP intranet access) fall back
+	# to this site, so they are still served — on the internal self-signed CA,
+	# since Let's Encrypt cannot issue a cert for a bare IP.
 	default_sni 193.28.217.49
 }
 
-{$SITE_DOMAIN:schulerpark.example.com}, localhost, 193.28.217.49 {
-	# Intranet deployment: use Caddy's built-in self-signed CA instead of Let's Encrypt.
-	# Replace with `tls /path/to/cert /path/to/key` once Schuler IT issues an internal-CA cert.
-	tls internal
+# ── Public production hostname — publicly-trusted Let's Encrypt certificate ──
+# Issued via the DNS-01 challenge, which keeps this box fully on the intranet:
+# Caddy proves domain ownership by writing a `_acme-challenge` TXT record through
+# the DNS provider's API, so NO inbound :80/:443 from the internet is required.
+#
+# Prerequisite (see docs/plans/phase-15-letsencrypt-dns01.md): a DNS API token
+# for whoever hosts the schuler.de zone, supplied as CF_API_TOKEN in .env. The
+# `dns cloudflare` directive and the caddy-dns/cloudflare plugin baked into
+# Dockerfile.caddy assume Cloudflare — if schuler.de is hosted elsewhere, swap
+# the provider in BOTH places (the CADDY_DNS_MODULE build arg and this directive).
+{$SITE_DOMAIN:park.schuler.de} {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+		# Validate TXT propagation against public resolvers — the intranet
+		# resolver may not see the public schuler.de zone.
+		resolvers 1.1.1.1 8.8.8.8
+	}
 
 	reverse_proxy app:8080
 
 	header {
-		# Security headers
-		# HSTS disabled while running on Caddy's internal self-signed CA — once IT
-		# issues a real cert, restore: max-age=31536000; includeSubDomains; preload
-		Strict-Transport-Security "max-age=0"
+		# Real publicly-trusted cert now in play — full-strength HSTS is safe.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
@@ -23,8 +40,22 @@
 	}
 }
 
-# Explicit HTTP block prevents Caddy's default HTTP->HTTPS redirect,
-# which would cause a redirect loop when Cloudflare SSL is set to Flexible.
-http://{$SITE_DOMAIN:schulerpark.example.com} {
+# ── Intranet direct access + deploy.sh health probe ──
+# localhost / 127.0.0.1 (used by deploy.sh: `curl -k https://localhost/api/health`)
+# and direct-IP access stay on Caddy's internal self-signed CA — Let's Encrypt
+# cannot issue for `localhost` or a bare IP. These remain reachable during and
+# after the cutover to the real domain.
+localhost, 127.0.0.1, 193.28.217.49 {
+	tls internal
+
 	reverse_proxy app:8080
+
+	header {
+		# No HSTS here — self-signed CA; HSTS would hard-pin an untrusted cert.
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
 }
