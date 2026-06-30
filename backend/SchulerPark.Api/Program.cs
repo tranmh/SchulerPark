@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.OpenApi.Models;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Interfaces;
@@ -63,6 +64,19 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
+
+// DataProtection: in production, persist keys to a mounted volume (/keys) so they
+// survive container recreation. Without this, ASP.NET stores keys in the container's
+// ephemeral filesystem and every deploy regenerates them, invalidating all auth
+// cookies / antiforgery tokens. SetApplicationName keeps the key ring stable and
+// shared across scaled app replicas. Dev keeps the framework defaults (/keys is not
+// writable on a dev box).
+if (builder.Environment.IsProduction())
+{
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
+        .SetApplicationName("LouisE");
+}
 
 // Auth services
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();

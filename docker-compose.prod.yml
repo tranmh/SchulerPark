@@ -15,6 +15,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      # Persist DataProtection keys across container recreation so deploys don't
+      # invalidate everyone's auth cookies (see Program.cs PersistKeysToFileSystem).
+      - dataprotection_keys:/keys
     environment:
       ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:-changeme}"
       Jwt__Secret: "${JWT_SECRET}"
@@ -100,3 +104,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  dataprotection_keys:
