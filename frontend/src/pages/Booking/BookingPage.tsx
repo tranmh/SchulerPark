@@ -161,14 +161,15 @@ export function BookingPage() {
           timeSlot,
         });
         const hasFallback = result.createdBookings.some((b) => b.fallbackReason);
-        if (result.skippedDays.length > 0 || hasFallback) {
+        const hasNonPending = result.createdBookings.some((b) => b.status !== 'Pending');
+        if (result.skippedDays.length > 0 || hasFallback || hasNonPending) {
           setWeekResult({ created: result.createdBookings, skipped: result.skippedDays });
         } else {
           navigate('/my-bookings');
         }
       } else {
         const booking = await bookingService.create({ locationId: submittedLocationId, date, timeSlot });
-        if (booking.fallbackReason) {
+        if (booking.fallbackReason || booking.status !== 'Pending') {
           setSingleResult(booking);
         } else {
           navigate('/my-bookings');
@@ -189,14 +190,41 @@ export function BookingPage() {
   if (singleResult) {
     return (
       <div>
-        <PageHeader title={t('booking.singleResultTitle')} subtitle={t('booking.singleResultSubtitle')} />
+        <PageHeader
+          title={t('booking.singleResultTitle')}
+          subtitle={singleResult.fallbackReason ? t('booking.singleResultSubtitle') : undefined}
+        />
         <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-6 shadow-card">
-          <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
-            <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{singleResult.fallbackReason}</span>
-          </div>
+          {singleResult.status === 'Confirmed' && (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>
+                <span className="font-semibold">{t('booking.directAssignedTitle')}</span>{' '}
+                {t('booking.directAssignedMessage', { slot: singleResult.parkingSlotNumber ?? '—' })}
+              </span>
+            </div>
+          )}
+          {singleResult.status === 'Lost' && (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>
+                <span className="font-semibold">{t('booking.waitlistedTitle')}</span>{' '}
+                {t('booking.waitlistedMessage')}
+              </span>
+            </div>
+          )}
+          {singleResult.fallbackReason && (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{singleResult.fallbackReason}</span>
+            </div>
+          )}
           <SummaryRow label={t('booking.labelLocation')} value={singleResult.locationName} />
           <SummaryRow label={t('booking.labelDate')} value={formatDateShort(singleResult.date)} />
           <SummaryRow label={t('booking.labelTimeSlot')} value={t(`components.timeSlot.${singleResult.timeSlot}`)} />
@@ -215,6 +243,8 @@ export function BookingPage() {
   /* -------- Week booking result summary ----------------------------- */
   if (weekResult) {
     const fallbackBookings = weekResult.created.filter((b) => b.fallbackReason);
+    const assignedBookings = weekResult.created.filter((b) => b.status === 'Confirmed');
+    const waitlistedBookings = weekResult.created.filter((b) => b.status === 'Lost');
     return (
       <div>
         <PageHeader title={t('booking.weekResultTitle')} subtitle={t('booking.weekResultSubtitle')} />
@@ -233,6 +263,34 @@ export function BookingPage() {
             </span>
           </div>
 
+          {assignedBookings.length > 0 && (
+            <div className="mb-5">
+              <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.weekDayAssignedHeading')}</h3>
+              <ul className="space-y-1.5">
+                {assignedBookings.map((b) => (
+                  <li key={b.id} className="flex items-start gap-2 text-[13px] text-emerald-800">
+                    <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    <span>
+                      {formatDateShort(b.date)} — <strong>{t('myBookings.slot', { n: b.parkingSlotNumber ?? '—' })}</strong>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {waitlistedBookings.length > 0 && (
+            <div className="mb-5">
+              <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.weekDayWaitlistedHeading')}</h3>
+              <ul className="space-y-1.5">
+                {waitlistedBookings.map((b) => (
+                  <li key={b.id} className="flex items-start gap-2 text-[13px] text-amber-800">
+                    <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                    <span>{formatDateShort(b.date)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {fallbackBookings.length > 0 && (
             <div className="mb-5">
               <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.fallbackHeading')}</h3>
@@ -490,6 +548,7 @@ export function BookingPage() {
                   <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">1.</span>{t('booking.next1')}</li>
                   <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">2.</span><Trans i18nKey="booking.next2" components={{ b: <b /> }} /></li>
                   <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">3.</span><Trans i18nKey="booking.next3" components={{ b: <b /> }} /></li>
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">4.</span>{t('booking.nextDirectNote')}</li>
                 </ol>
               </aside>
             </div>

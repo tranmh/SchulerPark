@@ -36,7 +36,11 @@ public class BookingController : ControllerBase
         var (booking, fallbackReason) = await _bookingService.CreateBookingAsync(
             GetUserId(), request.LocationId, request.Date, timeSlot);
 
-        _ = _emailService.SendBookingCreatedAsync(booking);
+        // Directly-assigned (Confirmed) and waitlisted (Lost) bookings get their
+        // own notifications from BookingService; the "lottery at 10 PM" created
+        // email is only accurate for Pending bookings.
+        if (booking.Status == BookingStatus.Pending)
+            _ = _emailService.SendBookingCreatedAsync(booking);
 
         var dto = ToBookingDto(booking, fallbackReason);
         return CreatedAtAction(nameof(GetMyBookings), dto);
@@ -57,7 +61,10 @@ public class BookingController : ControllerBase
             GetUserId(), request.LocationId, request.WeekStartDate, timeSlot);
 
         foreach (var (booking, _) in created)
-            _ = _emailService.SendBookingCreatedAsync(booking);
+        {
+            if (booking.Status == BookingStatus.Pending)
+                _ = _emailService.SendBookingCreatedAsync(booking);
+        }
 
         return Ok(new WeekBookingResponse(
             created.Select(c => ToBookingDto(c.Booking, c.FallbackReason)).ToList(),

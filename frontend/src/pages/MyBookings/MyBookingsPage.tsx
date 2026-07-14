@@ -231,7 +231,7 @@ export function MyBookingsPage() {
                       </button>
                     </>
                   )}
-                  {(b.status === 'Pending' || b.status === 'Won') && (
+                  {(b.status === 'Pending' || b.status === 'Won' || b.status === 'Confirmed') && (
                     <button
                       type="button"
                       onClick={() => setCancelTarget(b)}

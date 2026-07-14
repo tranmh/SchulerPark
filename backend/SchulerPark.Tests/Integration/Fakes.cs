@@ -10,11 +10,14 @@ namespace SchulerPark.Tests.Integration;
 
 /// <summary>
 /// Records verification emails so tests can complete the register → verify →
-/// login flow; every other email type is a no-op.
+/// login flow; every other email type is recorded by type + booking id so
+/// tests can assert which notifications were (not) sent.
 /// </summary>
 public class CapturingEmailService : IEmailService
 {
     private readonly ConcurrentDictionary<string, string> _verificationLinks = new();
+
+    public ConcurrentQueue<(string Type, Guid BookingId)> Sent { get; } = new();
 
     public string? VerificationLinkFor(string email) =>
         _verificationLinks.TryGetValue(email.ToLowerInvariant(), out var link) ? link : null;
@@ -34,12 +37,20 @@ public class CapturingEmailService : IEmailService
         return Task.CompletedTask;
     }
 
-    public Task SendBookingCreatedAsync(Booking booking) => Task.CompletedTask;
-    public Task SendBookingCancelledAsync(Booking booking) => Task.CompletedTask;
-    public Task SendLotteryWonAsync(Booking booking) => Task.CompletedTask;
-    public Task SendLotteryLostAsync(Booking booking) => Task.CompletedTask;
-    public Task SendConfirmationReminderAsync(Booking booking) => Task.CompletedTask;
-    public Task SendWaitlistWonAsync(Booking booking) => Task.CompletedTask;
+    private Task Record(string type, Booking booking)
+    {
+        Sent.Enqueue((type, booking.Id));
+        return Task.CompletedTask;
+    }
+
+    public Task SendBookingCreatedAsync(Booking booking) => Record("BookingCreated", booking);
+    public Task SendBookingCancelledAsync(Booking booking) => Record("BookingCancelled", booking);
+    public Task SendLotteryWonAsync(Booking booking) => Record("LotteryWon", booking);
+    public Task SendLotteryLostAsync(Booking booking) => Record("LotteryLost", booking);
+    public Task SendConfirmationReminderAsync(Booking booking) => Record("ConfirmationReminder", booking);
+    public Task SendWaitlistWonAsync(Booking booking) => Record("WaitlistWon", booking);
+    public Task SendBookingDirectlyConfirmedAsync(Booking booking) => Record("DirectlyConfirmed", booking);
+    public Task SendBookingWaitlistedAsync(Booking booking) => Record("Waitlisted", booking);
 }
 
 /// <summary>

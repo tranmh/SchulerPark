@@ -86,26 +86,7 @@ public class LotteryService : ILotteryService
         }
 
         // 4. Fetch available slots (active, not blocked)
-        var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
-            b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
-
-        List<ParkingSlot> availableSlots;
-        if (isLocationBlocked)
-        {
-            availableSlots = [];
-        }
-        else
-        {
-            var blockedSlotIds = await _db.BlockedDays
-                .Where(b => b.LocationId == locationId && b.Date == date && b.ParkingSlotId != null)
-                .Select(b => b.ParkingSlotId!.Value)
-                .ToListAsync();
-
-            availableSlots = await _db.ParkingSlots
-                .Where(s => s.LocationId == locationId && s.IsActive
-                    && !blockedSlotIds.Contains(s.Id))
-                .ToListAsync();
-        }
+        var availableSlots = await SlotAvailabilityHelper.GetUnblockedActiveSlotsAsync(_db, locationId, date);
 
         // 5. Fetch history for candidate users
         var candidateUserIds = pendingBookings.Select(b => b.UserId).Distinct().ToList();

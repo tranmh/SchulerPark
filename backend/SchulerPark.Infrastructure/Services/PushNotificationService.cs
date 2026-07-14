@@ -54,6 +54,26 @@ public class PushNotificationService : IPushNotificationService
         });
     }
 
+    public Task SendBookingDirectlyConfirmedAsync(Booking booking)
+    {
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = "Parking Spot Confirmed!",
+            Body = $"Slot {booking.ParkingSlot?.SlotNumber} at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} is yours — no action needed.",
+            Url = "/my-bookings"
+        });
+    }
+
+    public Task SendBookingWaitlistedAsync(Booking booking)
+    {
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = "You're on the Waitlist",
+            Body = $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} is full. You'll get a spot automatically if one frees up.",
+            Url = "/my-bookings"
+        });
+    }
+
     private async Task SendToUserAsync(Guid userId, PushPayload payload)
     {
         if (!_vapid.IsConfigured)

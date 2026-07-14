@@ -36,5 +36,17 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasIndex(b => new { b.UserId, b.Date, b.TimeSlot, b.LocationId })
             .IsUnique()
             .HasFilter("\"Status\" != 'Cancelled'");
+
+        // Keep the plain FK index: the filtered composite below only contains
+        // Won/Confirmed rows, so it cannot serve general ParkingSlotId lookups.
+        builder.HasIndex(b => b.ParkingSlotId)
+            .HasDatabaseName("IX_Bookings_ParkingSlotId");
+
+        // A physical slot can be held by at most one active booking per date+timeslot
+        // (backstop for concurrent direct assignments; not enforced by EF InMemory in tests)
+        builder.HasIndex(b => new { b.ParkingSlotId, b.Date, b.TimeSlot })
+            .IsUnique()
+            .HasDatabaseName("IX_Bookings_ParkingSlotId_Date_TimeSlot")
+            .HasFilter("\"ParkingSlotId\" IS NOT NULL AND \"Status\" IN ('Won', 'Confirmed')");
     }
 }

@@ -11,4 +11,6 @@ public interface IEmailService
     Task SendLotteryLostAsync(Booking booking);
     Task SendConfirmationReminderAsync(Booking booking);
     Task SendWaitlistWonAsync(Booking booking);
+    Task SendBookingDirectlyConfirmedAsync(Booking booking);
+    Task SendBookingWaitlistedAsync(Booking booking);
 }

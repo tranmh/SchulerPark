@@ -119,6 +119,35 @@ public class EmailService : IEmailService
         await SendEmailAsync(booking.User.Email, subject, body);
     }
 
+    public async Task SendBookingDirectlyConfirmedAsync(Booking booking)
+    {
+        var subject = $"Spot Assigned — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml($"""
+            <h2 style="color: #16a34a;">Your Parking Spot Is Confirmed!</h2>
+            <p>Hi {booking.User.DisplayName},</p>
+            <p>The lottery for this day has already run and a spot was still free, so it has been assigned to you directly:</p>
+            {BookingDetailsTable(booking)}
+            <p><strong>Assigned Slot:</strong> {booking.ParkingSlot?.SlotNumber ?? "TBD"}</p>
+            <p>Your booking is <strong>Confirmed</strong> — no further action needed.</p>
+            """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendBookingWaitlistedAsync(Booking booking)
+    {
+        var subject = $"You're on the Waitlist — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml($"""
+            <h2>You're on the Waitlist</h2>
+            <p>Hi {booking.User.DisplayName},</p>
+            <p>All spots for this day are already taken:</p>
+            {BookingDetailsTable(booking)}
+            <p>Your booking is on the <strong>waitlist</strong> and a spot will be assigned to you automatically if one becomes free. You will be notified.</p>
+            """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
     public async Task SendConfirmationReminderAsync(Booking booking)
     {
         var subject = $"Reminder: Confirm Your Parking — {booking.Location.Name}";

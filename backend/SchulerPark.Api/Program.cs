@@ -195,6 +195,7 @@ builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<ILotteryService, LotteryService>();
 builder.Services.AddScoped<ISlotDistanceMetric, ManhattanDistanceMetric>();
 builder.Services.AddScoped<ISlotPlacer, PreferenceAwareSlotPlacer>();
+builder.Services.AddScoped<IDirectAssignmentService, DirectAssignmentService>();
 
 // Waitlist service
 builder.Services.AddScoped<IWaitlistService, WaitlistService>();
