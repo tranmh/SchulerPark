@@ -29,33 +29,53 @@ public static class BootstrapAdmin
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Email = email,
+            Email = email.Trim().ToLowerInvariant(),
             DisplayName = "Super Administrator",
             Role = UserRole.SuperAdmin,
+            EmailVerified = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
         user.PasswordHash = hasher.HashPassword(user, password);
 
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        var path = Path.Combine(AppContext.BaseDirectory, "admin.yml");
+        // The container runs non-root and /app is root-owned; the Dockerfile
+        // provides a writable /bootstrap via BOOTSTRAP_ADMIN_DIR.
+        var dir = Environment.GetEnvironmentVariable("BOOTSTRAP_ADMIN_DIR")
+                  ?? AppContext.BaseDirectory;
+        var path = Path.Combine(dir, "admin.yml");
         var yaml =
             "# Auto-generated SuperAdmin credentials — delete this file after first login\n" +
-            $"email: {email}\n" +
+            $"email: {user.Email}\n" +
             $"password: {password}\n";
 
+        // Write the credential file BEFORE creating the user, owner-read-only (0600).
+        // The password is never logged: if the file cannot be written, the account is
+        // not created and bootstrap simply retries on the next startup.
         try
         {
-            await File.WriteAllTextAsync(path, yaml);
-            Console.WriteLine($"[Bootstrap] SuperAdmin created. Credentials written to {path}");
+            var options = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write
+            };
+            if (!OperatingSystem.IsWindows())
+                options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
+            await using (var stream = new FileStream(path, options))
+            await using (var writer = new StreamWriter(stream))
+            {
+                await writer.WriteAsync(yaml);
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Bootstrap] SuperAdmin created. Could not write {path}: {ex.Message}");
-            Console.WriteLine($"[Bootstrap] Email: {email}");
-            Console.WriteLine($"[Bootstrap] Password: {password}");
+            Console.WriteLine($"[Bootstrap] Could not write {path}: {ex.Message}. " +
+                              "SuperAdmin NOT created; bootstrap will retry on next startup.");
+            return;
         }
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        Console.WriteLine($"[Bootstrap] SuperAdmin created. Credentials written to {path}");
     }
 }

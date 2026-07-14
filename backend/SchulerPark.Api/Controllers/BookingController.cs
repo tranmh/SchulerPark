@@ -25,7 +25,7 @@ public class BookingController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<BookingDto>> Create([FromBody] CreateBookingRequest request)
     {
-        if (!Enum.TryParse<TimeSlot>(request.TimeSlot, ignoreCase: true, out var timeSlot))
+        if (!Enum.TryParse<TimeSlot>(request.TimeSlot, ignoreCase: true, out var timeSlot) || !Enum.IsDefined(timeSlot))
             return BadRequest(new ProblemDetails
             {
                 Title = "Bad Request",
@@ -45,7 +45,7 @@ public class BookingController : ControllerBase
     [HttpPost("week")]
     public async Task<ActionResult<WeekBookingResponse>> CreateWeek([FromBody] CreateWeekBookingRequest request)
     {
-        if (!Enum.TryParse<TimeSlot>(request.TimeSlot, ignoreCase: true, out var timeSlot))
+        if (!Enum.TryParse<TimeSlot>(request.TimeSlot, ignoreCase: true, out var timeSlot) || !Enum.IsDefined(timeSlot))
             return BadRequest(new ProblemDetails
             {
                 Title = "Bad Request",
@@ -75,7 +75,7 @@ public class BookingController : ControllerBase
         BookingStatus? statusFilter = null;
         if (!string.IsNullOrEmpty(status))
         {
-            if (!Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var parsed))
+            if (!Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
                 return BadRequest(new ProblemDetails
                 {
                     Title = "Bad Request",

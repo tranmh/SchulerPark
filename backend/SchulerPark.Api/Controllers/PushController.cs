@@ -63,12 +63,14 @@ public class PushController : ControllerBase
         return Ok();
     }
 
+    // The endpoint URL is a bearer capability — accept it in the body, not the
+    // query string, so it never lands in access logs.
     [HttpDelete("subscribe")]
-    public async Task<IActionResult> Unsubscribe([FromQuery] string endpoint)
+    public async Task<IActionResult> Unsubscribe([FromBody] UnsubscribePushRequest request)
     {
         var userId = GetUserId();
         var deleted = await _db.PushSubscriptions
-            .Where(ps => ps.UserId == userId && ps.Endpoint == endpoint)
+            .Where(ps => ps.UserId == userId && ps.Endpoint == request.Endpoint)
             .ExecuteDeleteAsync();
 
         return deleted > 0 ? NoContent() : NotFound();

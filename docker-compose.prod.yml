@@ -1,6 +1,10 @@
 # Production services — use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 services:
   db:
+    environment:
+      # `:?` makes compose refuse to start with an unset/empty secret instead of
+      # silently falling back to the dev default.
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
     deploy:
       resources:
         limits:
@@ -20,8 +24,9 @@ services:
       # invalidate everyone's auth cookies (see Program.cs PersistKeysToFileSystem).
       - dataprotection_keys:/keys
     environment:
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:-changeme}"
-      Jwt__Secret: "${JWT_SECRET}"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
+      Jwt__Secret: "${JWT_SECRET:?JWT_SECRET must be set in .env}"
+      App__BaseUrl: "https://${SITE_DOMAIN:-louise.schuler.de}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
@@ -43,11 +48,13 @@ services:
           memory: 256M
 
   caddy:
-    # Stock Caddy — no custom build needed. Intranet deployment serves the site on
-    # Caddy's internal self-signed CA (`tls internal` in the Caddyfile), so no ACME
-    # challenge and no DNS plugin are required. The ACME_*/proxy env below is inert
-    # while on internal CA — kept for the day IT opens inbound :80/:443 and we flip
-    # the Caddyfile to Let's Encrypt.
+    # Stock Caddy — no custom build/DNS plugin needed. The Caddyfile auto-issues a
+    # publicly-trusted Let's Encrypt cert for SITE_DOMAIN via the ACME HTTP-01 /
+    # TLS-ALPN-01 challenge (localhost + the direct IP stay on the internal CA for
+    # deploy.sh's health probe). Issuance requires: (1) inbound :80/:443 open from
+    # the internet (Schuler IT firewall rule), and (2) the outbound proxy env below
+    # so Caddy can reach the ACME API. ACME_CA defaults to LE STAGING — flip it to
+    # production in .env after a successful staging issuance.
     image: caddy:2-alpine
     container_name: louise-caddy
     restart: unless-stopped
@@ -96,10 +103,12 @@ services:
       PGHOST: db
       PGPORT: "5432"
       PGUSER: louise
-      PGPASSWORD: ${DB_PASSWORD:-changeme}
+      PGPASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
       PGDATABASE: louise
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+      # Optional at-rest encryption for dumps (see scripts/db-backup.sh).
+      BACKUP_PASSPHRASE: "${BACKUP_PASSPHRASE:-}"
     volumes:
       - ./scripts/db-backup.sh:/usr/local/bin/db-backup.sh:ro
       - /dbbackup:/backups

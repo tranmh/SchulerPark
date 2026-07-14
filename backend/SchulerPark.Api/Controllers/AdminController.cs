@@ -104,7 +104,7 @@ public class AdminController : ControllerBase
     [HttpPut("locations/{id:guid}/algorithm")]
     public async Task<IActionResult> SetAlgorithm(Guid id, [FromBody] SetAlgorithmRequest request)
     {
-        if (!Enum.TryParse<LotteryAlgorithm>(request.Algorithm, ignoreCase: true, out var algorithm))
+        if (!Enum.TryParse<LotteryAlgorithm>(request.Algorithm, ignoreCase: true, out var algorithm) || !Enum.IsDefined(algorithm))
             return BadRequest(new ProblemDetails
             {
                 Title = "Bad Request",
@@ -277,7 +277,7 @@ public class AdminController : ControllerBase
             query = query.Where(b => b.Date >= from.Value);
         if (to.HasValue)
             query = query.Where(b => b.Date <= to.Value);
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var s))
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var s) && Enum.IsDefined(s))
             query = query.Where(b => b.Status == s);
 
         page = Math.Max(1, page);
@@ -397,7 +397,7 @@ public class AdminController : ControllerBase
                 throw new ValidationException($"Cell position ({cell.Row},{cell.Column}) is out of grid bounds.");
             if (!occupiedPositions.Add($"{cell.Row},{cell.Column}"))
                 throw new ValidationException($"Duplicate position at ({cell.Row},{cell.Column}).");
-            if (!Enum.TryParse<GridCellType>(cell.CellType, ignoreCase: true, out _))
+            if (!Enum.TryParse<GridCellType>(cell.CellType, ignoreCase: true, out var cellType) || !Enum.IsDefined(cellType))
                 throw new ValidationException($"Invalid cell type: {cell.CellType}.");
         }
 

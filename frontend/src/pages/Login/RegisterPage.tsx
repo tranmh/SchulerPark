@@ -15,6 +15,7 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   if (isAuthenticated) {
     navigate('/', { replace: true });
@@ -39,7 +40,8 @@ export function RegisterPage() {
 
     try {
       await register(email, displayName, password);
-      navigate('/');
+      // No auto-login: the account must verify its email address first.
+      setSubmitted(true);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error
@@ -49,6 +51,31 @@ export function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
+        <div className="absolute right-6 top-6">
+          <LanguageToggle variant="light" />
+        </div>
+        <div className="w-full max-w-sm rounded-card border border-line bg-white p-8 text-center shadow-card">
+          <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-700 text-[15px] font-extrabold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
+            SP
+          </span>
+          <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink-900">{t('auth.verifyEmailSentTitle')}</h1>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-ink-500">
+            {t('auth.verifyEmailSentBody', { email })}
+          </p>
+          <Link
+            to="/login"
+            className="mt-6 inline-block w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
+          >
+            {t('auth.backToLogin')}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">

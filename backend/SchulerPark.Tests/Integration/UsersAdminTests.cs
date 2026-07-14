@@ -25,13 +25,8 @@ public class UsersAdminTests
         var email = $"{label}-{Guid.NewGuid():N}@schuler.de";
         const string password = "Test1234!";
 
-        var register = await _client.PostAsJsonAsync("/api/auth/register", new
-        {
-            email,
-            displayName = label,
-            password
-        });
-        register.EnsureSuccessStatusCode();
+        await AuthTestHelper.RegisterAsync(_client, email, label, password);
+        await AuthTestHelper.VerifyEmailAsync(_factory, _client, email);
 
         if (role != UserRole.User)
         {

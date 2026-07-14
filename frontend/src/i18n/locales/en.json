@@ -73,7 +73,18 @@
     "azureFailed": "Azure AD login failed. Please try again.",
     "registerFailed": "Registration failed. Please try again.",
     "passwordTooShort": "Password must be at least 8 characters.",
-    "passwordsDoNotMatch": "Passwords do not match."
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "verifyEmailSentTitle": "Check your email",
+    "verifyEmailSentBody": "If the email address is available, we sent a verification link to {{email}}. Click it to activate your account, then sign in.",
+    "backToLogin": "Back to sign in",
+    "emailNotVerified": "Please verify your email address before signing in.",
+    "resendVerification": "Resend verification email",
+    "verificationResent": "If the address has an unverified account, a new verification email has been sent.",
+    "verifyingEmail": "Verifying your email…",
+    "emailVerifiedTitle": "Email verified",
+    "emailVerifiedBody": "Your email address has been confirmed. You can sign in now.",
+    "emailVerifyFailedTitle": "Verification failed",
+    "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page."
   },
   "dashboard": {
     "todayPrefix": "Today",

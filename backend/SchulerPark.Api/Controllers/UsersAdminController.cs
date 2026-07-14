@@ -39,7 +39,7 @@ public class UsersAdminController : ControllerBase
         }
 
         if (!string.IsNullOrWhiteSpace(role)
-            && Enum.TryParse<UserRole>(role, ignoreCase: true, out var r))
+            && Enum.TryParse<UserRole>(role, ignoreCase: true, out var r) && Enum.IsDefined(r))
         {
             query = query.Where(u => u.Role == r);
         }
@@ -67,7 +67,7 @@ public class UsersAdminController : ControllerBase
     [HttpPut("{id:guid}/role")]
     public async Task<ActionResult<AdminUserDto>> UpdateRole(Guid id, [FromBody] UpdateUserRoleRequest request)
     {
-        if (!Enum.TryParse<UserRole>(request.Role, ignoreCase: true, out var newRole))
+        if (!Enum.TryParse<UserRole>(request.Role, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
             throw new ValidationException("Role must be 'User', 'Admin', or 'SuperAdmin'.");
 
         var user = await _db.Users.FindAsync(id);

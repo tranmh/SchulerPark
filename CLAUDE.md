@@ -10,7 +10,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Scheduling:** Hangfire (lottery at 10 PM daily, expiry hourly, retention weekly — Europe/Berlin)
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
-- **Reverse Proxy:** Caddy 2, custom build with DNS-01 plugin (`Dockerfile.caddy`). Let's Encrypt via DNS-01 for `park.schuler.de` (intranet-safe, no inbound needed); internal CA for localhost/IP. Security headers + HSTS. See `docs/plans/phase-15-letsencrypt-dns01.md`.
+- **Reverse Proxy:** Caddy 2 (stock `caddy:2-alpine`), currently `tls internal` (self-signed CA) on `louise.schuler.de` (canonical; `park.schuler.de` aliased) — Let's Encrypt DNS-01 migration is planned, see `docs/plans/phase-15-letsencrypt-dns01.md`. HTTP→HTTPS 308 redirect enforced (no plaintext site block). Security headers incl. CSP; HSTS deliberately off until a trusted cert is live.
 - **PWA:** vite-plugin-pwa (service worker, offline support, installable)
 
 ## Repo Structure
@@ -67,7 +67,7 @@ Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PAT
 ### Default Credentials
 - SuperAdmin (dev seed): `superadmin@schulerpark.local` / `Admin123!`
 - Admin (dev seed): `admin@schulerpark.local` / `Admin123!`
-- Production SuperAdmin is generated on first startup if no users exist; credentials are written to `admin.yml` next to the running binary (see `BootstrapAdmin`).
+- Production SuperAdmin is generated on first startup if no users exist; credentials are written to `admin.yml` (0600) in `$BOOTSTRAP_ADMIN_DIR` (`/bootstrap` in the container; next to the binary otherwise) — see `BootstrapAdmin`. Read it with `docker compose exec app cat /bootstrap/admin.yml`, then delete it.
 
 ## Code Conventions
 - **C#:** PascalCase for public members, nullable reference types enabled, implicit usings
@@ -80,8 +80,10 @@ Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PAT
 ## Key Endpoints
 - `GET /api/health` — Health check
 - `GET /swagger` — API documentation (development only)
-- `POST /api/auth/login` — Local login (returns JWT)
-- `POST /api/auth/register` — Local registration
+- `POST /api/auth/login` — Local login (returns JWT; requires verified email)
+- `POST /api/auth/register` — Local registration (sends verification email; no auto-login)
+- `POST /api/auth/verify-email` — Confirm email via token from the verification mail
+- `POST /api/auth/resend-verification` — Resend verification email (generic response)
 - `GET /api/locations` — List active locations
 - `POST /api/bookings` — Create booking
 - `GET /api/bookings/my` — User's bookings

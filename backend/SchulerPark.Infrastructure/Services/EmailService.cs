@@ -20,6 +20,23 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
+    public async Task SendEmailVerificationAsync(string email, string displayName, string verificationLink)
+    {
+        var subject = "Verify your email address — LouisE";
+        var body = BuildHtml($"""
+            <h2>Verify Your Email Address</h2>
+            <p>Hi {displayName},</p>
+            <p>Thanks for registering with LouisE. Please confirm your email address to activate your account:</p>
+            <p style="margin: 24px 0;">
+                <a href="{verificationLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Verify Email</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {verificationLink}</p>
+            <p>The link is valid for 24 hours. If you did not create this account, you can ignore this email.</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
     public async Task SendBookingCreatedAsync(Booking booking)
     {
         var subject = $"Booking Confirmed — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";

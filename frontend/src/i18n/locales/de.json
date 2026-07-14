@@ -73,7 +73,18 @@
     "azureFailed": "Azure AD-Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
     "registerFailed": "Registrierung fehlgeschlagen. Bitte erneut versuchen.",
     "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein.",
-    "passwordsDoNotMatch": "Passwörter stimmen nicht überein."
+    "passwordsDoNotMatch": "Passwörter stimmen nicht überein.",
+    "verifyEmailSentTitle": "E-Mail prüfen",
+    "verifyEmailSentBody": "Falls die E-Mail-Adresse verfügbar ist, haben wir einen Bestätigungslink an {{email}} gesendet. Klicken Sie darauf, um Ihr Konto zu aktivieren, und melden Sie sich dann an.",
+    "backToLogin": "Zurück zur Anmeldung",
+    "emailNotVerified": "Bitte bestätigen Sie Ihre E-Mail-Adresse, bevor Sie sich anmelden.",
+    "resendVerification": "Bestätigungs-E-Mail erneut senden",
+    "verificationResent": "Falls für die Adresse ein unbestätigtes Konto existiert, wurde eine neue Bestätigungs-E-Mail gesendet.",
+    "verifyingEmail": "E-Mail wird bestätigt…",
+    "emailVerifiedTitle": "E-Mail bestätigt",
+    "emailVerifiedBody": "Ihre E-Mail-Adresse wurde bestätigt. Sie können sich jetzt anmelden.",
+    "emailVerifyFailedTitle": "Bestätigung fehlgeschlagen",
+    "emailVerifyFailedBody": "Der Bestätigungslink ist ungültig oder abgelaufen. Fordern Sie auf der Anmeldeseite einen neuen an."
   },
   "dashboard": {
     "todayPrefix": "Heute",

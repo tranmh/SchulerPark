@@ -11,8 +11,10 @@ export const pushService = {
       auth: subscription.keys?.auth ?? '',
     }),
 
+  // Body, not query string: the endpoint URL is a bearer capability and must
+  // not end up in access logs.
   unsubscribe: (endpoint: string) =>
-    api.delete('/push/subscribe', { params: { endpoint } }),
+    api.delete('/push/subscribe', { data: { endpoint } }),
 };
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {

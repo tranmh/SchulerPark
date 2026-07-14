@@ -37,10 +37,18 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Click handler: open the app
+// Click handler: open the app. Only same-origin targets — a notification from
+// a trusted OS surface must never navigate users to an external site.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  let url = event.notification.data?.url || '/';
+  try {
+    if (new URL(url, self.location.origin).origin !== self.location.origin) {
+      url = '/';
+    }
+  } catch {
+    url = '/';
+  }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {

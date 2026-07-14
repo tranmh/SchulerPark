@@ -1,5 +1,20 @@
 # Phase 15: Let's Encrypt TLS via DNS-01 (intranet-safe)
 
+> **⚠️ SUPERSEDED (2026-07-08). DNS-01 is not viable for this zone.**
+> A lookup showed `schuler.de` runs on **Cloudflare *secondary* DNS** (read-only
+> replica; hidden master `ns1.schuler-isp.net`). You cannot write the
+> `_acme-challenge` TXT record through the Cloudflare API on a secondary zone, so
+> the `caddy-dns/cloudflare` + `CF_API_TOKEN` design below **cannot work**.
+>
+> **Chosen path instead:** stock Caddy auto-issues via the **inbound HTTP-01 /
+> TLS-ALPN-01** challenge. This needs Schuler IT to open **inbound :80/:443** to
+> `193.28.217.49` (the box becomes internet-reachable). No DNS token, no DNS
+> plugin, no `Dockerfile.caddy`. Implemented in the `Caddyfile` (split public
+> Let's-Encrypt block vs internal-CA localhost/IP block) and `docker-compose.prod.yml`
+> (ACME env + corporate-proxy egress). The DNS topology + rejected alternatives are
+> recorded in the `project-dns-topology` memory. The rest of this document is kept
+> for historical context only.
+
 ## Context
 
 The production deployment (Phase 12) was originally specced for Let's Encrypt

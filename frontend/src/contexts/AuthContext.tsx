@@ -23,6 +23,7 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   authConfig: AuthConfig | null;
   login: (email: string, password: string) => Promise<void>;
+  /** Registers an account. Does NOT sign in — the email must be verified first. */
   register: (email: string, displayName: string, password: string) => Promise<void>;
   loginWithAzureAd: () => Promise<void>;
   logout: () => Promise<void>;
@@ -89,9 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (email: string, displayName: string, password: string) => {
-    const response = await authService.register({ email, displayName, password });
-    setAccessToken(response.accessToken);
-    setUser(response.user);
+    await authService.register({ email, displayName, password });
   }, []);
 
   const loginWithAzureAd = useCallback(async () => {

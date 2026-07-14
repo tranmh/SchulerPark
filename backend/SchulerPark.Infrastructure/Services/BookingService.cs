@@ -10,6 +10,10 @@ using SchulerPark.Infrastructure.Data;
 
 public class BookingService : IBookingService
 {
+    // Cancelled rows persist for ~1 year (data retention), so an unbounded
+    // cancel/rebook loop would grow the table without limit.
+    private const int MaxBookingsCreatedPerUserPerDay = 50;
+
     private static readonly TimeZoneInfo BerlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
     private readonly AppDbContext _db;
     private readonly IWaitlistService _waitlistService;
@@ -30,6 +34,11 @@ public class BookingService : IBookingService
             throw new ValidationException("Cannot book for today or past dates.");
         if (date > today.AddMonths(1))
             throw new ValidationException("Cannot book more than 1 month in advance.");
+
+        var createdToday = await _db.Bookings.CountAsync(b =>
+            b.UserId == userId && b.CreatedAt >= DateTime.UtcNow.AddDays(-1));
+        if (createdToday >= MaxBookingsCreatedPerUserPerDay)
+            throw new ValidationException("Daily booking creation limit reached. Please try again tomorrow.");
 
         var (resolvedLocationId, fallbackReason) = await ResolveLocationAsync(userId, locationId, date);
 

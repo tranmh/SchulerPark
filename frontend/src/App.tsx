@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
+import { VerifyEmailPage } from './pages/Login/VerifyEmailPage'
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
 import { BookingPage } from './pages/Booking/BookingPage'
 import { MyBookingsPage } from './pages/MyBookings/MyBookingsPage'
@@ -21,6 +22,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/" element={
         <ProtectedRoute>
           <AppLayout>

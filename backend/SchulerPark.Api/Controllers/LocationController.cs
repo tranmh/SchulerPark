@@ -68,6 +68,18 @@ public class LocationController : ControllerBase
         var fromDate = from ?? today.AddDays(1);
         var toDate = to ?? fromDate.AddMonths(1);
 
+        // The service builds an in-memory entry per day×slot: an uncapped range
+        // (e.g. 0001-01-01..9999-12-31) is a single-request OOM. Clamp hard.
+        if (fromDate < today)
+            return BadRequest(new ProblemDetails
+            { Title = "Bad Request", Detail = "'from' must not be in the past.", Status = 400 });
+        if (toDate < fromDate)
+            return BadRequest(new ProblemDetails
+            { Title = "Bad Request", Detail = "'to' must not be before 'from'.", Status = 400 });
+        if (toDate.DayNumber - fromDate.DayNumber > 62)
+            return BadRequest(new ProblemDetails
+            { Title = "Bad Request", Detail = "Date range must not exceed 62 days.", Status = 400 });
+
         var availability = await _locationService.GetAvailabilityAsync(id, fromDate, toDate);
         var dtos = availability.Select(a => new AvailabilityDto(
             a.Date, a.TimeSlot.ToString(), a.Available, a.Total, a.Booked)).ToList();
@@ -78,7 +90,7 @@ public class LocationController : ControllerBase
     public async Task<ActionResult<GridAvailabilityDto>> GetGridAvailability(
         Guid id, [FromQuery] DateOnly date, [FromQuery] string timeSlot)
     {
-        if (!Enum.TryParse<TimeSlot>(timeSlot, ignoreCase: true, out var ts))
+        if (!Enum.TryParse<TimeSlot>(timeSlot, ignoreCase: true, out var ts) || !Enum.IsDefined(ts))
             return BadRequest(new ProblemDetails { Title = "Bad Request", Detail = "Invalid timeSlot.", Status = 400 });
 
         var location = await _db.Locations

@@ -10,6 +10,11 @@ public class User
     public string? CarLicensePlate { get; set; }
     public string? AzureAdObjectId { get; set; }
     public string? PasswordHash { get; set; }
+    public bool EmailVerified { get; set; }
+    public string? EmailVerificationTokenHash { get; set; }
+    public DateTime? EmailVerificationTokenExpiresAt { get; set; }
+    public int AccessFailedCount { get; set; }
+    public DateTime? LockoutEnd { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
     public Guid? PreferredLocationId { get; set; }
     public Guid? PreferredSlotId { get; set; }

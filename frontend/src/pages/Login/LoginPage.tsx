@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
+import { authService } from '../../services/authService';
 import { LanguageToggle } from '../../components/LanguageToggle';
 
 export function LoginPage() {
@@ -13,6 +14,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
 
   if (isAuthenticated) {
     navigate('/', { replace: true });
@@ -22,18 +25,33 @@ export function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setNeedsVerification(false);
+    setResendNotice('');
     setLoading(true);
 
     try {
       await login(email, password);
       navigate('/');
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        || t('auth.loginFailed');
-      setError(message);
+      const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
+      if (data?.code === 'email_not_verified') {
+        setNeedsVerification(true);
+        setError(t('auth.emailNotVerified'));
+      } else {
+        setError(data?.error || t('auth.loginFailed'));
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendNotice('');
+    try {
+      await authService.resendVerification(email);
+    } finally {
+      // Same notice either way — the endpoint is deliberately non-committal.
+      setResendNotice(t('auth.verificationResent'));
     }
   };
 
@@ -106,7 +124,24 @@ export function LoginPage() {
               <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span>{error}</span>
+              <div className="flex-1">
+                <span>{error}</span>
+                {needsVerification && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    className="mt-1.5 block font-medium text-brand-500 underline hover:text-brand-700"
+                  >
+                    {t('auth.resendVerification')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {resendNotice && (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-800">
+              {resendNotice}
             </div>
           )}
 

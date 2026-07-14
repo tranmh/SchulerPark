@@ -52,6 +52,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Non-blocking for now: surface advisories without failing the pipeline.
+      - name: Audit dependencies
+        run: npm audit --omit=dev
+        continue-on-error: true
+
       - name: Test
         run: npm test
 
@@ -121,7 +126,9 @@ jobs:
     environment: production
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        # Pinned to a full commit SHA (v1.2.5): this third-party action receives
+        # the production SSH key, and mutable tags can be repointed upstream.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

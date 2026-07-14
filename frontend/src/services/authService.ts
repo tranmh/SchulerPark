@@ -11,8 +11,16 @@ export const authService = {
   login: (data: LoginRequest) =>
     api.post<AuthResponse>('/auth/login', data).then(r => r.data),
 
+  // Registration no longer returns tokens: the account must verify its email
+  // address before it can sign in.
   register: (data: RegisterRequest) =>
-    api.post<AuthResponse>('/auth/register', data).then(r => r.data),
+    api.post<{ message: string }>('/auth/register', data).then(r => r.data),
+
+  verifyEmail: (token: string) =>
+    api.post<{ message: string }>('/auth/verify-email', { token }).then(r => r.data),
+
+  resendVerification: (email: string) =>
+    api.post<{ message: string }>('/auth/resend-verification', { email }).then(r => r.data),
 
   loginWithAzureAd: (idToken: string) =>
     api.post<AuthResponse>('/auth/azure-callback', { idToken }).then(r => r.data),
