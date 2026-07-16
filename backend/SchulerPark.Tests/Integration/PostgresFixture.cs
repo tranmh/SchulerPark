@@ -1,5 +1,6 @@
 namespace SchulerPark.Tests.Integration;
 
+using DotNet.Testcontainers.Images;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using SchulerPark.Infrastructure.Data;
@@ -28,7 +29,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             // Build() itself probes the Docker endpoint, so it must be inside the try:
             // when Docker is down this is where it throws.
-            _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+            _pg = new PostgreSqlBuilder(new DockerImage("postgres:16-alpine")).Build();
             await _pg.StartAsync();
             await using var db = NewContext();
             await db.Database.MigrateAsync();   // apply the real schema (indexes, FK rules)
