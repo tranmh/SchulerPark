@@ -225,6 +225,7 @@
     "pushEnabled": "Push-Benachrichtigungen auf diesem Gerät aktiviert",
     "pushDisable": "Deaktivieren",
     "pushEnable": "Push-Benachrichtigungen aktivieren",
+    "pushError": "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte später erneut versuchen.",
     "dsgvoTitle": "Ihre Daten (DSGVO Art. 15)",
     "dsgvoSubtitle": "Laden Sie alle personenbezogenen Daten als JSON-Datei herunter.",
     "downloadData": "Meine Daten herunterladen",

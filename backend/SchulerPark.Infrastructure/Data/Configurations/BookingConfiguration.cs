@@ -22,10 +22,13 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasForeignKey(b => b.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Bug #18: Restrict (not SetNull) so a slot with live bookings can't be
+        // hard-deleted into a slot-less "confirmed" booking. Decommission slots
+        // via their IsActive flag instead.
         builder.HasOne(b => b.ParkingSlot)
             .WithMany(ps => ps.Bookings)
             .HasForeignKey(b => b.ParkingSlotId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(b => b.Location)
             .WithMany(l => l.Bookings)

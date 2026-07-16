@@ -22,5 +22,17 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        // Bug #2: optimistic concurrency on Booking via PostgreSQL's system xmin column,
+        // so two racing updates of the same booking can't silently clobber each other.
+        // (Npgsql 10 removed UseXminAsConcurrencyToken; map the system column manually.)
+        // Gated to Npgsql — the InMemory provider used in unit tests has no xmin.
+        if (Database.IsNpgsql())
+            modelBuilder.Entity<Booking>()
+                .Property<uint>("xmin")
+                .HasColumnName("xmin")
+                .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
+                .IsRowVersion();
     }
 }

@@ -31,6 +31,13 @@ public class BlockedDayConfiguration : IEntityTypeConfiguration<BlockedDay>
             .HasForeignKey(bd => bd.BlockedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(bd => new { bd.LocationId, bd.Date });
+        // Bug #19: prevent duplicate blocks. Two filtered unique indexes cover the
+        // two block modes: whole-location (ParkingSlotId NULL) and per-slot.
+        builder.HasIndex(bd => new { bd.LocationId, bd.Date })
+            .IsUnique()
+            .HasFilter("\"ParkingSlotId\" IS NULL");
+        builder.HasIndex(bd => new { bd.ParkingSlotId, bd.Date })
+            .IsUnique()
+            .HasFilter("\"ParkingSlotId\" IS NOT NULL");
     }
 }

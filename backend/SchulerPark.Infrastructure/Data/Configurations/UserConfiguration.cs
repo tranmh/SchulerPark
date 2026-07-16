@@ -21,7 +21,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt).HasDefaultValueSql("now() at time zone 'utc'");
         builder.Property(u => u.UpdatedAt).HasDefaultValueSql("now() at time zone 'utc'");
 
-        builder.HasIndex(u => u.Email).IsUnique();
+        // Bug #9: filter the unique Email index on live rows so a soft-deleted
+        // account (DSGVO) doesn't block re-registration with the same email.
+        builder.HasIndex(u => u.Email).IsUnique().HasFilter("\"DeletedAt\" is null");
         builder.HasIndex(u => u.AzureAdObjectId).IsUnique()
             .HasFilter("\"AzureAdObjectId\" is not null");
 

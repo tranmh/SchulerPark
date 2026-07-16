@@ -1,5 +1,6 @@
 namespace SchulerPark.Infrastructure.Jobs;
 
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SchulerPark.Core.Enums;
@@ -7,6 +8,8 @@ using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Infrastructure.Data;
 
+// Bug #1: block overlapping runs — 30-minute lock timeout.
+[DisableConcurrentExecution(30 * 60)]
 public class ConfirmationExpiryJob
 {
     private readonly AppDbContext _db;

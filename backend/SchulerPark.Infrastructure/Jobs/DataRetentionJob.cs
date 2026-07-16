@@ -1,9 +1,12 @@
 namespace SchulerPark.Infrastructure.Jobs;
 
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SchulerPark.Infrastructure.Data;
 
+// Bug #1: block overlapping runs — 30-minute lock timeout.
+[DisableConcurrentExecution(30 * 60)]
 public class DataRetentionJob
 {
     private readonly AppDbContext _db;
@@ -20,9 +23,11 @@ public class DataRetentionJob
         var cutoff = DateTime.UtcNow.AddYears(-1);
         var cutoffDate = DateOnly.FromDateTime(cutoff);
 
-        // 1. Delete old bookings (older than 1 year)
+        // 1. Delete old bookings (older than 1 year).
+        // Bug #17: key on Date (the booking day), the same dimension as lottery-history
+        // retention below — not CreatedAt — so a booking and its history are pruned together.
         var oldBookings = await _db.Bookings
-            .Where(b => b.CreatedAt < cutoff)
+            .Where(b => b.Date < cutoffDate)
             .ExecuteDeleteAsync();
         if (oldBookings > 0)
             _logger.LogInformation("Deleted {Count} bookings older than 1 year.", oldBookings);
@@ -42,19 +47,26 @@ public class DataRetentionJob
 
         foreach (var user in usersToDelete)
         {
-            // Delete remaining user data
+            // Bug #8: delete each user's children AND their row inside one transaction.
+            // Previously the child ExecuteDeletes auto-committed while the row removal was
+            // deferred to a single trailing SaveChanges — a mid-batch fault then left users
+            // with their data gone but the row still present. Per-user transactions make
+            // each hard-delete all-or-nothing.
+            await using var tx = await _db.Database.BeginTransactionAsync();
             await _db.Bookings.Where(b => b.UserId == user.Id).ExecuteDeleteAsync();
             await _db.LotteryHistories.Where(h => h.UserId == user.Id).ExecuteDeleteAsync();
             await _db.RefreshTokens.Where(t => t.UserId == user.Id).ExecuteDeleteAsync();
             await _db.BlockedDays.Where(b => b.BlockedByUserId == user.Id).ExecuteDeleteAsync();
-            _db.Users.Remove(user);
+            // Bug #12: erase push subscriptions explicitly (GDPR auditability). The FK cascade
+            // would remove them implicitly today, but the deletion code should visibly erase all
+            // personal data, and this stays correct if the cascade is ever tightened/loosened.
+            await _db.PushSubscriptions.Where(p => p.UserId == user.Id).ExecuteDeleteAsync();
+            await _db.Users.Where(u => u.Id == user.Id).ExecuteDeleteAsync();
+            await tx.CommitAsync();
         }
 
         if (usersToDelete.Count > 0)
-        {
-            await _db.SaveChangesAsync();
             _logger.LogInformation("Hard-deleted {Count} users past 30-day grace period.", usersToDelete.Count);
-        }
 
         // LotteryRun records are kept (aggregate stats, no personal data)
         _logger.LogInformation("Data retention job completed.");

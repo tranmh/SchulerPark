@@ -1,7 +1,9 @@
 namespace SchulerPark.Infrastructure.Services;
 
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Interfaces;
@@ -53,6 +55,34 @@ public class LotteryService : ILotteryService
 
     public async Task RunLotteryForSlotAsync(Guid locationId, DateOnly date, TimeSlot timeSlot)
     {
+        // Bug #10: retry a run that hits a serialization/deadlock conflict, so a concurrent
+        // write can't wedge it. On the retry the conflicting row is visible and processed.
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await RunLotteryForSlotOnceAsync(locationId, date, timeSlot);
+                return;
+            }
+            catch (Exception ex) when (IsSerializationFailure(ex) && attempt < maxAttempts)
+            {
+                _logger.LogWarning(ex,
+                    "Serialization conflict on lottery for {LocationId} {Date} {TimeSlot}; retrying (attempt {Attempt}).",
+                    locationId, date, timeSlot, attempt);
+            }
+        }
+    }
+
+    private async Task RunLotteryForSlotOnceAsync(Guid locationId, DateOnly date, TimeSlot timeSlot)
+    {
+        // Start each attempt from a clean tracker so a prior aborted attempt's state is discarded.
+        _db.ChangeTracker.Clear();
+
+        // Bug #10: read + assign + record run inside one Serializable transaction so two
+        // concurrent runs for the same slot can't both process it (double-assignment).
+        await using var tx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         // 1. Idempotency check
         var alreadyRan = await _db.LotteryRuns.AnyAsync(lr =>
             lr.LocationId == locationId && lr.Date == date && lr.TimeSlot == timeSlot);
@@ -60,6 +90,7 @@ public class LotteryService : ILotteryService
         {
             _logger.LogInformation("Lottery already ran for {LocationId} {Date} {TimeSlot}, skipping.",
                 locationId, date, timeSlot);
+            await tx.RollbackAsync();
             return;
         }
 
@@ -76,17 +107,22 @@ public class LotteryService : ILotteryService
             .FirstOrDefaultAsync(l => l.Id == locationId);
         var algorithm = location!.DefaultAlgorithm;
 
+        List<ParkingSlot> availableSlots = [];
+        List<LotteryResult> results = [];
+
         if (pendingBookings.Count == 0)
         {
             _logger.LogInformation("No pending bookings for {LocationId} {Date} {TimeSlot}.",
                 locationId, date, timeSlot);
             RecordRun(locationId, date, timeSlot, algorithm, 0, 0);
             await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            await SweepStrandedPendingAsync(locationId, date, timeSlot);
             return;
         }
 
         // 4. Fetch available slots (active, not blocked)
-        var availableSlots = await SlotAvailabilityHelper.GetUnblockedActiveSlotsAsync(_db, locationId, date);
+        availableSlots = await SlotAvailabilityHelper.GetUnblockedActiveSlotsAsync(_db, locationId, date);
 
         // 5. Fetch history for candidate users
         var candidateUserIds = pendingBookings.Select(b => b.UserId).Distinct().ToList();
@@ -137,7 +173,7 @@ public class LotteryService : ILotteryService
             ? []
             : _placer.Place(winners, availableSlots, location, gridCells, preferredSlots);
 
-        var results = winners.Select(b => new LotteryResult(
+        results = winners.Select(b => new LotteryResult(
                 b.Id, b.UserId, true,
                 placements.TryGetValue(b.Id, out var sid) ? sid : null))
             .Concat(losers.Select(b => new LotteryResult(b.Id, b.UserId, false, null)))
@@ -166,6 +202,13 @@ public class LotteryService : ILotteryService
             pendingBookings.Count, availableSlots.Count);
 
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        // Bug #10: sweep any bookings that landed as Pending during the run (after our read
+        // snapshot, so invisible to this transaction) to Lost — otherwise they are stranded
+        // forever, since the recorded run blocks any re-run. Runs after commit in its own
+        // statement so it sees rows committed concurrently. (#56 tracks smarter routing.)
+        await SweepStrandedPendingAsync(locationId, date, timeSlot);
 
         _logger.LogInformation(
             "Lottery completed for {LocationId} {Date} {TimeSlot}: {Winners} winners, {Losers} losers out of {Total} bookings.",
@@ -191,6 +234,31 @@ public class LotteryService : ILotteryService
                 _ = _pushService.SendLotteryLostAsync(booking);
             }
         }
+    }
+
+    // Mark any still-Pending booking for this slot as Lost so nothing is stranded.
+    private async Task SweepStrandedPendingAsync(Guid locationId, DateOnly date, TimeSlot timeSlot)
+    {
+        var swept = await _db.Bookings
+            .Where(b => b.LocationId == locationId && b.Date == date
+                && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Lost));
+
+        if (swept > 0)
+            _logger.LogWarning(
+                "Swept {Count} stranded Pending booking(s) to Lost for {LocationId} {Date} {TimeSlot}.",
+                swept, locationId, date, timeSlot);
+    }
+
+    // True if the exception (or any inner) is a PostgreSQL serialization failure / deadlock.
+    private static bool IsSerializationFailure(Exception ex)
+    {
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+            if (e is PostgresException pg &&
+                (pg.SqlState == PostgresErrorCodes.SerializationFailure
+                 || pg.SqlState == PostgresErrorCodes.DeadlockDetected))
+                return true;
+        return false;
     }
 
     private void RecordRun(Guid locationId, DateOnly date, TimeSlot timeSlot,

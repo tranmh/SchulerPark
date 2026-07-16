@@ -58,8 +58,21 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddControllers();
 
 // Database
+var connectionString = builder.Configuration.GetConnectionString("Default");
+
+// Bug #16: refuse to start with a missing connection string or the committed 'changeme'
+// default password outside local development — a forgotten DB_PASSWORD must fail loudly,
+// not silently run Postgres with a publicly known password.
+if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing")
+    && SchulerPark.Api.StartupGuards.IsUnsafeDbConnectionString(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is missing or uses the default 'changeme' password. " +
+        "Set a strong DB_PASSWORD / ConnectionStrings__Default before starting in this environment.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(connectionString));
 
 // Settings
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("App"));

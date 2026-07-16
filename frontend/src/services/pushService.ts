@@ -24,23 +24,23 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from(rawData, (char) => char.charCodeAt(0));
 }
 
-export async function subscribeToPush(): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-
-  try {
-    const vapidKey = await pushService.getVapidPublicKey();
-    const registration = await navigator.serviceWorker.ready;
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
-
-    await pushService.subscribe(subscription.toJSON());
-    return true;
-  } catch {
-    return false;
+// Bug #11: let errors propagate so callers can distinguish a real failure (e.g. a 500
+// from /push/subscribe) from the user declining. Previously every error was swallowed
+// as `false`, making a backend error indistinguishable from a denial.
+export async function subscribeToPush(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    throw new Error('Push notifications are not supported in this browser.');
   }
+
+  const vapidKey = await pushService.getVapidPublicKey();
+  const registration = await navigator.serviceWorker.ready;
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+  });
+
+  await pushService.subscribe(subscription.toJSON());
 }
 
 export async function unsubscribeFromPush(): Promise<boolean> {

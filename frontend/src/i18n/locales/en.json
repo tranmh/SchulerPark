@@ -225,6 +225,7 @@
     "pushEnabled": "Push notifications enabled on this device",
     "pushDisable": "Disable",
     "pushEnable": "Enable push notifications",
+    "pushError": "Could not enable push notifications. Please try again later.",
     "dsgvoTitle": "Your data (DSGVO Art. 15)",
     "dsgvoSubtitle": "Download all personal data we hold about you as a JSON file.",
     "downloadData": "Download my data",
