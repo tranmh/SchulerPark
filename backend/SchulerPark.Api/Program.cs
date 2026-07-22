@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.OpenApi.Models;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Interfaces;
@@ -56,6 +57,10 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddControllers();
+
+// Bug #49: cache the per-request account-active check (below) so it doesn't hit the DB on
+// every authenticated call.
+builder.Services.AddMemoryCache();
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("Default");
@@ -148,9 +153,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     return;
                 }
 
-                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-                var active = await db.Users
-                    .AnyAsync(u => u.Id == userId && u.DeletedAt == null);
+                // Bug #49: this runs on EVERY authenticated request. Cache the result briefly
+                // (IMemoryCache, 30s TTL) so a valid-token flood doesn't translate into a DB
+                // round-trip per call. A disabled account then loses access within the TTL —
+                // the same bounded window the 60-minute access token already tolerates. Still
+                // fails closed (a null/absent user → active == false → context.Fail).
+                var services = context.HttpContext.RequestServices;
+                var cache = services.GetRequiredService<IMemoryCache>();
+                var active = await cache.GetOrCreateAsync(SchulerPark.Api.Auth.UserActiveCache.Key(userId), entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = SchulerPark.Api.Auth.UserActiveCache.Ttl;
+                    var db = services.GetRequiredService<AppDbContext>();
+                    return db.Users.AnyAsync(u => u.Id == userId && u.DeletedAt == null);
+                });
                 if (!active)
                     context.Fail("Account is disabled or deleted.");
             }

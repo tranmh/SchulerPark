@@ -141,6 +141,13 @@ public class BookingService : IBookingService
         var skipped = new List<(DateOnly Date, string Reason)>();
         var outcomes = new List<(Booking Booking, DirectAssignmentOutcome Outcome)>();
 
+        // Bug #53: the week is all-or-nothing. Without an enclosing transaction the per-day
+        // saves below commit independently, so a failure on (say) day 4 leaves days 1–3
+        // committed and days 4–5 not — a partial week, with notifications already queued.
+        // One transaction around the loop rolls the whole week back on any escape.
+        // Safe because Program.cs uses plain UseNpgsql (no retrying execution strategy).
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         for (int i = 0; i < 5; i++)
         {
             var date = weekStartDate.AddDays(i);
@@ -219,6 +226,9 @@ public class BookingService : IBookingService
 
         if (created.Count == 0)
             throw new ValidationException("No bookings could be created for the selected week. All days were skipped.");
+
+        // All days that were going to be created succeeded — commit the whole week atomically.
+        await tx.CommitAsync();
 
         foreach (var (booking, _) in created)
         {

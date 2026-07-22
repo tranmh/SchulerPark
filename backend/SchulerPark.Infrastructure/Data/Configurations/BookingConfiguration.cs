@@ -33,7 +33,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasOne(b => b.Location)
             .WithMany(l => l.Bookings)
             .HasForeignKey(b => b.LocationId)
-            .OnDelete(DeleteBehavior.Cascade);
+            // Bug #42: Restrict (not Cascade) — deleting a Location must NOT silently erase all
+            // its bookings. Locations are decommissioned via IsActive=false; a genuine purge
+            // must delete children explicitly first.
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One booking per user per date+timeslot+location (excluding cancelled)
         builder.HasIndex(b => new { b.UserId, b.Date, b.TimeSlot, b.LocationId })

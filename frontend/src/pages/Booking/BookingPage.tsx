@@ -11,6 +11,7 @@ import { ParkingGridView } from '../../components/grid/ParkingGridView';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { Location, Availability, Booking, TimeSlot, SkippedDay } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
+import { getBookingWindow } from '../../utils/bookingWindow';
 
 function getWeekFriday(mondayStr: string): string {
   const [y, m, d] = mondayStr.split('-').map(Number);
@@ -111,10 +112,8 @@ export function BookingPage() {
 
   const dateAvailability = date ? availabilityMap.get(date) : undefined;
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
-  const maxDate = new Date(tomorrow.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  // Bug #21: compute the window from local calendar days (see utils/bookingWindow).
+  const { minDate, maxDate } = getBookingWindow();
 
   const handleLocationSelect = (id: string) => {
     setLocationId(id);

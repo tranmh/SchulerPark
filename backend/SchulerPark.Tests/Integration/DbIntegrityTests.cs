@@ -87,6 +87,44 @@ public class DbIntegrityTests
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 
+    // ---- Bug #42: deleting a location that still has bookings must be blocked ----
+    [SkippableFact]
+    public async Task Deleting_location_with_booking_is_blocked()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+
+        var locationId = Guid.NewGuid();
+
+        // Seed in one context, then delete in a fresh one so EF issues a raw DELETE and the
+        // DATABASE FK rule governs the outcome (mirrors the slot test above).
+        await using (var seed = _fx.NewContext())
+        {
+            var location = new Location { Id = locationId, Name = $"L-{locationId:N}", Address = "A" };
+            var user = new User { Id = Guid.NewGuid(), Email = $"u-{Guid.NewGuid():N}@x.de", DisplayName = "U" };
+            seed.AddRange(location, user);
+            await seed.SaveChangesAsync();
+
+            seed.Bookings.Add(new Booking
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                LocationId = locationId,
+                Date = new DateOnly(2026, 8, 1),
+                TimeSlot = TimeSlot.Morning,
+                Status = BookingStatus.Confirmed,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = _fx.NewContext();
+        var toDelete = await db.Locations.FindAsync(locationId);
+        db.Locations.Remove(toDelete!);
+
+        // RED with Cascade: the delete silently erases the booking (no throw).
+        // GREEN with Restrict: the DB blocks the delete.
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
     // ---- Bug #19: duplicate whole-location block for the same day must be rejected ----
     [SkippableFact]
     public async Task Duplicate_location_block_is_rejected()

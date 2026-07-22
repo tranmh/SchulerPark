@@ -56,7 +56,11 @@ test.describe('User → Week booking', () => {
     const body = await res.json();
     expect(Array.isArray(body.createdBookings)).toBe(true);
     expect(Array.isArray(body.skippedDays)).toBe(true);
-    expect(body.createdBookings.length + body.skippedDays.length).toBeLessThanOrEqual(5);
+    // Bug #24: after the pre-clean above the week booking must actually create days. The old
+    // `<= 5` passed even when zero were created. Every Mon–Fri day is either created or skipped
+    // (exactly 5 accounted for), and at least one must have been created.
+    expect(body.createdBookings.length).toBeGreaterThan(0);
+    expect(body.createdBookings.length + body.skippedDays.length).toBe(5);
   });
 
   test('week-mode booking through the UI shows the summary screen', async ({ page }) => {

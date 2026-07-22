@@ -21,7 +21,9 @@ test.describe('Booking Flow', () => {
 
     await page.getByRole('link', { name: /book a spot/i }).click();
     await expect(page).toHaveURL('/booking');
-    await expect(page.getByText(/book a parking spot/i)).toBeVisible();
+    // Assert the step-1 heading (unique) rather than /book a parking spot/i, which now
+    // matches both the page subtitle and a "Book a parking spot →" link (strict-mode violation).
+    await expect(page.getByRole('heading', { name: 'Select a location' })).toBeVisible();
   });
 
   test('booking page shows step indicators', async ({ page }) => {

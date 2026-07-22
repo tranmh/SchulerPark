@@ -23,7 +23,9 @@ public class LotteryHistoryConfiguration : IEntityTypeConfiguration<LotteryHisto
         builder.HasOne(lh => lh.Location)
             .WithMany(l => l.LotteryHistories)
             .HasForeignKey(lh => lh.LocationId)
-            .OnDelete(DeleteBehavior.Cascade);
+            // Bug #42: Restrict (not Cascade) — deleting a Location must NOT silently erase its
+            // lottery/audit history (GDPR-relevant). Decommission via IsActive=false instead.
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Performance index for WeightedHistory strategy queries
         builder.HasIndex(lh => new { lh.UserId, lh.LocationId, lh.Date });

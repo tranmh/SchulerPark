@@ -4,6 +4,23 @@ import { tomorrow } from '../../helpers/data';
 
 test.describe('User → Booking flow (full)', () => {
   test('user can complete a booking through the 4-step wizard', async ({ page, request }) => {
+    // Bug #24: ensure a clean slate so the confirm deterministically navigates to My Bookings.
+    // A pre-existing booking for this date/slot would make the wizard fail — and the old
+    // assertion (URL is /my-bookings OR still /booking) passed anyway.
+    const seedToken = await apiLogin(request, USER_FINN.email, USER_FINN.password);
+    const seedLocs = await request.get('/api/locations', { headers: { Authorization: `Bearer ${seedToken}` } });
+    const seedLocations: Array<{ id: string; name: string }> = await seedLocs.json();
+    const gp = seedLocations.find((l) => l.name === 'Goeppingen') ?? seedLocations[0];
+    const seedMy = await request.get('/api/bookings/my?pageSize=100', { headers: { Authorization: `Bearer ${seedToken}` } });
+    if (seedMy.ok()) {
+      const my: { bookings: Array<{ id: string; date: string; locationId: string; timeSlot: string }> } = await seedMy.json();
+      for (const b of my.bookings) {
+        if (b.date === tomorrow() && b.locationId === gp.id && b.timeSlot === 'Morning') {
+          await request.delete(`/api/bookings/${b.id}`, { headers: { Authorization: `Bearer ${seedToken}` } });
+        }
+      }
+    }
+
     await loginAsFinn(page);
     await page.goto('/booking');
 
@@ -24,10 +41,10 @@ test.describe('User → Booking flow (full)', () => {
     await expect(page.getByText('Review your booking')).toBeVisible();
     await page.getByRole('button', { name: /Confirm Booking/i }).click();
 
-    // Either we land on /my-bookings, or we see a fallback summary screen.
+    // Bug #24: a successful confirm must navigate to My Bookings. The old assertion also
+    // accepted staying on /booking — i.e. it passed even when the confirm did nothing.
     await page.waitForLoadState('networkidle');
-    const url = page.url();
-    expect(url.endsWith('/my-bookings') || url.endsWith('/booking')).toBeTruthy();
+    await expect(page).toHaveURL(/\/my-bookings$/);
   });
 
   test('user can cancel a Pending booking from My Bookings', async ({ page, request }) => {
@@ -45,14 +62,26 @@ test.describe('User → Booking flow (full)', () => {
     date.setDate(date.getDate() + 14);
     const dateStr = date.toISOString().split('T')[0];
 
+    // Bug #24: 400 was originally allowed because a prior run may have left a booking for this
+    // date/slot (duplicate → 400); pre-clean it instead so 400 now signals a real failure.
+    const existing = await request.get('/api/bookings/my?pageSize=100', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (existing.ok()) {
+      const my: { bookings: Array<{ id: string; date: string; locationId: string; timeSlot: string }> } =
+        await existing.json();
+      for (const b of my.bookings) {
+        if (b.date === dateStr && b.locationId === loc.id && b.timeSlot === 'Afternoon') {
+          await request.delete(`/api/bookings/${b.id}`, { headers: { Authorization: `Bearer ${token}` } });
+        }
+      }
+    }
+
     const create = await request.post('/api/bookings', {
       headers: { Authorization: `Bearer ${token}` },
       data: { locationId: loc.id, date: dateStr, timeSlot: 'Afternoon' },
     });
-    // 400 is acceptable here — Finn may already have a booking for this
-    // date/slot from a prior run; the test only needs a Pending booking to
-    // exist that we can cancel via the UI.
-    expect([200, 201, 400]).toContain(create.status());
+    expect([200, 201]).toContain(create.status());
 
     await loginAsFinn(page);
     await page.goto('/my-bookings');

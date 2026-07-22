@@ -13,7 +13,9 @@ using SchulerPark.Infrastructure.Services;
 
 [ApiController]
 [Route("api/auth")]
-[EnableRateLimiting("auth")]
+// Bug #48: the strict brute-force limiter is applied per-endpoint below (register/login/
+// resend-verification) — NOT class-wide. High-frequency authed endpoints (me/config/refresh/
+// logout) must fall to the 300/min global limiter, or an office behind one NAT IP trips 429s.
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -34,6 +36,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         // Always the same response, whether the address was new, already
@@ -59,6 +62,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("resend-verification")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
     {
         await _authService.ResendVerificationEmailAsync(request.Email);
@@ -68,6 +72,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         try

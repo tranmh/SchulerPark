@@ -3,6 +3,7 @@ using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -52,7 +53,13 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 services.Remove(d);
 
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase(_dbName));
+                options
+                    .UseInMemoryDatabase(_dbName)
+                    // BookingService now opens an explicit transaction for week booking (#53).
+                    // InMemory has no transactions; treat BeginTransaction/Commit as no-ops here
+                    // instead of throwing. Real transactional behaviour is covered by the
+                    // Testcontainers Postgres tests.
+                    .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
 
             // Remove ALL Hangfire hosted services to avoid 90s shutdown timeout
             var hangfireHosted = services

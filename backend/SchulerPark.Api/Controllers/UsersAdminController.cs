@@ -4,6 +4,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Admin;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
@@ -15,10 +17,12 @@ using SchulerPark.Infrastructure.Data;
 public class UsersAdminController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
 
-    public UsersAdminController(AppDbContext db)
+    public UsersAdminController(AppDbContext db, IMemoryCache cache)
     {
         _db = db;
+        _cache = cache;
     }
 
     [HttpGet]
@@ -127,6 +131,10 @@ public class UsersAdminController : ControllerBase
                 token.RevokedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+
+            // Bug #49/#4: drop the cached "active" result so the disable takes effect on the
+            // user's next request, not up to the cache TTL later.
+            UserActiveCache.Evict(_cache, user.Id);
         }
 
         return Ok(ToDto(user));
@@ -143,6 +151,9 @@ public class UsersAdminController : ControllerBase
             user.DeletedAt = null;
             user.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+
+            // Bug #49/#4: drop the cached (now-stale "inactive") result so re-enable is immediate.
+            UserActiveCache.Evict(_cache, user.Id);
         }
 
         return Ok(ToDto(user));
@@ -177,6 +188,9 @@ public class UsersAdminController : ControllerBase
 
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();
+
+        // Bug #49/#4: drop any cached "active" result for the hard-deleted user.
+        UserActiveCache.Evict(_cache, user.Id);
 
         return NoContent();
     }
