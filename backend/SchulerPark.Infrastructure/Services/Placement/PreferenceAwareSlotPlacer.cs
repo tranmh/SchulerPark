@@ -6,10 +6,13 @@ using SchulerPark.Core.Interfaces;
 public class PreferenceAwareSlotPlacer : ISlotPlacer
 {
     private readonly ISlotDistanceMetric _metric;
+    private readonly Random _rng;
 
-    public PreferenceAwareSlotPlacer(ISlotDistanceMetric metric)
+    // Bug #20: RNG is injectable (DI supplies the default) so the shuffle is seedable in tests.
+    public PreferenceAwareSlotPlacer(ISlotDistanceMetric metric, Random? rng = null)
     {
         _metric = metric;
+        _rng = rng ?? Random.Shared;
     }
 
     public Dictionary<Guid, Guid> Place(
@@ -68,8 +71,10 @@ public class PreferenceAwareSlotPlacer : ISlotPlacer
         }
 
         // Pass 3 — random for everyone else (preserves current behavior).
-        var rng = Random.Shared;
-        var shuffled = new Queue<ParkingSlot>(pool.OrderBy(_ => rng.Next()));
+        // Bug #20: Fisher–Yates instead of the biased OrderBy(_ => rng.Next()).
+        var poolArr = pool.ToArray();
+        _rng.Shuffle(poolArr);
+        var shuffled = new Queue<ParkingSlot>(poolArr);
         foreach (var w in ordered)
         {
             if (assigned.ContainsKey(w.Id)) continue;

@@ -2,6 +2,7 @@ namespace SchulerPark.Infrastructure.Services;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
@@ -75,7 +76,20 @@ public class WaitlistService : IWaitlistService
         // Promote to Won
         promoted.Status = BookingStatus.Won;
         promoted.ParkingSlotId = freedSlotId;
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
+            && pg.ConstraintName == "IX_Bookings_ParkingSlotId_Date_TimeSlot")
+        {
+            // A concurrent direct assignment grabbed the freed slot first.
+            _logger.LogInformation("Waitlist skip: freed slot {SlotId} taken concurrently.", freedSlotId);
+            promoted.Status = BookingStatus.Lost;
+            promoted.ParkingSlotId = null;
+            return;
+        }
 
         // Load slot for email template
         await _db.Entry(promoted).Reference(b => b.ParkingSlot).LoadAsync();

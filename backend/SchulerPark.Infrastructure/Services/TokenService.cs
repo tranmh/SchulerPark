@@ -90,6 +90,11 @@ public class TokenService : ITokenService
         if (refreshToken.IsExpired)
             return null;
 
+        // Disabled / DSGVO-deleted accounts must not be able to refresh their way
+        // back in; same for accounts that lost verified status.
+        if (refreshToken.User.DeletedAt != null || !refreshToken.User.EmailVerified)
+            return null;
+
         return refreshToken.User;
     }
 

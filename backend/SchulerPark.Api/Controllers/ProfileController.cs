@@ -4,6 +4,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Auth;
 using SchulerPark.Api.DTOs.Profile;
 using SchulerPark.Core.Exceptions;
@@ -15,10 +17,12 @@ using SchulerPark.Infrastructure.Data;
 public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
 
-    public ProfileController(AppDbContext db)
+    public ProfileController(AppDbContext db, IMemoryCache cache)
     {
         _db = db;
+        _cache = cache;
     }
 
     [HttpGet]
@@ -129,6 +133,10 @@ public class ProfileController : ControllerBase
             token.RevokedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        // Bug #49/#4: evict the cached "active" result so the existing access token is rejected
+        // on its very next request, not up to the cache TTL later.
+        UserActiveCache.Evict(_cache, user.Id);
 
         return Ok(new { message = "Account scheduled for deletion. Data will be permanently removed after 30 days." });
     }

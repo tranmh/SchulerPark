@@ -6,14 +6,20 @@ using SchulerPark.Core.Models;
 
 public class WeightedHistoryStrategy : ILotteryStrategy
 {
+    private readonly Random _rng;
+
+    // Bug #20: RNG is injectable so the (unbiased) shuffle is seedable/auditable in tests.
+    public WeightedHistoryStrategy(Random? rng = null) => _rng = rng ?? Random.Shared;
+
     public List<LotteryResult> Execute(
         List<Booking> candidates,
         List<ParkingSlot> availableSlots,
         List<LotteryHistory> history)
     {
-        var rng = Random.Shared;
-        var slotQueue = new Queue<ParkingSlot>(
-            availableSlots.OrderBy(_ => rng.Next()));
+        // Bug #20: Fisher–Yates instead of the biased OrderBy(_ => rng.Next()).
+        var slotArr = availableSlots.ToArray();
+        _rng.Shuffle(slotArr);
+        var slotQueue = new Queue<ParkingSlot>(slotArr);
         var results = new List<LotteryResult>();
 
         // Build weights: consecutive losses per user at this location
@@ -26,7 +32,7 @@ public class WeightedHistoryStrategy : ILotteryStrategy
         while (slotQueue.Count > 0 && remaining.Count > 0)
         {
             var totalWeight = remaining.Sum(b => weights[b.Id]);
-            var roll = rng.NextDouble() * totalWeight;
+            var roll = _rng.NextDouble() * totalWeight;
             double cumulative = 0;
             Booking? winner = null;
 

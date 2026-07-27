@@ -54,9 +54,13 @@ namespace SchulerPark.Infrastructure.Data.Migrations
 
                     b.HasIndex("BlockedByUserId");
 
-                    b.HasIndex("ParkingSlotId");
+                    b.HasIndex("LocationId", "Date")
+                        .IsUnique()
+                        .HasFilter("\"ParkingSlotId\" IS NULL");
 
-                    b.HasIndex("LocationId", "Date");
+                    b.HasIndex("ParkingSlotId", "Date")
+                        .IsUnique()
+                        .HasFilter("\"ParkingSlotId\" IS NOT NULL");
 
                     b.ToTable("BlockedDays", (string)null);
                 });
@@ -98,11 +102,23 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("LocationId");
 
-                    b.HasIndex("ParkingSlotId");
+                    b.HasIndex("ParkingSlotId")
+                        .HasDatabaseName("IX_Bookings_ParkingSlotId");
+
+                    b.HasIndex("ParkingSlotId", "Date", "TimeSlot")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Bookings_ParkingSlotId_Date_TimeSlot")
+                        .HasFilter("\"ParkingSlotId\" IS NOT NULL AND \"Status\" IN ('Won', 'Confirmed')");
 
                     b.HasIndex("UserId", "Date", "TimeSlot", "LocationId")
                         .IsUnique()
@@ -387,6 +403,22 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Approved");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("AzureAdObjectId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
@@ -412,6 +444,18 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("EmailVerificationTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmailVerificationTokenHash")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(512)
@@ -440,7 +484,8 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasFilter("\"AzureAdObjectId\" is not null");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"DeletedAt\" is null");
 
                     b.HasIndex("PreferredLocationId");
 
@@ -480,13 +525,13 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.HasOne("SchulerPark.Core.Entities.Location", "Location")
                         .WithMany("Bookings")
                         .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SchulerPark.Core.Entities.ParkingSlot", "ParkingSlot")
                         .WithMany("Bookings")
                         .HasForeignKey("ParkingSlotId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SchulerPark.Core.Entities.User", "User")
                         .WithMany("Bookings")
@@ -517,7 +562,7 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.HasOne("SchulerPark.Core.Entities.Location", "Location")
                         .WithMany("LotteryHistories")
                         .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SchulerPark.Core.Entities.User", "User")

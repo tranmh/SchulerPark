@@ -44,7 +44,8 @@
     "signOut": "Sign out",
     "tagline": "Parking system",
     "roleSuper": "Super",
-    "roleAdmin": "Admin"
+    "roleAdmin": "Admin",
+    "approvals": "User Approvals"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -65,7 +66,7 @@
     "createAccount": "Create an account",
     "registerTitle": "Create your account",
     "registerSubtitle": "Get started with LouisE in under a minute.",
-    "passwordHint": "Minimum 8 characters.",
+    "passwordHint": "Minimum 8 characters with at least 3 of: lowercase, uppercase, digit, special character.",
     "createAccountBtn": "Create account",
     "creatingAccount": "Creating account…",
     "alreadyHaveAccount": "Already have an account?",
@@ -73,7 +74,22 @@
     "azureFailed": "Azure AD login failed. Please try again.",
     "registerFailed": "Registration failed. Please try again.",
     "passwordTooShort": "Password must be at least 8 characters.",
-    "passwordsDoNotMatch": "Passwords do not match."
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "verifyEmailSentTitle": "Check your email",
+    "verifyEmailSentBody": "If the email address is available, we sent a verification link to {{email}}. Click it to activate your account, then sign in.",
+    "backToLogin": "Back to sign in",
+    "emailNotVerified": "Please verify your email address before signing in.",
+    "resendVerification": "Resend verification email",
+    "verificationResent": "If the address has an unverified account, a new verification email has been sent.",
+    "verifyingEmail": "Verifying your email…",
+    "emailVerifiedTitle": "Email verified",
+    "emailVerifiedBody": "Your email address has been confirmed. You can sign in now.",
+    "emailVerifyFailedTitle": "Verification failed",
+    "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page.",
+    "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords.",
+    "pendingApproval": "Your account is awaiting approval by an administrator. You will be notified by email once it has been accepted.",
+    "registerApprovalNote": "Technikum Laubholz email addresses can sign in right after email verification. Andritz employees sign in directly with Microsoft — no registration needed. Registrations with other addresses additionally need to be accepted by an administrator — you will be notified by email.",
+    "ssoDomainNote": "This email address signs in with Microsoft (SSO) — no registration needed. Please use \"Continue with Microsoft\" on the sign-in page."
   },
   "dashboard": {
     "todayPrefix": "Today",
@@ -145,6 +161,7 @@
     "next1": "You're entered into the lottery for the selected day(s).",
     "next2": "Results are published shortly after <b>22:00</b> the day before.",
     "next3": "If you win, confirm by <b>06:00</b> (morning) or <b>13:00</b> (afternoon) on the booking day from your bookings page.",
+    "nextDirectNote": "If the lottery for a day has already run, a free spot is assigned to you immediately.",
     "loadLocationsFailed": "Failed to load locations.",
     "loadAvailabilityFailed": "Failed to load availability.",
     "createFailed": "Failed to create booking.",
@@ -156,6 +173,12 @@
     "weekCreated_other": "<strong>{{count}}</strong> bookings created successfully.",
     "fallbackHeading": "Booked at a fallback location:",
     "skippedHeading": "Skipped days:",
+    "directAssignedTitle": "Spot assigned immediately.",
+    "directAssignedMessage": "The lottery for this day has already run and a spot was still free — slot {{slot}} was assigned to you immediately. Your booking is confirmed, no further action needed.",
+    "waitlistedTitle": "You're on the waitlist.",
+    "waitlistedMessage": "All spots for this day are taken. Your booking is on the waitlist and will be assigned automatically if a spot becomes free.",
+    "weekDayAssignedHeading": "Spot assigned immediately:",
+    "weekDayWaitlistedHeading": "On the waitlist:",
     "goToMyBookings": "Go to my bookings",
     "parkingSlot_one": "{{count}} parking slot",
     "parkingSlot_other": "{{count}} parking slots"
@@ -207,6 +230,7 @@
     "pushEnabled": "Push notifications enabled on this device",
     "pushDisable": "Disable",
     "pushEnable": "Enable push notifications",
+    "pushError": "Could not enable push notifications. Please try again later.",
     "dsgvoTitle": "Your data (DSGVO Art. 15)",
     "dsgvoSubtitle": "Download all personal data we hold about you as a JSON file.",
     "downloadData": "Download my data",
@@ -293,5 +317,21 @@
     "section6Body": "Your personal data is not shared with third parties. If you use Azure AD SSO, authentication is handled via Microsoft's identity platform. No booking data is transmitted externally.",
     "section7": "7. Contact",
     "section7Body": "For questions about data protection or to exercise your rights, contact:<br /><strong>Data Protection Officer</strong><br />Email: datenschutz@schuler.de"
+  },
+  "approvals": {
+    "title": "User Approvals",
+    "subtitle": "External registrations that need to be accepted before their first sign-in.",
+    "user": "User",
+    "registered": "Registered",
+    "emailStatus": "Email",
+    "actions": "Actions",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "approve": "Approve",
+    "reject": "Reject",
+    "empty": "No registrations waiting for approval.",
+    "loadFailed": "Failed to load pending users.",
+    "decisionFailed": "Failed to save the decision.",
+    "rejectConfirm": "Reject the registration of {{email}}? The address will not be able to sign in."
   }
 }

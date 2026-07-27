@@ -23,14 +23,9 @@ public class ProfilePreferredSlotTests
 
     private async Task<string> RegisterAndGetTokenAsync()
     {
-        var response = await _client.PostAsJsonAsync("/api/auth/register", new
-        {
-            email = $"pref-{Guid.NewGuid():N}@schuler.de",
-            displayName = "Pref User",
-            password = "Test1234!"
-        });
-        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        return auth!.AccessToken;
+        var auth = await AuthTestHelper.RegisterVerifiedAsync(
+            _factory, _client, $"pref-{Guid.NewGuid():N}@schuler.de", "Pref User");
+        return auth.AccessToken;
     }
 
     private async Task<(Guid LocationId, Guid SlotId)> SeedLocationAndSlotAsync()

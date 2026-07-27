@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -7,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.OpenApi.Models;
+using SchulerPark.Api.Security;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Settings;
@@ -55,15 +59,34 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddControllers();
 
+// Bug #49: cache the per-request account-active check (below) so it doesn't hit the DB on
+// every authenticated call.
+builder.Services.AddMemoryCache();
+
 // Database
+var connectionString = builder.Configuration.GetConnectionString("Default");
+
+// Bug #16: refuse to start with a missing connection string or the committed 'changeme'
+// default password outside local development — a forgotten DB_PASSWORD must fail loudly,
+// not silently run Postgres with a publicly known password.
+if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing")
+    && SchulerPark.Api.StartupGuards.IsUnsafeDbConnectionString(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is missing or uses the default 'changeme' password. " +
+        "Set a strong DB_PASSWORD / ConnectionStrings__Default before starting in this environment.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(connectionString));
 
 // Settings
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("App"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
+builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection("Registration"));
 
 // DataProtection: in production, persist keys to a mounted volume (/keys) so they
 // survive container recreation. Without this, ASP.NET stores keys in the container's
@@ -86,6 +109,21 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 // JWT authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
+
+// Refuse to start with a missing, placeholder, or too-short HMAC secret outside
+// local development — an empty/known key lets anyone forge SuperAdmin tokens.
+if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+{
+    if (string.IsNullOrWhiteSpace(jwtSettings.Secret)
+        || jwtSettings.Secret.Contains("CHANGE_THIS", StringComparison.OrdinalIgnoreCase)
+        || Encoding.UTF8.GetByteCount(jwtSettings.Secret) < 32)
+    {
+        throw new InvalidOperationException(
+            "Jwt:Secret is missing, a placeholder, or shorter than 32 bytes. " +
+            "Set a strong JWT_SECRET before starting in this environment.");
+    }
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -103,7 +141,76 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
+
+        // Access tokens live 60 minutes; without this check a disabled or
+        // DSGVO-deleted account keeps API access until its token expires.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var sub = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(sub, out var userId))
+                {
+                    context.Fail("Invalid subject claim.");
+                    return;
+                }
+
+                // Bug #49: this runs on EVERY authenticated request. Cache the result briefly
+                // (IMemoryCache, 30s TTL) so a valid-token flood doesn't translate into a DB
+                // round-trip per call. A disabled account then loses access within the TTL —
+                // the same bounded window the 60-minute access token already tolerates. Still
+                // fails closed (a null/absent user → active == false → context.Fail).
+                var services = context.HttpContext.RequestServices;
+                var cache = services.GetRequiredService<IMemoryCache>();
+                var active = await cache.GetOrCreateAsync(SchulerPark.Api.Auth.UserActiveCache.Key(userId), entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = SchulerPark.Api.Auth.UserActiveCache.Ttl;
+                    var db = services.GetRequiredService<AppDbContext>();
+                    return db.Users.AnyAsync(u => u.Id == userId && u.DeletedAt == null);
+                });
+                if (!active)
+                    context.Fail("Account is disabled or deleted.");
+            }
+        };
     });
+
+// Rate limiting (H3): strict per-IP window on the auth endpoints (password
+// brute-force, credential stuffing, mass registration), sane global default
+// elsewhere. Caddy forwards the client IP via X-Forwarded-For, which
+// UseForwardedHeaders has already applied by the time the limiter runs.
+// Limits are config-overridable: integration tests and the Playwright E2E run
+// hammer the auth endpoints from one IP, so Development/Testing relax them
+// (appsettings.Development.json / test factory) while production keeps the
+// strict defaults.
+var authPermitLimit = builder.Configuration.GetValue("RateLimit:AuthPermitLimit", 10);
+var globalPermitLimit = builder.Configuration.GetValue("RateLimit:GlobalPermitLimit", 300);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Partition key masks IPv6 to /64 (see ClientNetwork) — otherwise a single
+    // routed /64 prefix yields 2^64 distinct buckets and no limit ever trips.
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ClientNetwork.RateLimitPartitionKey(context.Connection.RemoteIpAddress),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ClientNetwork.RateLimitPartitionKey(context.Connection.RemoteIpAddress),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 
 // Authorization policies. Role hierarchy is inclusive: SuperAdmin satisfies AdminOnly.
 builder.Services.AddAuthorization(options =>
@@ -120,6 +227,7 @@ builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<ILotteryService, LotteryService>();
 builder.Services.AddScoped<ISlotDistanceMetric, ManhattanDistanceMetric>();
 builder.Services.AddScoped<ISlotPlacer, PreferenceAwareSlotPlacer>();
+builder.Services.AddScoped<IDirectAssignmentService, DirectAssignmentService>();
 
 // Waitlist service
 builder.Services.AddScoped<IWaitlistService, WaitlistService>();
@@ -168,11 +276,28 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
 
-// Trust reverse proxy headers (Caddy)
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Trust reverse proxy headers (Caddy). KnownIPNetworks/KnownProxies default to
+// loopback only, which would silently ignore Caddy's X-Forwarded-For (it arrives
+// from a compose-network IP). Trust exactly the private ranges the compose network
+// can live in — NOT every peer: if the app port is ever published directly
+// (dev overlay, misconfig), an internet client must not be able to spoof its IP
+// via X-Forwarded-For. ForwardLimit stays at the default 1: Caddy appends the real
+// client as the rightmost XFF entry and only that entry is consumed.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+foreach (var privateNetwork in new[] { "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" })
+{
+    forwardedHeadersOptions.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(privateNetwork));
+}
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
+// Must run after UseForwardedHeaders so per-IP partitions see the client IP,
+// not Caddy's container IP (which would pool all users into one bucket).
+app.UseRateLimiter();
 
 app.UseStaticFiles();
 
@@ -183,9 +308,13 @@ app.MapControllers();
 
 if (app.Environment.IsDevelopment())
 {
+    // Even in Development the dashboard is never anonymous to the world: the
+    // filter refuses any request whose (forwarded-headers-resolved) client IP
+    // is not local/private. Defence-in-depth for the case where a prod box is
+    // accidentally started with the Development environment.
     app.MapHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
     {
-        Authorization = []
+        Authorization = [new LocalNetworkDashboardFilter()]
     }).AllowAnonymous();
 }
 

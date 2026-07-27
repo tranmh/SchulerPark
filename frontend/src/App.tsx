@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
+import { VerifyEmailPage } from './pages/Login/VerifyEmailPage'
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
 import { BookingPage } from './pages/Booking/BookingPage'
 import { MyBookingsPage } from './pages/MyBookings/MyBookingsPage'
@@ -13,6 +14,7 @@ import { BookingsPage } from './pages/Admin/BookingsPage'
 import { LotteryHistoryPage } from './pages/Admin/LotteryHistoryPage'
 import { GridLayoutPage } from './pages/Admin/GridLayoutPage'
 import { UsersPage } from './pages/Admin/UsersPage'
+import { ApprovalsPage } from './pages/Admin/ApprovalsPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { PrivacyPage } from './pages/Privacy/PrivacyPage'
 
@@ -21,6 +23,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/" element={
         <ProtectedRoute>
           <AppLayout>
@@ -90,6 +93,13 @@ function App() {
         <ProtectedRoute requireAdmin>
           <AppLayout>
             <GridLayoutPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/approvals" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <ApprovalsPage />
           </AppLayout>
         </ProtectedRoute>
       } />

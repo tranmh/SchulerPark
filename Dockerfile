@@ -32,7 +32,20 @@ COPY --from=backend-build /app/publish ./
 # Copy frontend build output to wwwroot
 COPY --from=frontend-build /app/frontend/dist ./wwwroot/
 
+# Run as the non-root `app` user (built into the .NET base images, UID 1654):
+# an RCE in the app must not get root inside the container. /app stays
+# root-owned (read-only for the app); /keys holds the DataProtection key ring
+# and must be writable. NOTE for existing deployments: a dataprotection_keys
+# volume created by an older root image needs a one-time
+#   docker run --rm -v <project>_dataprotection_keys:/keys alpine chown -R 1654:1654 /keys
+RUN mkdir -p /keys /bootstrap && chown app:app /keys /bootstrap
+
 ENV ASPNETCORE_URLS=http://+:8080
+# Writable location for the first-boot admin.yml (see BootstrapAdmin); /app is
+# deliberately not writable by the app user.
+ENV BOOTSTRAP_ADMIN_DIR=/bootstrap
 EXPOSE 8080
+
+USER app
 
 ENTRYPOINT ["dotnet", "SchulerPark.Api.dll"]

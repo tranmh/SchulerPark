@@ -1,6 +1,10 @@
 # Production services — use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 services:
   db:
+    environment:
+      # `:?` makes compose refuse to start with an unset/empty secret instead of
+      # silently falling back to the dev default.
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
     deploy:
       resources:
         limits:
@@ -20,8 +24,13 @@ services:
       # invalidate everyone's auth cookies (see Program.cs PersistKeysToFileSystem).
       - dataprotection_keys:/keys
     environment:
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:-changeme}"
-      Jwt__Secret: "${JWT_SECRET}"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
+      Jwt__Secret: "${JWT_SECRET:?JWT_SECRET must be set in .env}"
+      App__BaseUrl: "https://${SITE_DOMAIN:-louise.schuler.de}"
+      # Phase 18: email domains that self-register without admin approval.
+      Registration__AutoApprovedDomains: "${REGISTRATION_AUTO_APPROVED_DOMAINS:-technikumlaubholz.de}"
+      # Domains that must sign in via Azure AD SSO (local registration blocked).
+      Registration__SsoDomains: "${REGISTRATION_SSO_DOMAINS:-andritz.com}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
@@ -43,6 +52,13 @@ services:
           memory: 256M
 
   caddy:
+    # Stock Caddy — no custom build/DNS plugin needed. The Caddyfile auto-issues a
+    # publicly-trusted Let's Encrypt cert for SITE_DOMAIN via the ACME HTTP-01 /
+    # TLS-ALPN-01 challenge (localhost + the direct IP stay on the internal CA for
+    # deploy.sh's health probe). Issuance requires: (1) inbound :80/:443 open from
+    # the internet (Schuler IT firewall rule), and (2) the outbound proxy env below
+    # so Caddy can reach the ACME API. ACME_CA defaults to LE STAGING — flip it to
+    # production in .env after a successful staging issuance.
     image: caddy:2-alpine
     container_name: louise-caddy
     restart: unless-stopped
@@ -53,15 +69,24 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      SITE_DOMAIN: "${SITE_DOMAIN:-schulerpark.example.com}"
-      # Clear daemon-injected corporate proxy so Caddy reaches `app:8080` over the docker network
-      # instead of routing upstream requests through the corporate HTTP proxy.
-      HTTP_PROXY: ""
-      HTTPS_PROXY: ""
-      http_proxy: ""
-      https_proxy: ""
-      NO_PROXY: "*"
-      no_proxy: "*"
+      SITE_DOMAIN: "${SITE_DOMAIN:-louise.schuler.de}"
+      # Let's Encrypt ACME contact address.
+      ACME_EMAIL: "${ACME_EMAIL:-}"
+      # ACME CA directory. Defaults to LE STAGING for a safe first issuance. To
+      # issue real production certs, set in .env:
+      #   ACME_CA=https://acme-v02.api.letsencrypt.org/directory
+      ACME_CA: "${ACME_CA:-https://acme-staging-v02.api.letsencrypt.org/directory}"
+      # Caddy needs OUTBOUND HTTPS to Let's Encrypt's ACME API to obtain certs.
+      # This box's egress goes through Schuler's corporate proxy (direct egress is
+      # blocked — Connection refused); the proxy cleanly tunnels to acme-v02
+      # (verified real LE cert). Internal hops (app, db, the box, *.schuler.de) MUST
+      # bypass the proxy via NO_PROXY, or Caddy's reverse_proxy to app:8080 breaks.
+      HTTP_PROXY: "${CADDY_HTTP_PROXY:-http://193.28.217.25:3128}"
+      HTTPS_PROXY: "${CADDY_HTTPS_PROXY:-http://193.28.217.25:3128}"
+      http_proxy: "${CADDY_HTTP_PROXY:-http://193.28.217.25:3128}"
+      https_proxy: "${CADDY_HTTPS_PROXY:-http://193.28.217.25:3128}"
+      NO_PROXY: "app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
+      no_proxy: "app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -82,10 +107,12 @@ services:
       PGHOST: db
       PGPORT: "5432"
       PGUSER: louise
-      PGPASSWORD: ${DB_PASSWORD:-changeme}
+      PGPASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
       PGDATABASE: louise
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+      # Optional at-rest encryption for dumps (see scripts/db-backup.sh).
+      BACKUP_PASSPHRASE: "${BACKUP_PASSPHRASE:-}"
     volumes:
       - ./scripts/db-backup.sh:/usr/local/bin/db-backup.sh:ro
       - /dbbackup:/backups

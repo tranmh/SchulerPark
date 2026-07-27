@@ -1,3 +1,7 @@
 namespace SchulerPark.Api.DTOs.Auth;
 
-public record LoginRequest(string Email, string Password);
+using System.ComponentModel.DataAnnotations;
+
+public record LoginRequest(
+    [Required, MaxLength(320)] string Email,
+    [Required, MaxLength(128)] string Password);

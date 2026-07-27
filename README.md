@@ -63,6 +63,7 @@ git clone https://github.com/tranmh/SchulerPark.git
 cd LouisE
 cp .env.example .env
 # Edit .env with your database password and optional Azure AD / SMTP settings
+export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
 docker compose up --build
 ```
 

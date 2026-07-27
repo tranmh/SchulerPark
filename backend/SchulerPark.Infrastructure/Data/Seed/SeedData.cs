@@ -138,6 +138,7 @@ public static class SeedData
                     ? "Admin123!"
                     : "Test1234!";
                 user.PasswordHash = passwordHasher.HashPassword(user, password);
+                user.EmailVerified = true;
                 context.Users.Add(user);
             }
         }

@@ -30,4 +30,5 @@ export interface AuthConfig {
   azureAdEnabled: boolean;
   azureAdClientId: string | null;
   azureAdTenantId: string | null;
+  ssoDomains: string[];
 }

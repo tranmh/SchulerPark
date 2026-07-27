@@ -105,7 +105,7 @@ describe('LoginPage', () => {
   });
 
   it('shows Azure AD button when enabled', () => {
-    mockAuth.authConfig = { azureAdEnabled: true, azureAdClientId: 'id', azureAdTenantId: 'tid' };
+    mockAuth.authConfig = { azureAdEnabled: true, azureAdClientId: 'id', azureAdTenantId: 'tid', ssoDomains: [] };
 
     renderWithRouter(<LoginPage />);
 

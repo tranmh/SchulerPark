@@ -7,7 +7,10 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  // 'list' for readable console output plus 'html' so failed CI runs retain a
+  // report artifact (ci.yml uploads e2e/playwright-report/ on failure; the 'list'
+  // reporter alone never writes that directory).
+  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8080',
     locale: 'en-US',

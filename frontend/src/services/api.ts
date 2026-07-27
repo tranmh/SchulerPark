@@ -56,7 +56,12 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await api.post('/auth/refresh');
+        // Bug #23: delegate to authService's single-flight refresh so two concurrent 401s
+        // (across code paths) share ONE token rotation. Rotating twice can trip the server's
+        // refresh-token reuse detection and revoke every token, logging the user out.
+        // Lazy import breaks the api ↔ authService module cycle.
+        const { authService } = await import('./authService');
+        const data = await authService.refresh();
         setAccessToken(data.accessToken);
         processQueue(null);
         return api(originalRequest);

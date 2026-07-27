@@ -26,8 +26,12 @@ test.describe('Admin → Blocked Days', () => {
 
     await loginAsAdmin(page);
     await page.goto('/admin/blocked-days');
+    // Register the response wait BEFORE selecting the option: selecting fires the
+    // blocked-days fetch, and on a fast runner the 200 can arrive before a
+    // post-action waitForResponse starts listening, hanging until timeout.
+    const blockedDaysLoaded = page.waitForResponse((r) => r.url().includes('/admin/blocked-days') && r.status() === 200);
     await page.locator('#blocked-days-location').selectOption(testLocationId);
-    await page.waitForResponse((r) => r.url().includes('/admin/blocked-days') && r.status() === 200);
+    await blockedDaysLoaded;
 
     const row = page.locator('[data-testid="blocked-day-row"]', { hasText: reason });
     await expect(row).toBeVisible({ timeout: 10_000 });

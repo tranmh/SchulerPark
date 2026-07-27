@@ -10,7 +10,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Scheduling:** Hangfire (lottery at 10 PM daily, expiry hourly, retention weekly — Europe/Berlin)
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
-- **Reverse Proxy:** Caddy 2 (automatic HTTPS via Let's Encrypt, security headers)
+- **Reverse Proxy:** Caddy 2 (stock `caddy:2-alpine`), currently `tls internal` (self-signed CA) on `louise.schuler.de` (canonical; `park.schuler.de` aliased) — Let's Encrypt DNS-01 migration is planned, see `docs/plans/phase-15-letsencrypt-dns01.md`. HTTP→HTTPS 308 redirect enforced (no plaintext site block). Security headers incl. CSP; HSTS deliberately off until a trusted cert is live.
 - **PWA:** vite-plugin-pwa (service worker, offline support, installable)
 
 ## Repo Structure
@@ -28,7 +28,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 # Backend (from /backend)
 dotnet restore
 dotnet build
-dotnet run --project LouisE.Api
+dotnet run --project SchulerPark.Api
 
 # Frontend (from /frontend)
 npm install
@@ -42,10 +42,13 @@ dotnet test          # Runs xUnit strategy tests
 ### Docker (development)
 ```bash
 cp .env.example .env   # Edit .env with real values
+# Dev overrides are NOT auto-loaded (renamed from docker-compose.override.yml so a
+# bare `docker compose up` on the prod box can't start a Development stack):
+export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
 docker compose up --build
-# App: http://localhost:8080
+# App: http://localhost:8080 (dev ports bind to 127.0.0.1 only)
 # PostgreSQL: localhost:5432
-# MailHog UI: http://localhost:8025
+# MailHog UI: http://localhost:8026
 # Swagger: http://localhost:8080/swagger (dev only)
 # Hangfire: http://localhost:8080/hangfire (dev only)
 ```
@@ -67,7 +70,7 @@ Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PAT
 ### Default Credentials
 - SuperAdmin (dev seed): `superadmin@schulerpark.local` / `Admin123!`
 - Admin (dev seed): `admin@schulerpark.local` / `Admin123!`
-- Production SuperAdmin is generated on first startup if no users exist; credentials are written to `admin.yml` next to the running binary (see `BootstrapAdmin`).
+- Production SuperAdmin is generated on first startup if no users exist; credentials are written to `admin.yml` (0600) in `$BOOTSTRAP_ADMIN_DIR` (`/bootstrap` in the container; next to the binary otherwise) — see `BootstrapAdmin`. Read it with `docker compose exec app cat /bootstrap/admin.yml`, then delete it.
 
 ## Code Conventions
 - **C#:** PascalCase for public members, nullable reference types enabled, implicit usings
@@ -80,8 +83,10 @@ Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PAT
 ## Key Endpoints
 - `GET /api/health` — Health check
 - `GET /swagger` — API documentation (development only)
-- `POST /api/auth/login` — Local login (returns JWT)
-- `POST /api/auth/register` — Local registration
+- `POST /api/auth/login` — Local login (returns JWT; requires verified email)
+- `POST /api/auth/register` — Local registration (sends verification email; no auto-login)
+- `POST /api/auth/verify-email` — Confirm email via token from the verification mail
+- `POST /api/auth/resend-verification` — Resend verification email (generic response)
 - `GET /api/locations` — List active locations
 - `POST /api/bookings` — Create booking
 - `GET /api/bookings/my` — User's bookings

@@ -1,0 +1,51 @@
+# Dev overrides. Deliberately NOT named docker-compose.override.yml: that name is
+# auto-loaded by every bare `docker compose` command, and one habitual
+# `docker compose up` on the production box would recreate the stack in
+# Development mode (Swagger + Hangfire dashboard exposed, DB/app ports published).
+# Dev usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   (or: export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml)
+# Production: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Ports bind to 127.0.0.1 so a dev stack never listens on external interfaces.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: louise-mailhog
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  app:
+    build: .
+    container_name: louise-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:?DB_PASSWORD must be set}"
+      Jwt__Secret: "${JWT_SECRET:-CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS}"
+      AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
+      AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
+      AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
+      Smtp__Host: "${SMTP_HOST:-mailhog}"
+      Smtp__Port: "${SMTP_PORT:-1025}"
+      Smtp__Username: "${SMTP_USERNAME}"
+      Smtp__Password: "${SMTP_PASSWORD}"
+      Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.local}"
+      # schuler.de stays self-service in dev — the e2e suite registers @schuler.de
+      # users and expects login right after email verification.
+      Registration__AutoApprovedDomains: "technikumlaubholz.de,schuler.de"
+      Registration__SsoDomains: "andritz.com"
+      ASPNETCORE_ENVIRONMENT: Development

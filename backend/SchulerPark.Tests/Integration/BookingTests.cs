@@ -8,24 +8,19 @@ namespace SchulerPark.Tests.Integration;
 [Collection("Integration")]
 public class BookingTests
 {
+    private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public BookingTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
     private async Task<(string Token, Guid UserId)> RegisterAndGetTokenAsync(string? email = null)
     {
-        email ??= $"test-{Guid.NewGuid():N}@schuler.de";
-        var response = await _client.PostAsJsonAsync("/api/auth/register", new
-        {
-            email,
-            displayName = "Test User",
-            password = "Test1234!"
-        });
-        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        return (auth!.AccessToken, auth.User.Id);
+        var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        return (auth.AccessToken, auth.User.Id);
     }
 
     private HttpRequestMessage CreateAuthedRequest(HttpMethod method, string url, string token)

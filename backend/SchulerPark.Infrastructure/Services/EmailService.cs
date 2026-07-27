@@ -20,12 +20,29 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
+    public async Task SendEmailVerificationAsync(string email, string displayName, string verificationLink)
+    {
+        var subject = "Verify your email address — LouisE";
+        var body = BuildHtml($"""
+            <h2>Verify Your Email Address</h2>
+            {Greeting(displayName)}
+            <p>Thanks for registering with LouisE. Please confirm your email address to activate your account:</p>
+            <p style="margin: 24px 0;">
+                <a href="{verificationLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Verify Email</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {verificationLink}</p>
+            <p>The link is valid for 24 hours. If you did not create this account, you can ignore this email.</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
     public async Task SendBookingCreatedAsync(Booking booking)
     {
         var subject = $"Booking Confirmed — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml($"""
             <h2>Booking Confirmed</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>Your parking booking has been placed:</p>
             {BookingDetailsTable(booking)}
             <p>Your booking is now <strong>Pending</strong>. The lottery will run at 10 PM and you will be notified of the result.</p>
@@ -39,7 +56,7 @@ public class EmailService : IEmailService
         var subject = $"Booking Cancelled — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml($"""
             <h2>Booking Cancelled</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>Your parking booking has been cancelled:</p>
             {BookingDetailsTable(booking)}
             <p>You can book again anytime.</p>
@@ -57,10 +74,10 @@ public class EmailService : IEmailService
         var subject = $"You Won! — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml($"""
             <h2 style="color: #16a34a;">You Won a Parking Spot!</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>Great news! You have been assigned a parking spot:</p>
             {BookingDetailsTable(booking)}
-            <p><strong>Assigned Slot:</strong> {booking.ParkingSlot?.SlotNumber ?? "TBD"}</p>
+            <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
             <p style="color: #d97706;"><strong>Please confirm your usage before {berlinDeadline:HH:mm} on {berlinDeadline:dd.MM.yyyy}.</strong></p>
             <p>Log in to SchulerPark and confirm your booking, or it will expire.</p>
             """);
@@ -73,7 +90,7 @@ public class EmailService : IEmailService
         var subject = $"Lottery Result — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml($"""
             <h2>Lottery Result</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>Unfortunately, you were not selected in the parking lottery this time:</p>
             {BookingDetailsTable(booking)}
             <p>Demand exceeded available spots. Better luck next time!</p>
@@ -91,12 +108,41 @@ public class EmailService : IEmailService
         var subject = $"Great News! A Spot Opened Up — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml($"""
             <h2 style="color: #16a34a;">A Parking Spot Has Become Available!</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>A spot has become available and you have been automatically assigned:</p>
             {BookingDetailsTable(booking)}
-            <p><strong>Assigned Slot:</strong> {booking.ParkingSlot?.SlotNumber ?? "TBD"}</p>
+            <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
             <p style="color: #d97706;"><strong>Please confirm your usage before {berlinDeadline:HH:mm} on {berlinDeadline:dd.MM.yyyy}.</strong></p>
             <p>Log in to SchulerPark and confirm your booking, or it will expire.</p>
+            """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendBookingDirectlyConfirmedAsync(Booking booking)
+    {
+        var subject = $"Spot Assigned — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml($"""
+            <h2 style="color: #16a34a;">Your Parking Spot Is Confirmed!</h2>
+            {Greeting(booking.User.DisplayName)}
+            <p>The lottery for this day has already run and a spot was still free, so it has been assigned to you directly:</p>
+            {BookingDetailsTable(booking)}
+            <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
+            <p>Your booking is <strong>Confirmed</strong> — no further action needed.</p>
+            """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendBookingWaitlistedAsync(Booking booking)
+    {
+        var subject = $"You're on the Waitlist — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml($"""
+            <h2>You're on the Waitlist</h2>
+            {Greeting(booking.User.DisplayName)}
+            <p>All spots for this day are already taken:</p>
+            {BookingDetailsTable(booking)}
+            <p>Your booking is on the <strong>waitlist</strong> and a spot will be assigned to you automatically if one becomes free. You will be notified.</p>
             """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -107,7 +153,7 @@ public class EmailService : IEmailService
         var subject = $"Reminder: Confirm Your Parking — {booking.Location.Name}";
         var body = BuildHtml($"""
             <h2 style="color: #d97706;">Confirmation Reminder</h2>
-            <p>Hi {booking.User.DisplayName},</p>
+            {Greeting(booking.User.DisplayName)}
             <p>Your parking booking is about to expire because it has not been confirmed:</p>
             {BookingDetailsTable(booking)}
             <p><strong>Please log in to SchulerPark and confirm your booking now.</strong></p>
@@ -116,9 +162,63 @@ public class EmailService : IEmailService
         await SendEmailAsync(booking.User.Email, subject, body);
     }
 
-    private static string BookingDetailsTable(Booking booking) => $"""
+    public async Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink)
+    {
+        var subject = "New external user awaiting approval — LouisE";
+        var body = BuildHtml($"""
+            <h2>External Registration Awaiting Approval</h2>
+            {Greeting(adminDisplayName)}
+            <p>A user with an external email address has registered and verified their address. The account stays inactive until an administrator accepts it:</p>
+            <table style="border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Name</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserDisplayName)}</strong></td></tr>
+                <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Email</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserEmail)}</strong></td></tr>
+            </table>
+            <p style="margin: 24px 0;">
+                <a href="{approvalLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Review Pending Users</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {approvalLink}</p>
+            """);
+
+        await SendEmailAsync(adminEmail, subject, body);
+    }
+
+    public async Task SendAccountApprovedAsync(string email, string displayName, string loginLink)
+    {
+        var subject = "Your account has been approved — LouisE";
+        var body = BuildHtml($"""
+            <h2 style="color: #16a34a;">Account Approved</h2>
+            {Greeting(displayName)}
+            <p>An administrator has approved your LouisE account. You can sign in now:</p>
+            <p style="margin: 24px 0;">
+                <a href="{loginLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Sign In</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {loginLink}</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    public async Task SendAccountRejectedAsync(string email, string displayName)
+    {
+        var subject = "Your registration — LouisE";
+        var body = BuildHtml($"""
+            <h2>Registration Not Approved</h2>
+            {Greeting(displayName)}
+            <p>Unfortunately your registration for the LouisE parking system was not approved by an administrator.</p>
+            <p>If you believe this is a mistake, please contact your site administration.</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    // Bug #14: HTML-encode user-/admin-controlled values before interpolating into email bodies.
+    internal static string Enc(string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
+
+    internal static string Greeting(string? displayName) => $"<p>Hi {Enc(displayName)},</p>";
+
+    internal static string BookingDetailsTable(Booking booking) => $"""
         <table style="border-collapse: collapse; margin: 16px 0;">
-            <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Location</td><td style="padding: 4px 0;"><strong>{booking.Location.Name}</strong></td></tr>
+            <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Location</td><td style="padding: 4px 0;"><strong>{Enc(booking.Location.Name)}</strong></td></tr>
             <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Date</td><td style="padding: 4px 0;"><strong>{booking.Date:dd.MM.yyyy}</strong></td></tr>
             <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Time Slot</td><td style="padding: 4px 0;"><strong>{booking.TimeSlot}</strong></td></tr>
         </table>

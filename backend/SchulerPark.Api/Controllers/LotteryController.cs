@@ -30,7 +30,7 @@ public class LotteryController : ControllerBase
         [FromQuery] DateOnly date,
         [FromQuery] string timeSlot)
     {
-        if (!Enum.TryParse<TimeSlot>(timeSlot, ignoreCase: true, out var ts))
+        if (!Enum.TryParse<TimeSlot>(timeSlot, ignoreCase: true, out var ts) || !Enum.IsDefined(ts))
             return BadRequest(new ProblemDetails
             {
                 Title = "Bad Request",

@@ -26,6 +26,7 @@ export function ProfilePage() {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
 
   const {
     isSupported: pushSupported,
@@ -103,6 +104,16 @@ export function ProfilePage() {
       setError(t('profile.deletionFailed'));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Bug #11: inspect the discriminated result — show a real error only when the
+  // subscribe/permission call actually failed, not when the user simply declined.
+  const handleEnablePush = async () => {
+    setPushError(null);
+    const result = await requestPush();
+    if (!result.ok && result.reason === 'error') {
+      setPushError(t('profile.pushError'));
     }
   };
 
@@ -252,13 +263,18 @@ export function ProfilePage() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={requestPush}
-              className="rounded-lg bg-brand-500 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600"
-            >
-              {t('profile.pushEnable')}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleEnablePush}
+                className="rounded-lg bg-brand-500 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600"
+              >
+                {t('profile.pushEnable')}
+              </button>
+              {pushError && (
+                <p className="text-[13px] text-rose-700">{pushError}</p>
+              )}
+            </div>
           )}
         </Section>
       )}

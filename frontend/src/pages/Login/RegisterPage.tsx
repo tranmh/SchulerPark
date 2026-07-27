@@ -6,7 +6,7 @@ import { LanguageToggle } from '../../components/LanguageToggle';
 
 export function RegisterPage() {
   const { t } = useTranslation();
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, authConfig } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -15,18 +15,41 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   if (isAuthenticated) {
     navigate('/', { replace: true });
     return null;
   }
 
+  // Domains that must sign in via Microsoft SSO (e.g. andritz.com) — steer them
+  // to the login page instead of letting the registration fail server-side.
+  const emailDomain = email.includes('@') ? email.slice(email.lastIndexOf('@') + 1).trim().toLowerCase() : '';
+  const isSsoDomain = !!emailDomain
+    && (authConfig?.ssoDomains ?? []).some((d) => d.toLowerCase() === emailDomain);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
+    if (isSsoDomain) {
+      setError(t('auth.ssoDomainNote'));
+      return;
+    }
+
     if (password.length < 8) {
       setError(t('auth.passwordTooShort'));
+      return;
+    }
+
+    // Mirrors the backend PasswordComplexity rule: at least 3 of 4 character classes.
+    const classes =
+      Number(/[a-z]/.test(password)) +
+      Number(/[A-Z]/.test(password)) +
+      Number(/[0-9]/.test(password)) +
+      Number(/[^a-zA-Z0-9]/.test(password));
+    if (classes < 3) {
+      setError(t('auth.passwordTooWeak'));
       return;
     }
 
@@ -39,16 +62,43 @@ export function RegisterPage() {
 
     try {
       await register(email, displayName, password);
-      navigate('/');
+      // No auto-login: the account must verify its email address first.
+      setSubmitted(true);
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        || t('auth.registerFailed');
+      const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
+      const message = data?.code === 'sso_only_domain'
+        ? t('auth.ssoDomainNote')
+        : data?.error || t('auth.registerFailed');
       setError(message);
     } finally {
       setLoading(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
+        <div className="absolute right-6 top-6">
+          <LanguageToggle variant="light" />
+        </div>
+        <div className="w-full max-w-sm rounded-card border border-line bg-white p-8 text-center shadow-card">
+          <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-700 text-[15px] font-extrabold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
+            SP
+          </span>
+          <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink-900">{t('auth.verifyEmailSentTitle')}</h1>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-ink-500">
+            {t('auth.verifyEmailSentBody', { email })}
+          </p>
+          <Link
+            to="/login"
+            className="mt-6 inline-block w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
+          >
+            {t('auth.backToLogin')}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
@@ -80,6 +130,12 @@ export function RegisterPage() {
               id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
+            {isSsoDomain && (
+              <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-[12.5px] leading-relaxed text-sky-900">
+                {t('auth.ssoDomainNote')}{' '}
+                <Link to="/login" className="font-medium underline">{t('auth.signIn')}</Link>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="displayName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.displayName')}</label>
@@ -96,6 +152,9 @@ export function RegisterPage() {
             />
             <p className="mt-1.5 text-[11.5px] text-ink-400">{t('auth.passwordHint')}</p>
           </div>
+          <p className="rounded-lg bg-surface-warm px-3 py-2 text-[11.5px] leading-relaxed text-ink-500">
+            {t('auth.registerApprovalNote')}
+          </p>
           <div>
             <label htmlFor="confirmPassword" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.confirmPassword')}</label>
             <input
@@ -106,7 +165,7 @@ export function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isSsoDomain}
             className="mt-2 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
           >
             {loading ? t('auth.creatingAccount') : t('auth.createAccountBtn')}

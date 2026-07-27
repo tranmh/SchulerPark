@@ -54,7 +54,10 @@ HEALTH_URL="https://localhost/api/health"   # through Caddy; self-signed cert �
 # the proxy and returns 502 — a false smoke-test/health failure.
 HEALTH_TIMEOUT_SECONDS=180
 LOCK_FILE="/tmp/schulerpark-deploy.lock"
-STATE_FILE="/tmp/schulerpark-deploy.last"
+# In the repo, NOT /tmp: the state file is `source`d on rollback, and anyone
+# could pre-create a file in world-writable /tmp to run shell as the deploy
+# user (who has docker access = root-equivalent).
+STATE_FILE="$REPO/.deploy-state"
 
 # Resource thresholds (Step 2)
 DISK_ROOT_WARN_GB=5
@@ -138,7 +141,17 @@ abort() { log "ABORT: $*"; exit 1; }
 
 record_state() {
   local key="$1" value="$2"
-  printf '%s=%q\n' "$key" "$value" >> "$STATE_FILE"
+  ( umask 077; printf '%s=%q\n' "$key" "$value" >> "$STATE_FILE" )
+}
+
+# The state file gets `source`d — refuse anything that isn't a private regular
+# file owned by us.
+verify_state_file() {
+  [[ -f "$STATE_FILE" && ! -L "$STATE_FILE" ]] || abort "State file $STATE_FILE missing or is a symlink"
+  [[ -O "$STATE_FILE" ]] || abort "State file $STATE_FILE is not owned by $(id -un) — refusing to source it"
+  local perms
+  perms=$(stat -c '%a' "$STATE_FILE")
+  [[ "$perms" =~ ^[0-7]00$ ]] || abort "State file $STATE_FILE is group/world accessible (perms $perms) — refusing to source it"
 }
 
 # ─── Cleanup trap (runs on every exit) ──
@@ -617,6 +630,7 @@ main() {
 
   if [[ $MODE == "rollback" ]]; then
     [[ -f "$STATE_FILE" ]] || abort "No state file at $STATE_FILE — manual rollback required (retag image + compose up -d)"
+    verify_state_file
     # shellcheck disable=SC1090
     source "$STATE_FILE"
     log "Loaded state from $STATE_FILE"
@@ -633,7 +647,8 @@ main() {
     return 0
   fi
 
-  : > "$STATE_FILE"
+  rm -f "$STATE_FILE"
+  ( umask 077; : > "$STATE_FILE" )
   step_0_preflight
   step_1_snapshot_image
   step_2_resource_check
