@@ -22,8 +22,10 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-		# Remove server identification
+		# Remove server identification (Via is added by reverse_proxy and names
+		# the proxy software)
 		-Server
+		-Via
 	}
 }
 
@@ -40,6 +42,22 @@
 	# HSTS: start conservative now that a trusted cert is live; raise toward
 	# max-age=31536000 (+ includeSubDomains; preload) after a burn-in period.
 	header Strict-Transport-Security "max-age=86400"
+}
+
+# ── PressVisionLoop demo: plain HTTP on the intranet ──
+# prsv.schuler.de needs a DNS A record -> 193.28.217.49 (Schuler IT). Served over
+# plain HTTP for now: the global ACME CA is still LE staging and the hostname is
+# intranet-only, so an https block would just loop on failed issuance. The target
+# is the host-published port of the PressVisionLoop web container (separate
+# compose project), so this keeps working however that stack is recreated.
+http://prsv.schuler.de {
+	# No security_headers import (that CSP is LouisE-specific), but still hide
+	# proxy/server identification.
+	header {
+		-Server
+		-Via
+	}
+	reverse_proxy 193.28.217.49:3000
 }
 
 # ── Internal access: Caddy's self-signed internal CA ──
