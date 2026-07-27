@@ -73,7 +73,7 @@ jobs:
       - name: Start stack
         run: |
           cp .env.example .env
-          docker compose up --build -d
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
           sleep 30
 
       - name: Wait for health
@@ -116,7 +116,7 @@ jobs:
 
       - name: Stop stack
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 
   deploy:
     name: Deploy to Production

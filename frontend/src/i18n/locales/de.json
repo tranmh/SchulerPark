@@ -65,7 +65,7 @@
     "createAccount": "Konto erstellen",
     "registerTitle": "Konto erstellen",
     "registerSubtitle": "In unter einer Minute mit LouisE loslegen.",
-    "passwordHint": "Mindestens 8 Zeichen.",
+    "passwordHint": "Mindestens 8 Zeichen mit mindestens 3 von: Kleinbuchstabe, Großbuchstabe, Ziffer, Sonderzeichen.",
     "createAccountBtn": "Konto erstellen",
     "creatingAccount": "Konto wird erstellt…",
     "alreadyHaveAccount": "Bereits ein Konto?",
@@ -84,7 +84,8 @@
     "emailVerifiedTitle": "E-Mail bestätigt",
     "emailVerifiedBody": "Ihre E-Mail-Adresse wurde bestätigt. Sie können sich jetzt anmelden.",
     "emailVerifyFailedTitle": "Bestätigung fehlgeschlagen",
-    "emailVerifyFailedBody": "Der Bestätigungslink ist ungültig oder abgelaufen. Fordern Sie auf der Anmeldeseite einen neuen an."
+    "emailVerifyFailedBody": "Der Bestätigungslink ist ungültig oder abgelaufen. Fordern Sie auf der Anmeldeseite einen neuen an.",
+    "passwordTooWeak": "Passwort ist zu schwach: mindestens 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen verwenden und keine gängigen Passwörter."
   },
   "dashboard": {
     "todayPrefix": "Heute",

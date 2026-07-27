@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.OpenApi.Models;
+using SchulerPark.Api.Security;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Settings;
@@ -187,9 +188,11 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    // Partition key masks IPv6 to /64 (see ClientNetwork) — otherwise a single
+    // routed /64 prefix yields 2^64 distinct buckets and no limit ever trips.
     options.AddPolicy("auth", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            ClientNetwork.RateLimitPartitionKey(context.Connection.RemoteIpAddress),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = authPermitLimit,
@@ -199,7 +202,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            ClientNetwork.RateLimitPartitionKey(context.Connection.RemoteIpAddress),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = globalPermitLimit,
@@ -274,14 +277,21 @@ app.UseMiddleware<SchulerPark.Api.Middleware.ExceptionHandlingMiddleware>();
 
 // Trust reverse proxy headers (Caddy). KnownIPNetworks/KnownProxies default to
 // loopback only, which would silently ignore Caddy's X-Forwarded-For (it arrives
-// from a compose-network IP) — clear them; app:8080 is only reachable from the
-// compose network, so the immediate hop is trusted.
+// from a compose-network IP). Trust exactly the private ranges the compose network
+// can live in — NOT every peer: if the app port is ever published directly
+// (dev overlay, misconfig), an internet client must not be able to spoof its IP
+// via X-Forwarded-For. ForwardLimit stays at the default 1: Caddy appends the real
+// client as the rightmost XFF entry and only that entry is consumed.
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
+foreach (var privateNetwork in new[] { "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" })
+{
+    forwardedHeadersOptions.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(privateNetwork));
+}
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Must run after UseForwardedHeaders so per-IP partitions see the client IP,
@@ -297,9 +307,13 @@ app.MapControllers();
 
 if (app.Environment.IsDevelopment())
 {
+    // Even in Development the dashboard is never anonymous to the world: the
+    // filter refuses any request whose (forwarded-headers-resolved) client IP
+    // is not local/private. Defence-in-depth for the case where a prod box is
+    // accidentally started with the Development environment.
     app.MapHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
     {
-        Authorization = []
+        Authorization = [new LocalNetworkDashboardFilter()]
     }).AllowAnonymous();
 }
 

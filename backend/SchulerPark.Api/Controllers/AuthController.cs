@@ -50,7 +50,13 @@ public class AuthController : ControllerBase
         });
     }
 
+    // Strict limiter: unauthenticated token-guessing surface, and legit clients
+    // only ever call it once per registration. azure-callback and refresh stay on
+    // the global limiter for the Bug #48 reason above (login/refresh bursts from
+    // one office NAT IP); azure-callback additionally requires a signed Azure AD
+    // token, so it is not a guessing surface.
     [HttpPost("verify-email")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
     {
         var verified = await _authService.VerifyEmailAsync(request.Token);

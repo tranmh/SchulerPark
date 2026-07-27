@@ -65,7 +65,7 @@
     "createAccount": "Create an account",
     "registerTitle": "Create your account",
     "registerSubtitle": "Get started with LouisE in under a minute.",
-    "passwordHint": "Minimum 8 characters.",
+    "passwordHint": "Minimum 8 characters with at least 3 of: lowercase, uppercase, digit, special character.",
     "createAccountBtn": "Create account",
     "creatingAccount": "Creating account…",
     "alreadyHaveAccount": "Already have an account?",
@@ -84,7 +84,8 @@
     "emailVerifiedTitle": "Email verified",
     "emailVerifiedBody": "Your email address has been confirmed. You can sign in now.",
     "emailVerifyFailedTitle": "Verification failed",
-    "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page."
+    "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page.",
+    "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords."
   },
   "dashboard": {
     "todayPrefix": "Today",

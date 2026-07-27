@@ -7,6 +7,9 @@ Covers all phases through the 3-tier role system (SuperAdmin / Admin / User) add
 ```bash
 cd LouisE
 cp .env.example .env
+# Dev overrides are NOT auto-loaded (deliberate — see docker-compose.dev.yml).
+# Set COMPOSE_FILE once so every plain `docker compose` command below picks them up.
+export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
 docker compose up --build -d
 ```
 

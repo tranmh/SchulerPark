@@ -61,7 +61,9 @@ public class AuthService : IAuthService
         {
             // No enumeration: respond identically whether or not the email is taken.
             // An unverified account gets a fresh verification email; a verified one
-            // is left untouched.
+            // is left untouched. Burn a hash like the new-account path below does,
+            // so response timing doesn't reveal that the address exists.
+            _passwordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, password);
             if (!existing.EmailVerified && existing.DeletedAt == null)
                 await IssueVerificationTokenAsync(existing);
             return;

@@ -31,6 +31,17 @@ export function RegisterPage() {
       return;
     }
 
+    // Mirrors the backend PasswordComplexity rule: at least 3 of 4 character classes.
+    const classes =
+      Number(/[a-z]/.test(password)) +
+      Number(/[A-Z]/.test(password)) +
+      Number(/[0-9]/.test(password)) +
+      Number(/[^a-zA-Z0-9]/.test(password));
+    if (classes < 3) {
+      setError(t('auth.passwordTooWeak'));
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError(t('auth.passwordsDoNotMatch'));
       return;

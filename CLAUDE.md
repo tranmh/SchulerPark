@@ -28,7 +28,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 # Backend (from /backend)
 dotnet restore
 dotnet build
-dotnet run --project LouisE.Api
+dotnet run --project SchulerPark.Api
 
 # Frontend (from /frontend)
 npm install
@@ -42,10 +42,13 @@ dotnet test          # Runs xUnit strategy tests
 ### Docker (development)
 ```bash
 cp .env.example .env   # Edit .env with real values
+# Dev overrides are NOT auto-loaded (renamed from docker-compose.override.yml so a
+# bare `docker compose up` on the prod box can't start a Development stack):
+export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
 docker compose up --build
-# App: http://localhost:8080
+# App: http://localhost:8080 (dev ports bind to 127.0.0.1 only)
 # PostgreSQL: localhost:5432
-# MailHog UI: http://localhost:8025
+# MailHog UI: http://localhost:8026
 # Swagger: http://localhost:8080/swagger (dev only)
 # Hangfire: http://localhost:8080/hangfire (dev only)
 ```
