@@ -16,6 +16,9 @@ public class User
     public int AccessFailedCount { get; set; }
     public DateTime? LockoutEnd { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
+    public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Approved;
+    public DateTime? ApprovedAt { get; set; }
+    public Guid? ApprovedByUserId { get; set; }
     public Guid? PreferredLocationId { get; set; }
     public Guid? PreferredSlotId { get; set; }
     public DateTime CreatedAt { get; set; }

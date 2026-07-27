@@ -105,6 +105,16 @@ public class AuthController : ControllerBase
                 code = "email_not_verified"
             });
         }
+        catch (AccountPendingApprovalException)
+        {
+            // Only reachable with the correct password (see AuthService) — not an
+            // enumeration oracle.
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = "Your account is awaiting approval by an administrator. You will be notified by email once it has been accepted.",
+                code = "pending_approval"
+            });
+        }
     }
 
     [HttpPost("azure-callback")]

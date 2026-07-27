@@ -37,6 +37,8 @@ export function LoginPage() {
       if (data?.code === 'email_not_verified') {
         setNeedsVerification(true);
         setError(t('auth.emailNotVerified'));
+      } else if (data?.code === 'pending_approval') {
+        setError(t('auth.pendingApproval'));
       } else {
         setError(data?.error || t('auth.loginFailed'));
       }

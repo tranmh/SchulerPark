@@ -44,7 +44,8 @@
     "signOut": "Sign out",
     "tagline": "Parking system",
     "roleSuper": "Super",
-    "roleAdmin": "Admin"
+    "roleAdmin": "Admin",
+    "approvals": "User Approvals"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -85,7 +86,9 @@
     "emailVerifiedBody": "Your email address has been confirmed. You can sign in now.",
     "emailVerifyFailedTitle": "Verification failed",
     "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page.",
-    "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords."
+    "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords.",
+    "pendingApproval": "Your account is awaiting approval by an administrator. You will be notified by email once it has been accepted.",
+    "registerApprovalNote": "Andritz email addresses can sign in right after email verification. Registrations with other addresses additionally need to be accepted by an administrator — you will be notified by email."
   },
   "dashboard": {
     "todayPrefix": "Today",
@@ -313,5 +316,21 @@
     "section6Body": "Your personal data is not shared with third parties. If you use Azure AD SSO, authentication is handled via Microsoft's identity platform. No booking data is transmitted externally.",
     "section7": "7. Contact",
     "section7Body": "For questions about data protection or to exercise your rights, contact:<br /><strong>Data Protection Officer</strong><br />Email: datenschutz@schuler.de"
+  },
+  "approvals": {
+    "title": "User Approvals",
+    "subtitle": "External registrations that need to be accepted before their first sign-in.",
+    "user": "User",
+    "registered": "Registered",
+    "emailStatus": "Email",
+    "actions": "Actions",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "approve": "Approve",
+    "reject": "Reject",
+    "empty": "No registrations waiting for approval.",
+    "loadFailed": "Failed to load pending users.",
+    "decisionFailed": "Failed to save the decision.",
+    "rejectConfirm": "Reject the registration of {{email}}? The address will not be able to sign in."
   }
 }

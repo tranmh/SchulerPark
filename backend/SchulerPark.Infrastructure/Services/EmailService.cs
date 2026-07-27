@@ -162,6 +162,55 @@ public class EmailService : IEmailService
         await SendEmailAsync(booking.User.Email, subject, body);
     }
 
+    public async Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink)
+    {
+        var subject = "New external user awaiting approval — LouisE";
+        var body = BuildHtml($"""
+            <h2>External Registration Awaiting Approval</h2>
+            {Greeting(adminDisplayName)}
+            <p>A user with an external email address has registered and verified their address. The account stays inactive until an administrator accepts it:</p>
+            <table style="border-collapse: collapse; margin: 16px 0;">
+                <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Name</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserDisplayName)}</strong></td></tr>
+                <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Email</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserEmail)}</strong></td></tr>
+            </table>
+            <p style="margin: 24px 0;">
+                <a href="{approvalLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Review Pending Users</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {approvalLink}</p>
+            """);
+
+        await SendEmailAsync(adminEmail, subject, body);
+    }
+
+    public async Task SendAccountApprovedAsync(string email, string displayName, string loginLink)
+    {
+        var subject = "Your account has been approved — LouisE";
+        var body = BuildHtml($"""
+            <h2 style="color: #16a34a;">Account Approved</h2>
+            {Greeting(displayName)}
+            <p>An administrator has approved your LouisE account. You can sign in now:</p>
+            <p style="margin: 24px 0;">
+                <a href="{loginLink}" style="background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Sign In</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">Or open this link: {loginLink}</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    public async Task SendAccountRejectedAsync(string email, string displayName)
+    {
+        var subject = "Your registration — LouisE";
+        var body = BuildHtml($"""
+            <h2>Registration Not Approved</h2>
+            {Greeting(displayName)}
+            <p>Unfortunately your registration for the LouisE parking system was not approved by an administrator.</p>
+            <p>If you believe this is a mistake, please contact your site administration.</p>
+            """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
     // Bug #14: HTML-encode user-/admin-controlled values before interpolating into email bodies.
     internal static string Enc(string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
 

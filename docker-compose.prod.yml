@@ -27,6 +27,8 @@ services:
       ConnectionStrings__Default: "Host=db;Port=5432;Database=louise;Username=louise;Password=${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
       Jwt__Secret: "${JWT_SECRET:?JWT_SECRET must be set in .env}"
       App__BaseUrl: "https://${SITE_DOMAIN:-louise.schuler.de}"
+      # Phase 18: email domains that self-register without admin approval.
+      Registration__AutoApprovedDomains: "${REGISTRATION_AUTO_APPROVED_DOMAINS:-andritz.com}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"

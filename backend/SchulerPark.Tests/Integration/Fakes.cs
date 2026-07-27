@@ -43,6 +43,27 @@ public class CapturingEmailService : IEmailService
         return Task.CompletedTask;
     }
 
+    // Phase 18 approval mails, recorded by type + recipient so tests can assert them.
+    public ConcurrentQueue<(string Type, string Email)> ApprovalMails { get; } = new();
+
+    public Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink)
+    {
+        ApprovalMails.Enqueue(("ApprovalRequest", adminEmail));
+        return Task.CompletedTask;
+    }
+
+    public Task SendAccountApprovedAsync(string email, string displayName, string loginLink)
+    {
+        ApprovalMails.Enqueue(("AccountApproved", email));
+        return Task.CompletedTask;
+    }
+
+    public Task SendAccountRejectedAsync(string email, string displayName)
+    {
+        ApprovalMails.Enqueue(("AccountRejected", email));
+        return Task.CompletedTask;
+    }
+
     public Task SendBookingCreatedAsync(Booking booking) => Record("BookingCreated", booking);
     public Task SendBookingCancelledAsync(Booking booking) => Record("BookingCancelled", booking);
     public Task SendLotteryWonAsync(Booking booking) => Record("LotteryWon", booking);

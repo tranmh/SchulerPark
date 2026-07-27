@@ -34,6 +34,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseSetting("RateLimit:AuthPermitLimit", "1000000");
         builder.UseSetting("RateLimit:GlobalPermitLimit", "1000000");
 
+        // Phase 18: the suite predates approval and registers @schuler.de users
+        // everywhere — keep that domain self-service here. Approval-flow tests use
+        // a domain outside this list (see UserApprovalTests).
+        builder.UseSetting("Registration:AutoApprovedDomains", "andritz.com;schuler.de");
+
         builder.ConfigureServices(services =>
         {
             // Capture emails instead of SMTP; tests read verification links from here.

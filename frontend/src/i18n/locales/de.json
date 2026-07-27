@@ -44,7 +44,8 @@
     "signOut": "Abmelden",
     "tagline": "Parkplatzsystem",
     "roleSuper": "Super",
-    "roleAdmin": "Admin"
+    "roleAdmin": "Admin",
+    "approvals": "Benutzer-Freigaben"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -85,7 +86,9 @@
     "emailVerifiedBody": "Ihre E-Mail-Adresse wurde bestätigt. Sie können sich jetzt anmelden.",
     "emailVerifyFailedTitle": "Bestätigung fehlgeschlagen",
     "emailVerifyFailedBody": "Der Bestätigungslink ist ungültig oder abgelaufen. Fordern Sie auf der Anmeldeseite einen neuen an.",
-    "passwordTooWeak": "Passwort ist zu schwach: mindestens 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen verwenden und keine gängigen Passwörter."
+    "passwordTooWeak": "Passwort ist zu schwach: mindestens 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen verwenden und keine gängigen Passwörter.",
+    "pendingApproval": "Ihr Konto wartet auf die Freigabe durch einen Administrator. Sie werden per E-Mail benachrichtigt, sobald es akzeptiert wurde.",
+    "registerApprovalNote": "Andritz-E-Mail-Adressen können sich direkt nach der E-Mail-Bestätigung anmelden. Registrierungen mit anderen Adressen müssen zusätzlich von einem Administrator akzeptiert werden — Sie werden per E-Mail benachrichtigt."
   },
   "dashboard": {
     "todayPrefix": "Heute",
@@ -313,5 +316,21 @@
     "section6Body": "Ihre personenbezogenen Daten werden nicht an Dritte weitergegeben. Wenn Sie Azure AD SSO nutzen, erfolgt die Authentifizierung über die Microsoft-Identitätsplattform. Es werden keine Buchungsdaten extern übertragen.",
     "section7": "7. Kontakt",
     "section7Body": "Für Fragen zum Datenschutz oder zur Wahrnehmung Ihrer Rechte wenden Sie sich bitte an:<br /><strong>Datenschutzbeauftragter</strong><br />E-Mail: datenschutz@schuler.de"
+  },
+  "approvals": {
+    "title": "Benutzer-Freigaben",
+    "subtitle": "Externe Registrierungen, die vor der ersten Anmeldung akzeptiert werden müssen.",
+    "user": "Benutzer",
+    "registered": "Registriert",
+    "emailStatus": "E-Mail",
+    "actions": "Aktionen",
+    "verified": "Bestätigt",
+    "unverified": "Unbestätigt",
+    "approve": "Freigeben",
+    "reject": "Ablehnen",
+    "empty": "Keine Registrierungen warten auf Freigabe.",
+    "loadFailed": "Ausstehende Benutzer konnten nicht geladen werden.",
+    "decisionFailed": "Die Entscheidung konnte nicht gespeichert werden.",
+    "rejectConfirm": "Registrierung von {{email}} ablehnen? Die Adresse kann sich dann nicht anmelden."
   }
 }

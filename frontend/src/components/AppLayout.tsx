@@ -34,6 +34,7 @@ export function AppLayout({ children }: Props) {
     { to: '/admin/blocked-days', label: t('nav.blockedDays'), icon: BlockIcon },
     { to: '/admin/bookings', label: t('nav.allBookings'), icon: ListIcon },
     { to: '/admin/lottery-history', label: t('nav.lotteryHistory'), icon: HistoryIcon },
+    { to: '/admin/approvals', label: t('nav.approvals'), icon: UsersIcon },
   ];
 
   const superAdminNavItems = [

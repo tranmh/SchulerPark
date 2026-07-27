@@ -14,6 +14,7 @@ import { BookingsPage } from './pages/Admin/BookingsPage'
 import { LotteryHistoryPage } from './pages/Admin/LotteryHistoryPage'
 import { GridLayoutPage } from './pages/Admin/GridLayoutPage'
 import { UsersPage } from './pages/Admin/UsersPage'
+import { ApprovalsPage } from './pages/Admin/ApprovalsPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { PrivacyPage } from './pages/Privacy/PrivacyPage'
 
@@ -92,6 +93,13 @@ function App() {
         <ProtectedRoute requireAdmin>
           <AppLayout>
             <GridLayoutPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/approvals" element={
+        <ProtectedRoute requireAdmin>
+          <AppLayout>
+            <ApprovalsPage />
           </AppLayout>
         </ProtectedRoute>
       } />

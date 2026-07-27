@@ -19,7 +19,26 @@ export interface AdminUserListResponse {
   pageSize: number;
 }
 
+export interface PendingUser {
+  id: string;
+  email: string;
+  displayName: string;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+export interface PendingUserListResponse {
+  users: PendingUser[];
+  totalCount: number;
+}
+
 export const adminUsersService = {
+  pending: () =>
+    api.get<PendingUserListResponse>('/admin/users/pending').then((r) => r.data),
+
+  decide: (id: string, approve: boolean) =>
+    api.post<PendingUser>(`/admin/users/${id}/approval`, { approve }).then((r) => r.data),
+
   list: (params: { search?: string; role?: UserRole | ''; page?: number; pageSize?: number }) =>
     api
       .get<AdminUserListResponse>('/admin/users', { params })

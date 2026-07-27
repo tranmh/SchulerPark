@@ -18,6 +18,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.AzureAdObjectId).HasMaxLength(36);
         builder.Property(u => u.PasswordHash).HasMaxLength(512);
         builder.Property(u => u.Role).HasConversion<string>().HasMaxLength(20);
+        // Default 'Approved' so all pre-Phase-18 rows stay usable after the migration.
+        builder.Property(u => u.ApprovalStatus).HasConversion<string>().HasMaxLength(20)
+            .HasDefaultValue(Core.Enums.ApprovalStatus.Approved);
         builder.Property(u => u.CreatedAt).HasDefaultValueSql("now() at time zone 'utc'");
         builder.Property(u => u.UpdatedAt).HasDefaultValueSql("now() at time zone 'utc'");
 

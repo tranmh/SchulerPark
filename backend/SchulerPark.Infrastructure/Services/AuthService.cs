@@ -32,6 +32,7 @@ public class AuthService : IAuthService
     private readonly AzureAdTokenValidator _azureAdValidator;
     private readonly IEmailService _emailService;
     private readonly AppSettings _appSettings;
+    private readonly RegistrationSettings _registrationSettings;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -41,6 +42,7 @@ public class AuthService : IAuthService
         AzureAdTokenValidator azureAdValidator,
         IEmailService emailService,
         IOptions<AppSettings> appSettings,
+        IOptions<RegistrationSettings> registrationSettings,
         ILogger<AuthService> logger)
     {
         _context = context;
@@ -49,6 +51,7 @@ public class AuthService : IAuthService
         _azureAdValidator = azureAdValidator;
         _emailService = emailService;
         _appSettings = appSettings.Value;
+        _registrationSettings = registrationSettings.Value;
         _logger = logger;
     }
 
@@ -76,6 +79,11 @@ public class AuthService : IAuthService
             DisplayName = displayName,
             Role = UserRole.User,
             EmailVerified = false,
+            // Phase 18: external domains need an admin to accept the account.
+            // The HTTP response stays identical either way (no enumeration).
+            ApprovalStatus = _registrationSettings.IsAutoApprovedDomain(email)
+                ? ApprovalStatus.Approved
+                : ApprovalStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -100,7 +108,29 @@ public class AuthService : IAuthService
         user.EmailVerificationTokenExpiresAt = null;
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        // Phase 18: admins are notified about external registrations only once the
+        // address is verified — bots that never verify must not generate admin mail.
+        if (user.ApprovalStatus == ApprovalStatus.Pending)
+            await NotifyAdminsOfPendingUserAsync(user);
+
         return true;
+    }
+
+    private async Task NotifyAdminsOfPendingUserAsync(User pendingUser)
+    {
+        var admins = await _context.Users
+            .Where(u => (u.Role == UserRole.Admin || u.Role == UserRole.SuperAdmin)
+                        && u.DeletedAt == null)
+            .Select(u => new { u.Email, u.DisplayName })
+            .ToListAsync();
+
+        var approvalLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/admin/approvals";
+        foreach (var admin in admins)
+        {
+            await _emailService.SendApprovalRequestToAdminAsync(
+                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, approvalLink);
+        }
     }
 
     public async Task ResendVerificationEmailAsync(string email)
@@ -140,6 +170,15 @@ public class AuthService : IAuthService
 
         if (!user.EmailVerified)
             throw new EmailNotVerifiedException("Email address is not verified.");
+
+        // Phase 18 approval gate — deliberately AFTER the password check, so neither
+        // state is an enumeration oracle. Rejected is indistinguishable from bad
+        // credentials; Pending gets a distinct code (the caller proved ownership).
+        if (user.ApprovalStatus == ApprovalStatus.Rejected)
+            throw new UnauthorizedAccessException("Invalid email or password.");
+
+        if (user.ApprovalStatus == ApprovalStatus.Pending)
+            throw new AccountPendingApprovalException("Account is awaiting admin approval.");
 
         if (user.AccessFailedCount > 0 || user.LockoutEnd.HasValue)
         {
@@ -201,6 +240,9 @@ public class AuthService : IAuthService
                 }
 
                 user.EmailVerified = true;
+                // Phase 18: corporate tenant membership is the trust anchor —
+                // SSO logins bypass the registration-approval gate.
+                user.ApprovalStatus = ApprovalStatus.Approved;
                 user.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -213,6 +255,8 @@ public class AuthService : IAuthService
                     AzureAdObjectId = userInfo.ObjectId,
                     Role = UserRole.User,
                     EmailVerified = true,
+                    // Phase 18: SSO users are auto-approved (tenant trust anchor).
+                    ApprovalStatus = ApprovalStatus.Approved,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };

@@ -86,6 +86,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
+builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection("Registration"));
 
 // DataProtection: in production, persist keys to a mounted volume (/keys) so they
 // survive container recreation. Without this, ASP.NET stores keys in the container's
