@@ -37,7 +37,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // Phase 18: the suite predates approval and registers @schuler.de users
         // everywhere — keep that domain self-service here. Approval-flow tests use
         // a domain outside this list (see UserApprovalTests).
-        builder.UseSetting("Registration:AutoApprovedDomains", "andritz.com;schuler.de");
+        builder.UseSetting("Registration:AutoApprovedDomains", "technikumlaubholz.de;schuler.de");
+        // andritz.com must use Azure AD SSO — local registration is rejected.
+        builder.UseSetting("Registration:SsoDomains", "andritz.com");
 
         builder.ConfigureServices(services =>
         {

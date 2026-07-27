@@ -88,7 +88,8 @@
     "emailVerifyFailedBody": "The verification link is invalid or has expired. Request a new one from the sign-in page.",
     "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords.",
     "pendingApproval": "Your account is awaiting approval by an administrator. You will be notified by email once it has been accepted.",
-    "registerApprovalNote": "Andritz email addresses can sign in right after email verification. Registrations with other addresses additionally need to be accepted by an administrator — you will be notified by email."
+    "registerApprovalNote": "Technikum Laubholz email addresses can sign in right after email verification. Andritz employees sign in directly with Microsoft — no registration needed. Registrations with other addresses additionally need to be accepted by an administrator — you will be notified by email.",
+    "ssoDomainNote": "This email address signs in with Microsoft (SSO) — no registration needed. Please use \"Continue with Microsoft\" on the sign-in page."
   },
   "dashboard": {
     "todayPrefix": "Today",

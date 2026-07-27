@@ -59,6 +59,12 @@ public class AuthService : IAuthService
     {
         email = NormalizeEmail(email);
 
+        // SSO-mandated domains (e.g. andritz.com) must not create local accounts —
+        // checked before anything else so the rule stays purely domain-based.
+        if (_registrationSettings.IsSsoDomain(email))
+            throw new SsoOnlyDomainException(
+                "Accounts with this email domain sign in with Microsoft. Please use the Microsoft sign-in on the login page.");
+
         var existing = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (existing != null)
         {

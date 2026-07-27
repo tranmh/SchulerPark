@@ -12,8 +12,9 @@ namespace SchulerPark.Tests.Integration;
 /// <summary>
 /// Phase 18: external (non-allowlisted-domain) registrations are Pending until an
 /// admin accepts them; allowlisted domains and Azure AD SSO stay self-service.
-/// The test factory allowlists andritz.com + schuler.de, so @external.example is
-/// the "needs approval" domain here.
+/// The test factory allowlists technikumlaubholz.de + schuler.de and marks
+/// andritz.com as SSO-only, so @external.example is the "needs approval" domain
+/// and @andritz.com is the "must use Microsoft sign-in" domain here.
 /// </summary>
 [Collection("Integration")]
 public class UserApprovalTests
@@ -28,7 +29,8 @@ public class UserApprovalTests
     }
 
     private static string ExternalEmail(string label) => $"{label}-{Guid.NewGuid():N}@external.example";
-    private static string InternalEmail(string label) => $"{label}-{Guid.NewGuid():N}@andritz.com";
+    private static string InternalEmail(string label) => $"{label}-{Guid.NewGuid():N}@technikumlaubholz.de";
+    private static string SsoEmail(string label) => $"{label}-{Guid.NewGuid():N}@andritz.com";
 
     private async Task<string> CreateAdminTokenAsync()
     {
@@ -240,6 +242,51 @@ public class UserApprovalTests
         body.Should().Contain(email);
     }
 
+    // ── SSO-only domains ──
+
+    [Fact]
+    public async Task SsoDomain_LocalRegistration_Returns400SsoOnlyDomain()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/register", new
+        { email = SsoEmail("blocked"), displayName = "A", password = AuthTestHelper.DefaultPassword });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        body!["code"].Should().Be("sso_only_domain");
+    }
+
+    [Fact]
+    public async Task SsoDomain_LocalRegistration_CreatesNoUser()
+    {
+        var email = SsoEmail("nouser");
+        await _client.PostAsJsonAsync("/api/auth/register", new
+        { email, displayName = "A", password = AuthTestHelper.DefaultPassword });
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Users.Any(u => u.Email == email).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SsoDomain_AzureSsoLogin_Works()
+    {
+        var email = SsoEmail("viasso");
+        var token = FakeAzureAdTokenValidator.Token(Guid.NewGuid().ToString(), email, "Andritz User");
+
+        var response = await _client.PostAsJsonAsync("/api/auth/azure-callback", new { idToken = token });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AuthConfig_ExposesSsoDomains()
+    {
+        var response = await _client.GetAsync("/api/auth/config");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("ssoDomains").And.Contain("andritz.com");
+    }
+
     // ── SSO bypass ──
 
     [Fact]
@@ -278,5 +325,24 @@ public class UserApprovalTests
         settings.IsAutoApprovedDomain("a@schuler.de").Should().BeTrue();
         settings.IsAutoApprovedDomain("a@example.org").Should().BeTrue();
         settings.IsAutoApprovedDomain("a@other.example").Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("someone@andritz.com", true)]
+    [InlineData("someone@ANDRITZ.COM", true)]
+    [InlineData("someone@sub.andritz.com", false)]
+    [InlineData("someone@technikumlaubholz.de", false)]
+    [InlineData("no-at-sign", false)]
+    public void RegistrationSettings_SsoDomainMatching(string email, bool expected)
+    {
+        var settings = new RegistrationSettings { SsoDomains = "andritz.com" };
+        settings.IsSsoDomain(email).Should().Be(expected);
+    }
+
+    [Fact]
+    public void RegistrationSettings_GetSsoDomains_SplitsAndTrims()
+    {
+        var settings = new RegistrationSettings { SsoDomains = "andritz.com; example.org ,other.example" };
+        settings.GetSsoDomains().Should().BeEquivalentTo("andritz.com", "example.org", "other.example");
     }
 }

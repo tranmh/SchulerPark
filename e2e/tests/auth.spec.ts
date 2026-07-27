@@ -95,6 +95,16 @@ test.describe('Authentication', () => {
     await expect(page.locator('.bg-rose-50')).toBeVisible({ timeout: 5000 });
   });
 
+  test('register with SSO-only domain steers to Microsoft sign-in', async ({ page }) => {
+    await page.goto('/register');
+    await page.getByLabel('Email').fill('someone@andritz.com');
+
+    // Inline notice appears and the submit button is disabled — these users
+    // must use "Continue with Microsoft" on the login page instead.
+    await expect(page.getByText(/signs in with Microsoft/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled();
+  });
+
   test('register with mismatched passwords shows error', async ({ page }) => {
     await page.goto('/register');
     await page.getByLabel('Email').fill('mismatch@schuler.de');

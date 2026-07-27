@@ -8,7 +8,7 @@ export interface MockAuthValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean;
-  authConfig: { azureAdEnabled: boolean; azureAdClientId: string | null; azureAdTenantId: string | null } | null;
+  authConfig: { azureAdEnabled: boolean; azureAdClientId: string | null; azureAdTenantId: string | null; ssoDomains: string[] } | null;
   login: ReturnType<typeof vi.fn>;
   register: ReturnType<typeof vi.fn>;
   loginWithAzureAd: ReturnType<typeof vi.fn>;
@@ -38,7 +38,7 @@ export function createMockAuth(overrides: Partial<MockAuthValue> = {}): MockAuth
     isAuthenticated: false,
     isLoading: false,
     isAdmin: false,
-    authConfig: { azureAdEnabled: false, azureAdClientId: null, azureAdTenantId: null },
+    authConfig: { azureAdEnabled: false, azureAdClientId: null, azureAdTenantId: null, ssoDomains: [] },
     login: vi.fn(),
     register: vi.fn(),
     loginWithAzureAd: vi.fn(),

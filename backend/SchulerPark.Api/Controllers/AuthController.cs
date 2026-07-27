@@ -22,26 +22,38 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly JwtSettings _jwtSettings;
     private readonly AzureAdSettings _azureAdSettings;
+    private readonly RegistrationSettings _registrationSettings;
 
     public AuthController(
         IAuthService authService,
         ITokenService tokenService,
         IOptions<JwtSettings> jwtSettings,
-        IOptions<AzureAdSettings> azureAdSettings)
+        IOptions<AzureAdSettings> azureAdSettings,
+        IOptions<RegistrationSettings> registrationSettings)
     {
         _authService = authService;
         _tokenService = tokenService;
         _jwtSettings = jwtSettings.Value;
         _azureAdSettings = azureAdSettings.Value;
+        _registrationSettings = registrationSettings.Value;
     }
 
     [HttpPost("register")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        // Always the same response, whether the address was new, already
-        // registered, or already verified — no account enumeration.
-        await _authService.RegisterAsync(request.Email, request.DisplayName, request.Password);
+        try
+        {
+            // Always the same response, whether the address was new, already
+            // registered, or already verified — no account enumeration.
+            await _authService.RegisterAsync(request.Email, request.DisplayName, request.Password);
+        }
+        catch (SsoOnlyDomainException ex)
+        {
+            // Purely domain-based (rejected before any account lookup) — not an
+            // enumeration oracle.
+            return BadRequest(new { error = ex.Message, code = "sso_only_domain" });
+        }
 
         return Ok(new
         {
@@ -215,7 +227,10 @@ public class AuthController : ControllerBase
         {
             azureAdEnabled = _azureAdSettings.IsConfigured,
             azureAdClientId = _azureAdSettings.IsConfigured ? _azureAdSettings.ClientId : null,
-            azureAdTenantId = _azureAdSettings.IsConfigured ? _azureAdSettings.TenantId : null
+            azureAdTenantId = _azureAdSettings.IsConfigured ? _azureAdSettings.TenantId : null,
+            // Domains that must use Microsoft sign-in — lets the register page
+            // steer these users to SSO before they fill in the form.
+            ssoDomains = _registrationSettings.GetSsoDomains()
         });
     }
 

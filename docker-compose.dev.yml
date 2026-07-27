@@ -44,4 +44,8 @@ services:
       Smtp__Username: "${SMTP_USERNAME}"
       Smtp__Password: "${SMTP_PASSWORD}"
       Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.local}"
+      # schuler.de stays self-service in dev — the e2e suite registers @schuler.de
+      # users and expects login right after email verification.
+      Registration__AutoApprovedDomains: "technikumlaubholz.de,schuler.de"
+      Registration__SsoDomains: "andritz.com"
       ASPNETCORE_ENVIRONMENT: Development

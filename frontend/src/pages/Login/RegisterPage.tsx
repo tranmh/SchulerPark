@@ -6,7 +6,7 @@ import { LanguageToggle } from '../../components/LanguageToggle';
 
 export function RegisterPage() {
   const { t } = useTranslation();
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, authConfig } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -22,9 +22,20 @@ export function RegisterPage() {
     return null;
   }
 
+  // Domains that must sign in via Microsoft SSO (e.g. andritz.com) — steer them
+  // to the login page instead of letting the registration fail server-side.
+  const emailDomain = email.includes('@') ? email.slice(email.lastIndexOf('@') + 1).trim().toLowerCase() : '';
+  const isSsoDomain = !!emailDomain
+    && (authConfig?.ssoDomains ?? []).some((d) => d.toLowerCase() === emailDomain);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (isSsoDomain) {
+      setError(t('auth.ssoDomainNote'));
+      return;
+    }
 
     if (password.length < 8) {
       setError(t('auth.passwordTooShort'));
@@ -54,9 +65,10 @@ export function RegisterPage() {
       // No auto-login: the account must verify its email address first.
       setSubmitted(true);
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        || t('auth.registerFailed');
+      const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
+      const message = data?.code === 'sso_only_domain'
+        ? t('auth.ssoDomainNote')
+        : data?.error || t('auth.registerFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -118,6 +130,12 @@ export function RegisterPage() {
               id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
+            {isSsoDomain && (
+              <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-[12.5px] leading-relaxed text-sky-900">
+                {t('auth.ssoDomainNote')}{' '}
+                <Link to="/login" className="font-medium underline">{t('auth.signIn')}</Link>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="displayName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.displayName')}</label>
@@ -147,7 +165,7 @@ export function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isSsoDomain}
             className="mt-2 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
           >
             {loading ? t('auth.creatingAccount') : t('auth.createAccountBtn')}
