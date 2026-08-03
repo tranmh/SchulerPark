@@ -85,8 +85,8 @@ services:
       HTTPS_PROXY: "${CADDY_HTTPS_PROXY:-http://193.28.217.25:3128}"
       http_proxy: "${CADDY_HTTP_PROXY:-http://193.28.217.25:3128}"
       https_proxy: "${CADDY_HTTPS_PROXY:-http://193.28.217.25:3128}"
-      NO_PROXY: "app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
-      no_proxy: "app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
+      NO_PROXY: "app,schulerpark-app-1,formevo-app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
+      no_proxy: "app,schulerpark-app-1,formevo-app,db,caddy,mailhog,db-backup,localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,193.28.217.49,.schuler.de,.local"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

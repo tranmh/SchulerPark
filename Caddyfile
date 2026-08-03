@@ -36,11 +36,35 @@
 # reachable from the public internet (Schuler IT firewall/NAT rule) — until that
 # is open, issuance will fail the challenge and Caddy keeps retrying.
 {$SITE_DOMAIN:louise.schuler.de}, park.schuler.de {
-	reverse_proxy app:8080
+	# Container name, not the "app" service alias: Formevo's app also sits on
+	# this network and compose registers ITS service alias ("app") here too, so
+	# the bare alias is ambiguous between the two apps.
+	reverse_proxy schulerpark-app-1:8080
 
 	import security_headers
 	# HSTS: start conservative now that a trusted cert is live; raise toward
 	# max-age=31536000 (+ includeSubDomains; preload) after a burn-in period.
+	header Strict-Transport-Security "max-age=86400"
+}
+
+# ── Formevo: separate app, separate compose stack (~/data/Formevo) ──
+# Proxied through THIS Caddy because it owns 80/443 — the only ports the office
+# firewall lets through to this host (Formevo's own Caddy on 8081/8443 times out
+# for office users). formevo.schuler.de needs a DNS A record -> 193.28.217.49
+# (Schuler IT); once it resolves, the LE cert auto-issues like louise's did.
+# "formevo-app" is the Formevo app container's alias on schulerpark_default
+# (see networks: in Formevo's docker-compose.prod.yml).
+formevo.schuler.de {
+	# X-Forwarded-For is overwritten (not appended) so clients can't forge the
+	# head of the chain — Formevo rate-limits per client IP based on it.
+	reverse_proxy formevo-app:8080 {
+		header_up X-Forwarded-For {remote_host}
+		header_up -X-Real-IP
+		header_up -True-Client-IP
+	}
+
+	# Same CSP as LouisE (both are React SPAs with optional MSAL/Azure SSO).
+	import security_headers
 	header Strict-Transport-Security "max-age=86400"
 }
 
@@ -67,7 +91,8 @@ http://prsv.schuler.de {
 # the internal CA. No HSTS here — the cert is untrusted by design.
 localhost, 127.0.0.1, 193.28.217.49 {
 	tls internal
-	reverse_proxy app:8080
+	# Container name for the same reason as the public block above.
+	reverse_proxy schulerpark-app-1:8080
 
 	import security_headers
 }
