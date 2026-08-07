@@ -65,7 +65,9 @@ formevo.schuler.de {
 
 	# Same CSP as LouisE (both are React SPAs with optional MSAL/Azure SSO).
 	import security_headers
-	header Strict-Transport-Security "max-age=86400"
+	# Formevo security review 2026-08-06, finding 6: full-year HSTS with
+	# includeSubDomains ('preload' deliberately omitted — hard to reverse).
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }
 
 # ── PressVisionLoop demo: plain HTTP on the intranet ──
