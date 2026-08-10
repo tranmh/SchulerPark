@@ -51,11 +51,20 @@ public class AzureAdTokenValidator
 
         try
         {
-            var handler = new JwtSecurityTokenHandler();
+            // MapInboundClaims would rename `oid` to the legacy SOAP URI
+            // (http://schemas.microsoft.com/identity/claims/objectidentifier),
+            // making the FindFirst("oid") lookup below silently fail.
+            var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
             var result = await handler.ValidateTokenAsync(idToken, validationParams);
 
             if (!result.IsValid)
+            {
+                // ValidateTokenAsync reports failures via IsValid rather than
+                // throwing, so this path never hits the catch blocks below.
+                _logger.LogWarning(result.Exception,
+                    "Azure AD token rejected: {Reason}", result.Exception?.Message ?? "unknown");
                 return null;
+            }
 
             var claims = result.ClaimsIdentity;
             var oid = claims.FindFirst("oid")?.Value;
@@ -64,7 +73,13 @@ public class AzureAdTokenValidator
             var name = claims.FindFirst("name")?.Value;
 
             if (string.IsNullOrEmpty(oid) || string.IsNullOrEmpty(email))
+            {
+                _logger.LogWarning(
+                    "Azure AD token valid but unusable (oid: {HasOid}, email: {HasEmail}); claim types present: {ClaimTypes}",
+                    !string.IsNullOrEmpty(oid), !string.IsNullOrEmpty(email),
+                    string.Join(", ", claims.Claims.Select(c => c.Type)));
                 return null;
+            }
 
             return new AzureAdUserInfo(oid, email, name ?? email);
         }
