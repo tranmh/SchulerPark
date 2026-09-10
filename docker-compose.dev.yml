@@ -39,11 +39,14 @@ services:
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"
-      Smtp__Host: "${SMTP_HOST:-mailhog}"
-      Smtp__Port: "${SMTP_PORT:-1025}"
-      Smtp__Username: "${SMTP_USERNAME}"
-      Smtp__Password: "${SMTP_PASSWORD}"
-      Smtp__FromAddress: "${SMTP_FROM_ADDRESS:-noreply@schulerpark.local}"
+      # Pinned to MailHog (not ${SMTP_*}) so a .env holding real relay values —
+      # e.g. the production .env on the deploy box — can never make a dev/CI
+      # stack send real mail through the corporate gateway.
+      Smtp__Host: "mailhog"
+      Smtp__Port: "1025"
+      Smtp__Username: ""
+      Smtp__Password: ""
+      Smtp__FromAddress: "noreply@schulerpark.local"
       # schuler.de stays self-service in dev — the e2e suite registers @schuler.de
       # users and expects login right after email verification.
       Registration__AutoApprovedDomains: "technikumlaubholz.de,schuler.de"

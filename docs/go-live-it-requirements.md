@@ -40,11 +40,16 @@ Setup steps inside the app once values are issued: put them in `.env` as `AZURE_
 
 The app sends booking confirmations, lottery results, and expiry warnings via MailKit. Prod compose reads `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_ADDRESS`.
 
-IT needs to provide:
+**Status: relay resolved.** The app now sends through the Schuler mail gateway
+`mgate01.schulergroup.com:25` (unauthenticated internal relay, no credentials) as
+`noreply@schuler.de` — configured in `.env` and defaulted in
+`.env.production.example` / `docker-compose.prod.yml`.
 
-- SMTP relay host + port (likely the corporate Exchange/365 relay or a dedicated app relay)
-- Credentials, or have the relay accept `193.28.217.49` by IP allowlist
-- Authorization for the `From:` address. `.env.production.example` defaults to `noreply@schulerpark.de`; the real domain should likely be `noreply@schuler.de`. SPF/DMARC for that sender must allow the relay.
+Still owed by IT:
+
+- Confirm the relay accepts the box (`193.28.217.49`) by IP allowlist.
+- Confirm SPF/DMARC for `noreply@schuler.de` covers mail relayed via `mgate01`
+  (matters for delivery to external mailboxes; internal delivery works regardless).
 
 Without this, email sending fails silently (fire-and-forget). Confirmations don't reach users → broken UX even if the app is up.
 
@@ -78,7 +83,7 @@ These don't need IT but must be done before go-live:
 ## Suggested order of operations
 
 1. Cert + DNS + proxy bypass — without these no one can load the page.
-2. SMTP — without this users don't get confirmations.
+2. SMTP — without this users don't get confirmations. *(Resolved — mgate01 relay wired, see §4; only the IP-allowlist/SPF confirmations remain.)*
 3. AAD app registration — without this only local login works (functional, but not the chosen UX).
 4. Monitoring + backup verification — for the go-live ticket.
 5. Legal / Betriebsrat sign-off — runs in parallel with 1–4; usually the long pole.
