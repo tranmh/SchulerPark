@@ -40,16 +40,27 @@ Setup steps inside the app once values are issued: put them in `.env` as `AZURE_
 
 The app sends booking confirmations, lottery results, and expiry warnings via MailKit. Prod compose reads `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_ADDRESS`.
 
-**Status: relay resolved.** The app now sends through the Schuler mail gateway
-`mgate01.schulergroup.com:25` (unauthenticated internal relay, no credentials) as
-`noreply@schuler.de` — configured in `.env` and defaulted in
-`.env.production.example` / `docker-compose.prod.yml`.
+**Status: configured but BLOCKED by firewall (verified 2026-09-10).** The app is
+configured for the Schuler mail gateway `mgate01.schulergroup.com:25`
+(unauthenticated relay) as `noreply@schuler.de` — in `.env` and defaulted in
+`.env.production.example` / `docker-compose.prod.yml`. However, **outbound SMTP
+from this box is actively rejected**: connections from both the host and the app
+container to mgate01/mgate02 on 25/587/465 get instant `ECONNREFUSED`, and so
+does port 25 to a TEST-NET blackhole IP — proof of a local/perimeter REJECT rule
+(firewalld is active; rules not readable without root), not a relay-side issue.
+Every app email currently fails silently.
 
-Still owed by IT:
+Owed by IT (in order):
 
+- **Open outbound TCP 25 from `193.28.217.49` to `mgate01.schulergroup.com`
+  (212.87.143.250)** in the host firewalld policy / perimeter firewall — or name
+  an SMTP relay this box may reach.
 - Confirm the relay accepts the box (`193.28.217.49`) by IP allowlist.
 - Confirm SPF/DMARC for `noreply@schuler.de` covers mail relayed via `mgate01`
   (matters for delivery to external mailboxes; internal delivery works regardless).
+
+Retest once opened: `python3 -c "import smtplib; smtplib.SMTP('mgate01.schulergroup.com',25,timeout=10).noop()"`,
+then trigger any booking email and check `docker logs` for "Email sent".
 
 Without this, email sending fails silently (fire-and-forget). Confirmations don't reach users → broken UX even if the app is up.
 
@@ -83,7 +94,7 @@ These don't need IT but must be done before go-live:
 ## Suggested order of operations
 
 1. Cert + DNS + proxy bypass — without these no one can load the page.
-2. SMTP — without this users don't get confirmations. *(Resolved — mgate01 relay wired, see §4; only the IP-allowlist/SPF confirmations remain.)*
+2. SMTP — without this users don't get confirmations. *(Blocked — mgate01 relay is wired but outbound TCP 25 is firewalled from this box, see §4; IT must open egress, then confirm IP allowlist/SPF.)*
 3. AAD app registration — without this only local login works (functional, but not the chosen UX).
 4. Monitoring + backup verification — for the go-live ticket.
 5. Legal / Betriebsrat sign-off — runs in parallel with 1–4; usually the long pole.
