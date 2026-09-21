@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
+import { OfflineBanner } from './components/OfflineBanner'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
 import { VerifyEmailPage } from './pages/Login/VerifyEmailPage'
@@ -20,6 +21,8 @@ import { PrivacyPage } from './pages/Privacy/PrivacyPage'
 
 function App() {
   return (
+    <>
+    <OfflineBanner />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -111,6 +114,7 @@ function App() {
         </ProtectedRoute>
       } />
     </Routes>
+    </>
   )
 }
 

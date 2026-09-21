@@ -11,14 +11,14 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
 - **Reverse Proxy:** Caddy 2 (stock `caddy:2-alpine`), currently `tls internal` (self-signed CA) on `louise.schuler.de` (canonical; `park.schuler.de` aliased) — Let's Encrypt DNS-01 migration is planned, see `docs/plans/phase-15-letsencrypt-dns01.md`. HTTP→HTTPS 308 redirect enforced (no plaintext site block). Security headers incl. CSP; HSTS deliberately off until a trusted cert is live.
-- **PWA:** vite-plugin-pwa (service worker, offline support, installable)
+- **PWA:** vite-plugin-pwa, injectManifest (`frontend/src/sw.ts`): precached app shell with offline navigation fallback (API routes never cached), Web Push handlers, installable. Icons are generated — run `python3 scripts/generate-icons.py`, don't hand-edit the PNGs.
 
 ## Repo Structure
 ```
 /backend          .NET solution (Api, Core, Infrastructure, Tests)
 /frontend         React + Vite + TypeScript
 /docs/plans       Implementation plans (Phase1-Phase12)
-/scripts          DB backup script
+/scripts          DB backup script, PWA icon generator
 ```
 
 ## Build & Run
@@ -100,6 +100,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `GET /api/push/vapid-public-key` — VAPID public key for push subscriptions
 - `POST /api/push/subscribe` — Subscribe to push notifications
 - `DELETE /api/push/subscribe` — Unsubscribe from push notifications
+- `POST /api/push/test` — Push a test notification to the caller's devices (manual end-to-end check; 404 no subscription, 502 nothing delivered)
 - `GET /api/admin/*` — Admin CRUD endpoints (admin)
 
 ## Error Handling

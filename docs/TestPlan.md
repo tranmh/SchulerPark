@@ -121,8 +121,24 @@ If you started against an empty database, `BootstrapAdmin` should have created a
     -d '{"email":"<your-user>","password":"<pwd>"}' | jq -r .accessToken)
   curl -s -H "Authorization: Bearer $USER" http://localhost:8080/api/push/vapid-public-key
   ```
+- [ ] **Manual end-to-end check:** on Profile, click **Send test notification** next to the green "enabled" badge. An OS notification titled *LouisE test notification* should appear within a few seconds, and the page reports how many devices were reached. Clicking the notification opens `/profile`.
+  - Same check from the shell (200 = delivered, 404 = no subscription for this account, 502 = push service rejected every subscription):
+    ```bash
+    curl -s -X POST -H "Authorization: Bearer $USER" http://localhost:8080/api/push/test
+    # {"subscriptions":1,"delivered":1,"removed":0,"failed":0}
+    ```
+  - Requires `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` in `.env`; without them the endpoint returns 404 and the Profile push section stays hidden.
 - [ ] Trigger a waitlist promotion (§7) — the OS-level push notification should fire even if the tab is closed.
-- [ ] Disable push from Profile (calls `DELETE /api/push/subscribe`) — subsequent triggers should not deliver notifications.
+- [ ] Disable push from Profile (calls `DELETE /api/push/subscribe`) — subsequent triggers should not deliver notifications, and the test button disappears.
+
+### PWA install, icons & offline fallback
+
+- [ ] In Chrome/Edge, open DevTools → Application → Manifest: name **LouisE**, theme colour `#0B0F17`, three icons (192 any, 512 any, 512 maskable) all rendering the teal **LE** tile with no warnings. The tab favicon shows the same mark.
+- [ ] Install the app (address-bar install icon). The launcher/home-screen icon is the LE tile; on Android the maskable variant fills the launcher shape without cropping the letters.
+- [ ] Load the app once while online (this precaches the shell), then DevTools → Network → **Offline**. Type `/my-bookings` into the address bar and press Enter: the LouisE shell renders (not the browser's offline page) with an amber **You are offline** banner across the top. API-backed content shows its normal error/empty state.
+- [ ] Still offline, refresh the installed app from its launcher — same result.
+- [ ] Switch back to **Online** — the banner disappears without a reload.
+- [ ] Offline, request `/api/health` directly — this must still fail (API routes are never served from cache).
 
 ## 10. Test Admin Features (regular Admin)
 

@@ -12,13 +12,17 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
+      // Icons are generated from scripts/generate-icons.py — edit the script, not the PNGs.
+      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png', 'badge-96x96.png'],
       manifest: {
         name: 'LouisE - Parkplatz Buchungssystem',
         short_name: 'LouisE',
         description: 'Parking slot booking system for Schuler office locations',
-        theme_color: '#111827',
-        background_color: '#f9fafb',
+        lang: 'de',
+        // Matches the sidebar (--color-ink-900) and <meta name="theme-color"> in index.html.
+        theme_color: '#0B0F17',
+        // Matches the app background (--color-surface-sunken) so the splash screen blends in.
+        background_color: '#F6F7F9',
         display: 'standalone',
         scope: '/',
         start_url: '/',
@@ -27,17 +31,21 @@ export default defineConfig(({ mode }) => ({
             src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
           },
           {
-            src: 'pwa-512x512.png',
+            // Full-bleed variant with the mark inside the 80% safe zone — Android
+            // masks this to its own launcher shape instead of cropping the 'any' icon.
+            src: 'pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'maskable',
           },
         ],
       },
