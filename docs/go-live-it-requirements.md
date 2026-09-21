@@ -40,29 +40,35 @@ Setup steps inside the app once values are issued: put them in `.env` as `AZURE_
 
 The app sends booking confirmations, lottery results, and expiry warnings via MailKit. Prod compose reads `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_ADDRESS`.
 
-**Status: configured but BLOCKED by firewall (verified 2026-09-10).** The app is
+**Status: relay reachable and accepting (verified 2026-09-21).** The app is
 configured for the Schuler mail gateway `mgate01.schulergroup.com:25`
 (unauthenticated relay) as `noreply@schuler.de` — in `.env` and defaulted in
-`.env.production.example` / `docker-compose.prod.yml`. However, **outbound SMTP
-from this box is actively rejected**: connections from both the host and the app
-container to mgate01/mgate02 on 25/587/465 get instant `ECONNREFUSED`, and so
-does port 25 to a TEST-NET blackhole IP — proof of a local/perimeter REJECT rule
-(firewalld is active; rules not readable without root), not a relay-side issue.
-Every app email currently fails silently.
+`.env.production.example` / `docker-compose.prod.yml`. The outbound REJECT rule
+found on 2026-09-10 has been lifted:
 
-Owed by IT (in order):
+- Host and app-container network → `mgate01`/`mgate02` port 25: connects, `220`
+  banner, `EHLO` accepted (8BITMIME, SIZE 25 MB, STARTTLS offered).
+- Relay allowlist: `MAIL FROM:<noreply@schuler.de>` and `RCPT TO:` an external
+  (`andritz.com`) mailbox both answered `250` — the box (`193.28.217.49`) is
+  accepted without auth.
+- One end-to-end test message was queued by the gateway without refusal.
+- Ports 587/465 remain refused; irrelevant, the app uses 25.
 
-- **Open outbound TCP 25 from `193.28.217.49` to `mgate01.schulergroup.com`
-  (212.87.143.250)** in the host firewalld policy / perimeter firewall — or name
-  an SMTP relay this box may reach.
-- Confirm the relay accepts the box (`193.28.217.49`) by IP allowlist.
+The prod app container already runs with `Smtp__Host=mgate01.schulergroup.com`,
+`Smtp__Port=25` — no config change or restart needed.
+
+Still open:
+
 - Confirm SPF/DMARC for `noreply@schuler.de` covers mail relayed via `mgate01`
   (matters for delivery to external mailboxes; internal delivery works regardless).
+  Check whether the 2026-09-21 test mail landed in the inbox or in spam.
+- Trigger a real app email (e.g. a booking confirmation) and check
+  `docker logs schulerpark-app-1` for "Email sent" — as of 2026-09-21 the app has
+  not attempted a send since the firewall was opened.
 
-Retest once opened: `python3 -c "import smtplib; smtplib.SMTP('mgate01.schulergroup.com',25,timeout=10).noop()"`,
-then trigger any booking email and check `docker logs` for "Email sent".
+Retest command: `python3 -c "import smtplib; smtplib.SMTP('mgate01.schulergroup.com',25,timeout=10).noop()"`.
 
-Without this, email sending fails silently (fire-and-forget). Confirmations don't reach users → broken UX even if the app is up.
+If the relay regresses, email sending fails silently (fire-and-forget). Confirmations don't reach users → broken UX even if the app is up.
 
 ## 5. Server / Hosting (Linux ops)
 
@@ -94,7 +100,7 @@ These don't need IT but must be done before go-live:
 ## Suggested order of operations
 
 1. Cert + DNS + proxy bypass — without these no one can load the page.
-2. SMTP — without this users don't get confirmations. *(Blocked — mgate01 relay is wired but outbound TCP 25 is firewalled from this box, see §4; IT must open egress, then confirm IP allowlist/SPF.)*
+2. SMTP — without this users don't get confirmations. *(Resolved 2026-09-21 — outbound TCP 25 open, mgate01 accepts the box, see §4; only the SPF/DMARC confirmation and a first real app send remain.)*
 3. AAD app registration — without this only local login works (functional, but not the chosen UX).
 4. Monitoring + backup verification — for the go-live ticket.
 5. Legal / Betriebsrat sign-off — runs in parallel with 1–4; usually the long pole.
