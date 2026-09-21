@@ -31,7 +31,7 @@ public class CapturingEmailService : IEmailService
         return idx < 0 ? null : link[(idx + marker.Length)..];
     }
 
-    public Task SendEmailVerificationAsync(string email, string displayName, string verificationLink)
+    public Task SendEmailVerificationAsync(string email, string displayName, string verificationLink, string language)
     {
         _verificationLinks[email.ToLowerInvariant()] = verificationLink;
         return Task.CompletedTask;
@@ -46,19 +46,19 @@ public class CapturingEmailService : IEmailService
     // Phase 18 approval mails, recorded by type + recipient so tests can assert them.
     public ConcurrentQueue<(string Type, string Email)> ApprovalMails { get; } = new();
 
-    public Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink)
+    public Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink, string adminLanguage)
     {
         ApprovalMails.Enqueue(("ApprovalRequest", adminEmail));
         return Task.CompletedTask;
     }
 
-    public Task SendAccountApprovedAsync(string email, string displayName, string loginLink)
+    public Task SendAccountApprovedAsync(string email, string displayName, string loginLink, string language)
     {
         ApprovalMails.Enqueue(("AccountApproved", email));
         return Task.CompletedTask;
     }
 
-    public Task SendAccountRejectedAsync(string email, string displayName)
+    public Task SendAccountRejectedAsync(string email, string displayName, string language)
     {
         ApprovalMails.Enqueue(("AccountRejected", email));
         return Task.CompletedTask;

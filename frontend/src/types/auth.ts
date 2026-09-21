@@ -7,6 +7,8 @@ export interface User {
   hasAzureAd: boolean;
   preferredLocationId: string | null;
   preferredSlotId: string | null;
+  /** 'de' | 'en' — language of emails and push notifications; follows the UI language last used. */
+  preferredLanguage: string;
 }
 
 export interface AuthResponse {
@@ -24,6 +26,8 @@ export interface RegisterRequest {
   email: string;
   displayName: string;
   password: string;
+  /** UI language at registration; decides the language of the verification email. */
+  preferredLanguage?: string;
 }
 
 export interface AuthConfig {

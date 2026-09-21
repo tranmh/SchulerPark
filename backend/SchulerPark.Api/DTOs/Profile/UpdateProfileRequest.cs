@@ -6,4 +6,6 @@ public record UpdateProfileRequest(
     [Required, MinLength(1), MaxLength(200)] string DisplayName,
     [MaxLength(20)] string? CarLicensePlate,
     Guid? PreferredLocationId,
-    Guid? PreferredSlotId);
+    Guid? PreferredSlotId,
+    // Optional: "de" or "en". Omitted/null leaves the stored language unchanged.
+    [MaxLength(10)] string? PreferredLanguage = null);

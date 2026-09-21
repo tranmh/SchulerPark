@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SchulerPark.Core.Entities;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Models;
 using SchulerPark.Core.Settings;
@@ -36,62 +37,91 @@ public class PushNotificationService : IPushNotificationService
 
     public Task SendLotteryWonAsync(Booking booking)
     {
+        var (lang, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = "You Won a Parking Spot!",
-            Body = $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} — {booking.TimeSlot}. Please confirm.",
+            Title = de ? "Parkplatz gewonnen!" : "You Won a Parking Spot!",
+            Body = de
+                ? $"{booking.Location.Name} am {booking.Date:dd.MM.yyyy} — {Localization.TimeSlotLabel(booking.TimeSlot, lang)}. Bitte bestätigen."
+                : $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} — {Localization.TimeSlotLabel(booking.TimeSlot, lang)}. Please confirm.",
             Url = "/my-bookings"
         });
     }
 
     public Task SendLotteryLostAsync(Booking booking)
     {
+        var (_, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = "Lottery Result",
-            Body = $"Unfortunately you were not selected for {booking.Location.Name} on {booking.Date:dd.MM.yyyy}.",
+            Title = de ? "Verlosungsergebnis" : "Lottery Result",
+            Body = de
+                ? $"Leider wurden Sie für {booking.Location.Name} am {booking.Date:dd.MM.yyyy} nicht ausgewählt."
+                : $"Unfortunately you were not selected for {booking.Location.Name} on {booking.Date:dd.MM.yyyy}.",
             Url = "/my-bookings"
         });
     }
 
     public Task SendWaitlistWonAsync(Booking booking)
     {
+        var (_, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = "A Spot Opened Up!",
-            Body = $"You got a spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy}. Please confirm.",
+            Title = de ? "Ein Platz ist frei geworden!" : "A Spot Opened Up!",
+            Body = de
+                ? $"Sie haben einen Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} erhalten. Bitte bestätigen."
+                : $"You got a spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy}. Please confirm.",
             Url = "/my-bookings"
         });
     }
 
     public Task SendBookingDirectlyConfirmedAsync(Booking booking)
     {
+        var (_, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = "Parking Spot Confirmed!",
-            Body = $"Slot {booking.ParkingSlot?.SlotNumber} at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} is yours — no action needed.",
+            Title = de ? "Parkplatz bestätigt!" : "Parking Spot Confirmed!",
+            Body = de
+                ? $"Platz {booking.ParkingSlot?.SlotNumber} in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} gehört Ihnen — nichts weiter zu tun."
+                : $"Slot {booking.ParkingSlot?.SlotNumber} at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} is yours — no action needed.",
             Url = "/my-bookings"
         });
     }
 
     public Task SendBookingWaitlistedAsync(Booking booking)
     {
+        var (_, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = "You're on the Waitlist",
-            Body = $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} is full. You'll get a spot automatically if one frees up.",
+            Title = de ? "Sie stehen auf der Warteliste" : "You're on the Waitlist",
+            Body = de
+                ? $"{booking.Location.Name} am {booking.Date:dd.MM.yyyy} ist voll. Wird ein Platz frei, erhalten Sie ihn automatisch."
+                : $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} is full. You'll get a spot automatically if one frees up.",
             Url = "/my-bookings"
         });
     }
 
-    public Task<PushSendResult> SendTestAsync(Guid userId)
+    public async Task<PushSendResult> SendTestAsync(Guid userId)
     {
-        return SendToUserAsync(userId, new PushPayload
+        var language = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.PreferredLanguage)
+            .FirstOrDefaultAsync();
+        var de = Localization.IsGerman(language);
+
+        return await SendToUserAsync(userId, new PushPayload
         {
-            Title = "LouisE test notification",
-            Body = "Push notifications are working on this device.",
+            Title = de ? "LouisE Testbenachrichtigung" : "LouisE test notification",
+            Body = de
+                ? "Push-Benachrichtigungen funktionieren auf diesem Gerät."
+                : "Push notifications are working on this device.",
             Url = "/profile"
         });
+    }
+
+    private static (string Language, bool IsGerman) LanguageOf(Booking booking)
+    {
+        var lang = Localization.Normalize(booking.User?.PreferredLanguage);
+        return (lang, Localization.IsGerman(lang));
     }
 
     private async Task<PushSendResult> SendToUserAsync(Guid userId, PushPayload payload)

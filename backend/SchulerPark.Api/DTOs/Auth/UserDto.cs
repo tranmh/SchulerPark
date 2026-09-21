@@ -8,4 +8,5 @@ public record UserDto(
     string Role,
     bool HasAzureAd,
     Guid? PreferredLocationId,
-    Guid? PreferredSlotId);
+    Guid? PreferredSlotId,
+    string PreferredLanguage);

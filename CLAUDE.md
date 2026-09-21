@@ -108,6 +108,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `ExceptionHandlingMiddleware` maps these to RFC 9457 ProblemDetails with TraceId. A `ValidationException` a user can trigger through normal use carries a snake_case `code` (second ctor arg), emitted as the ProblemDetails `code` extension; the auth controller's `{ error, code }` responses use the same codes. The frontend maps them via `apiErrors.<code>` in both locale files (`utils/apiError.ts`) — never show backend `detail` text to users directly
 - Frontend pages use try/catch with inline error display (red alert boxes)
 - Email sending is fire-and-forget with internal error logging (never blocks the request)
+- Emails and push notifications are German or English per `User.PreferredLanguage` (`de` default). It follows the UI language: the frontend calls `PUT /api/profile/language` whenever the signed-in user's UI language differs from the stored one, and registration passes the UI language along. Templates live side by side in `EmailService`/`PushNotificationService` (German first); `Core/Helpers/Localization.cs` normalizes codes and translates `TimeSlot`
 
 ## Hangfire Jobs
 | Job | Schedule | Purpose |

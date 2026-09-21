@@ -13,8 +13,10 @@ import {
   PublicClientApplication,
 } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
+import { useTranslation } from 'react-i18next';
 import { setAccessToken } from '../services/api';
 import { authService } from '../services/authService';
+import { profileService } from '../services/profileService';
 import { createMsalConfig, loginRequest, shouldUseRedirectFlow } from '../config/msalConfig';
 import type { AuthConfig, User } from '../types/auth';
 
@@ -54,6 +56,8 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { i18n } = useTranslation();
+  const uiLanguage = i18n.language.startsWith('en') ? 'en' : 'de';
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
   const [azureLoginError, setAzureLoginError] = useState<unknown>(null);
@@ -131,9 +135,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user);
   }, []);
 
-  const register = useCallback(async (email: string, displayName: string, password: string) => {
-    await authService.register({ email, displayName, password });
-  }, []);
+  const register = useCallback(
+    async (email: string, displayName: string, password: string) => {
+      // The verification mail (and later notifications) go out in the language
+      // the user is registering in.
+      await authService.register({ email, displayName, password, preferredLanguage: uiLanguage });
+    },
+    [uiLanguage]
+  );
+
+  // Notification language follows the UI language: whenever the signed-in user's
+  // current UI language differs from the stored one (language toggle, or a login
+  // on a device set to the other language), persist it. Emails and push
+  // notifications are rendered from the stored value on the server.
+  useEffect(() => {
+    if (!user || user.preferredLanguage === uiLanguage) return;
+    let cancelled = false;
+    profileService
+      .updateLanguage(uiLanguage)
+      .then((updated) => {
+        if (!cancelled) setUser(updated);
+      })
+      .catch((err) => console.warn('Could not save the notification language', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [user, uiLanguage]);
 
   const loginWithAzureAd = useCallback(async () => {
     if (!msalInstance) throw new Error('Azure AD is not configured');

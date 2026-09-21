@@ -3,6 +3,8 @@ export interface UpdateProfileRequest {
   carLicensePlate: string | null;
   preferredLocationId: string | null;
   preferredSlotId: string | null;
+  /** Optional; omitted leaves the stored notification language unchanged. */
+  preferredLanguage?: string;
 }
 
 export interface DataExport {
@@ -11,6 +13,7 @@ export interface DataExport {
     displayName: string;
     carLicensePlate: string | null;
     role: string;
+    preferredLanguage: string;
     createdAt: string;
   };
   bookings: Array<{

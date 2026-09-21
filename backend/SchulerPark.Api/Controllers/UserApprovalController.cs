@@ -63,7 +63,7 @@ public class UserApprovalController : ControllerBase
             await _db.SaveChangesAsync();
 
             var loginLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/login";
-            await _emailService.SendAccountApprovedAsync(user.Email, user.DisplayName, loginLink);
+            await _emailService.SendAccountApprovedAsync(user.Email, user.DisplayName, loginLink, user.PreferredLanguage);
         }
         else
         {
@@ -73,7 +73,7 @@ public class UserApprovalController : ControllerBase
             user.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            await _emailService.SendAccountRejectedAsync(user.Email, user.DisplayName);
+            await _emailService.SendAccountRejectedAsync(user.Email, user.DisplayName, user.PreferredLanguage);
         }
 
         return Ok(new PendingUserDto(user.Id, user.Email, user.DisplayName, user.EmailVerified, user.CreatedAt));

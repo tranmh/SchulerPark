@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SchulerPark.Core.Entities;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
 using SchulerPark.Core.Interfaces;
@@ -55,9 +56,10 @@ public class AuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task RegisterAsync(string email, string displayName, string password)
+    public async Task RegisterAsync(string email, string displayName, string password, string? preferredLanguage = null)
     {
         email = NormalizeEmail(email);
+        var language = Localization.Normalize(preferredLanguage);
 
         // SSO-mandated domains (e.g. andritz.com) must not create local accounts —
         // checked before anything else so the rule stays purely domain-based.
@@ -85,6 +87,7 @@ public class AuthService : IAuthService
             DisplayName = displayName,
             Role = UserRole.User,
             EmailVerified = false,
+            PreferredLanguage = language,
             // Phase 18: external domains need an admin to accept the account.
             // The HTTP response stays identical either way (no enumeration).
             ApprovalStatus = _registrationSettings.IsAutoApprovedDomain(email)
@@ -128,14 +131,14 @@ public class AuthService : IAuthService
         var admins = await _context.Users
             .Where(u => (u.Role == UserRole.Admin || u.Role == UserRole.SuperAdmin)
                         && u.DeletedAt == null)
-            .Select(u => new { u.Email, u.DisplayName })
+            .Select(u => new { u.Email, u.DisplayName, u.PreferredLanguage })
             .ToListAsync();
 
         var approvalLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/admin/approvals";
         foreach (var admin in admins)
         {
             await _emailService.SendApprovalRequestToAdminAsync(
-                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, approvalLink);
+                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, approvalLink, admin.PreferredLanguage);
         }
     }
 
@@ -313,7 +316,7 @@ public class AuthService : IAuthService
             _logger.LogWarning("App:BaseUrl is not configured; verification link for {Email} will be relative.", user.Email);
 
         var link = $"{baseUrl}/verify-email?token={rawToken}";
-        await _emailService.SendEmailVerificationAsync(user.Email, user.DisplayName, link);
+        await _emailService.SendEmailVerificationAsync(user.Email, user.DisplayName, link, user.PreferredLanguage);
     }
 
     private async Task RegisterFailedAttemptAsync(User user)

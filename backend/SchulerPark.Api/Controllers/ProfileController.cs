@@ -9,6 +9,7 @@ using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Auth;
 using SchulerPark.Api.DTOs.Profile;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -65,10 +66,41 @@ public class ProfileController : ControllerBase
         user.CarLicensePlate = request.CarLicensePlate;
         user.PreferredLocationId = request.PreferredLocationId;
         user.PreferredSlotId = request.PreferredSlotId;
+        if (request.PreferredLanguage != null)
+            user.PreferredLanguage = ParseLanguage(request.PreferredLanguage);
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         return Ok(ToDto(user));
+    }
+
+    /// <summary>
+    /// Sets the notification language. The frontend calls this whenever the signed-in
+    /// user's UI language differs from the stored one (toggle or login on another device),
+    /// so emails and push notifications follow the language the app is used in.
+    /// </summary>
+    [HttpPut("language")]
+    public async Task<ActionResult<UserDto>> UpdateLanguage([FromBody] UpdateLanguageRequest request)
+    {
+        var user = await _db.Users.FindAsync(GetUserId());
+        if (user == null || user.DeletedAt != null) return NotFound();
+
+        var language = ParseLanguage(request.Language);
+        if (user.PreferredLanguage != language)
+        {
+            user.PreferredLanguage = language;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(ToDto(user));
+    }
+
+    private static string ParseLanguage(string language)
+    {
+        if (!Localization.IsSupported(language))
+            throw new ValidationException("Language must be 'de' or 'en'.", "unsupported_language");
+        return language.ToLowerInvariant();
     }
 
     private static UserDto ToDto(Core.Entities.User user) => new(
@@ -79,7 +111,8 @@ public class ProfileController : ControllerBase
         user.Role.ToString(),
         user.AzureAdObjectId != null,
         user.PreferredLocationId,
-        user.PreferredSlotId);
+        user.PreferredSlotId,
+        user.PreferredLanguage);
 
     [HttpGet("data-export")]
     public async Task<ActionResult<DataExportDto>> ExportData()
@@ -104,7 +137,7 @@ public class ProfileController : ControllerBase
         var export = new DataExportDto(
             Profile: new UserProfileExport(
                 user.Email, user.DisplayName, user.CarLicensePlate,
-                user.Role.ToString(), user.CreatedAt),
+                user.Role.ToString(), user.PreferredLanguage, user.CreatedAt),
             Bookings: bookings.Select(b => new BookingExport(
                 b.Id, b.Location.Name, b.Date, b.TimeSlot.ToString(),
                 b.Status.ToString(), b.ParkingSlot?.SlotNumber,

@@ -24,6 +24,7 @@ export const mockUser = {
   carLicensePlate: 'GP-TE 1234',
   role: 'User' as const,
   hasAzureAd: false,
+  preferredLanguage: 'de',
 };
 
 export const mockAdmin = {

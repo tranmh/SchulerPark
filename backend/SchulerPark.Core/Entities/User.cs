@@ -21,6 +21,8 @@ public class User
     public Guid? ApprovedByUserId { get; set; }
     public Guid? PreferredLocationId { get; set; }
     public Guid? PreferredSlotId { get; set; }
+    /// <summary>"de" or "en" — language of emails and push notifications; follows the UI language last used.</summary>
+    public string PreferredLanguage { get; set; } = Helpers.Localization.Default;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }

@@ -8,7 +8,7 @@ public record DataExportDto(
 
 public record UserProfileExport(
     string Email, string DisplayName, string? CarLicensePlate,
-    string Role, DateTime CreatedAt);
+    string Role, string PreferredLanguage, DateTime CreatedAt);
 
 public record BookingExport(
     Guid Id, string LocationName, DateOnly Date, string TimeSlot,

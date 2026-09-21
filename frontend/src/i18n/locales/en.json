@@ -239,7 +239,7 @@
     "labelPreferredSlot": "Preferred parking slot",
     "preferredSlotHelper": "When you win the daily lottery, you get this exact slot if it's free; otherwise the nearest available slot. Select a preferred location first.",
     "push": "Push notifications",
-    "pushSubtitle": "Get notified the moment lottery results are ready.",
+    "pushSubtitle": "Get notified the moment lottery results are ready. Emails and push notifications arrive in the language you last used the app in.",
     "pushDenied": "Push notifications are blocked. Please enable them in your browser settings.",
     "pushEnabled": "Push notifications enabled on this device",
     "pushDisable": "Disable",

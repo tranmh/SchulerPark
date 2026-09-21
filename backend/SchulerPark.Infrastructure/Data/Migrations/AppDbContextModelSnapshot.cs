@@ -461,6 +461,13 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasDefaultValue("de");
+
                     b.Property<Guid?>("PreferredLocationId")
                         .HasColumnType("uuid");
 

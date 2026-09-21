@@ -46,7 +46,7 @@ public class AuthController : ControllerBase
         {
             // Always the same response, whether the address was new, already
             // registered, or already verified — no account enumeration.
-            await _authService.RegisterAsync(request.Email, request.DisplayName, request.Password);
+            await _authService.RegisterAsync(request.Email, request.DisplayName, request.Password, request.PreferredLanguage);
         }
         catch (SsoOnlyDomainException ex)
         {
@@ -267,6 +267,7 @@ public class AuthController : ControllerBase
             user.Role.ToString(),
             !string.IsNullOrEmpty(user.AzureAdObjectId),
             user.PreferredLocationId,
-            user.PreferredSlotId);
+            user.PreferredSlotId,
+            user.PreferredLanguage);
     }
 }

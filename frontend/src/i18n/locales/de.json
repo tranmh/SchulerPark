@@ -239,7 +239,7 @@
     "labelPreferredSlot": "Bevorzugter Parkplatz",
     "preferredSlotHelper": "Wenn Sie die tägliche Verlosung gewinnen, erhalten Sie genau diesen Platz, falls frei; ansonsten den nächstmöglichen Platz. Wählen Sie zuerst einen bevorzugten Standort.",
     "push": "Push-Benachrichtigungen",
-    "pushSubtitle": "Werden Sie benachrichtigt, sobald die Verlosungsergebnisse vorliegen.",
+    "pushSubtitle": "Werden Sie benachrichtigt, sobald die Verlosungsergebnisse vorliegen. E-Mails und Push-Benachrichtigungen erhalten Sie in der Sprache, in der Sie die App zuletzt verwendet haben.",
     "pushDenied": "Push-Benachrichtigungen sind blockiert. Bitte in den Browser-Einstellungen aktivieren.",
     "pushEnabled": "Push-Benachrichtigungen auf diesem Gerät aktiviert",
     "pushDisable": "Deaktivieren",

@@ -87,7 +87,7 @@ public class PushTests
 
         // Payload is what sw.ts's push handler reads: title/body/url (camelCase).
         using var payload = JsonDocument.Parse(sent[0].Payload);
-        payload.RootElement.GetProperty("title").GetString().Should().Contain("test");
+        payload.RootElement.GetProperty("title").GetString().Should().ContainEquivalentOf("test"); // "Testbenachrichtigung" (de) or "test notification" (en)
         payload.RootElement.GetProperty("body").GetString().Should().NotBeNullOrEmpty();
         payload.RootElement.GetProperty("url").GetString().Should().Be("/profile");
     }

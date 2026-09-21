@@ -17,6 +17,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CarLicensePlate).HasMaxLength(20);
         builder.Property(u => u.AzureAdObjectId).HasMaxLength(36);
         builder.Property(u => u.PasswordHash).HasMaxLength(512);
+        // Default 'de' so all pre-existing rows get German notifications, as before.
+        builder.Property(u => u.PreferredLanguage).IsRequired().HasMaxLength(5)
+            .HasDefaultValue(Core.Helpers.Localization.Default);
         builder.Property(u => u.Role).HasConversion<string>().HasMaxLength(20);
         // Default 'Approved' so all pre-Phase-18 rows stay usable after the migration.
         builder.Property(u => u.ApprovalStatus).HasConversion<string>().HasMaxLength(20)

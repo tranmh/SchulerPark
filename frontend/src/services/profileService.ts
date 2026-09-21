@@ -9,6 +9,10 @@ export const profileService = {
   updateProfile: (data: UpdateProfileRequest) =>
     api.put<User>('/profile', data).then(r => r.data),
 
+  /** Stores the notification language ('de' | 'en'); returns the updated user. */
+  updateLanguage: (language: string) =>
+    api.put<User>('/profile/language', { language }).then(r => r.data),
+
   exportData: () =>
     api.get<DataExport>('/profile/data-export').then(r => r.data),
 
