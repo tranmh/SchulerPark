@@ -77,8 +77,8 @@ export function RegisterPage() {
 
   if (submitted) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
-        <div className="absolute right-6 top-6">
+      <div className="relative flex min-h-dvh items-center justify-center bg-surface-sunken px-4 pb-12 pt-[calc(4.5rem+env(safe-area-inset-top))] sm:py-12">
+        <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] sm:right-6 sm:top-6">
           <LanguageToggle variant="light" />
         </div>
         <div className="w-full max-w-sm rounded-card border border-line bg-white p-8 text-center shadow-card">
@@ -101,8 +101,8 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
-      <div className="absolute right-6 top-6">
+    <div className="relative flex min-h-dvh items-center justify-center bg-surface-sunken px-4 pb-12 pt-[calc(4.5rem+env(safe-area-inset-top))] sm:py-12">
+      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] sm:right-6 sm:top-6">
         <LanguageToggle variant="light" />
       </div>
       <div className="w-full max-w-sm rounded-card border border-line bg-white p-8 shadow-card">
@@ -128,7 +128,7 @@ export function RegisterPage() {
             <label htmlFor="email" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.email')}</label>
             <input
               id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
-              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
             {isSsoDomain && (
               <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-[12.5px] leading-relaxed text-sky-900">
@@ -141,14 +141,14 @@ export function RegisterPage() {
             <label htmlFor="displayName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.displayName')}</label>
             <input
               id="displayName" type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required autoComplete="name"
-              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
           </div>
           <div>
             <label htmlFor="password" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.password')}</label>
             <input
               id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password"
-              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
             <p className="mt-1.5 text-[11.5px] text-ink-400">{t('auth.passwordHint')}</p>
           </div>
@@ -159,14 +159,14 @@ export function RegisterPage() {
             <label htmlFor="confirmPassword" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.confirmPassword')}</label>
             <input
               id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password"
-              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading || isSsoDomain}
-            className="mt-2 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
+            className="mt-2 min-h-11 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
           >
             {loading ? t('auth.creatingAccount') : t('auth.createAccountBtn')}
           </button>

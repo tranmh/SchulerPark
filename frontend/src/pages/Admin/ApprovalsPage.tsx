@@ -49,8 +49,8 @@ export function ApprovalsPage() {
         <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-[13px] text-rose-800">{error}</div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full">
+      <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px]">
           <thead className="bg-surface-warm">
             <tr>
               <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.user')}</th>

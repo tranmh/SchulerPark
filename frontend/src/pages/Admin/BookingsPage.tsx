@@ -66,7 +66,7 @@ export function BookingsPage() {
       )}
 
       {/* Filters */}
-      <div className="mt-5 flex flex-wrap items-end gap-3">
+      <div className="mt-5 flex flex-wrap items-end gap-3 [&>div]:w-full sm:[&>div]:w-auto">
         <div>
           <label htmlFor="bookings-location" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
           <select
@@ -76,7 +76,7 @@ export function BookingsPage() {
               setLocationFilter(e.target.value);
               setPage(1);
             }}
-            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+            className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 sm:w-auto"
           >
             <option value="">All locations</option>
             {locations.map((l) => (
@@ -93,7 +93,7 @@ export function BookingsPage() {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+            className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900 sm:w-auto"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -129,8 +129,8 @@ export function BookingsPage() {
       </div>
 
       {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full num">
+      <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px] num">
           <thead className="bg-surface-warm">
             <tr>
               <Th>Date</Th>

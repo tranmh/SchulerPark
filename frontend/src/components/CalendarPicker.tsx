@@ -87,7 +87,7 @@ export function CalendarPicker({
   const monthLabel = new Date(viewYear, viewMonth).toLocaleString(locale, { month: 'long', year: 'numeric' });
 
   return (
-    <div className="w-full max-w-sm rounded-card border border-line bg-white p-5 shadow-card">
+    <div className="w-full rounded-card border border-line bg-white p-3 shadow-card sm:max-w-sm sm:p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-[14px] font-semibold tracking-tight text-ink-900">{monthLabel}</div>
         <div className="flex gap-1">
@@ -95,7 +95,7 @@ export function CalendarPicker({
             type="button"
             onClick={prevMonth}
             aria-label={t('components.calendar.prevMonth')}
-            className="grid h-8 w-8 place-items-center rounded-md text-ink-500 transition-colors hover:bg-line/60 hover:text-ink-900"
+            className="grid h-10 w-10 place-items-center rounded-md text-ink-500 transition-colors hover:bg-line/60 hover:text-ink-900 sm:h-8 sm:w-8"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -105,7 +105,7 @@ export function CalendarPicker({
             type="button"
             onClick={nextMonth}
             aria-label={t('components.calendar.nextMonth')}
-            className="grid h-8 w-8 place-items-center rounded-md text-ink-500 transition-colors hover:bg-line/60 hover:text-ink-900"
+            className="grid h-10 w-10 place-items-center rounded-md text-ink-500 transition-colors hover:bg-line/60 hover:text-ink-900 sm:h-8 sm:w-8"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -124,7 +124,7 @@ export function CalendarPicker({
 
       <div className="mt-1 grid grid-cols-7 gap-1 num">
         {days.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} className="h-10" />;
+          if (day === null) return <div key={`empty-${i}`} className="h-11 sm:h-10" />;
 
           const dateStr = toDateStr(viewYear, viewMonth, day);
           const date = parseDate(dateStr);
@@ -141,7 +141,7 @@ export function CalendarPicker({
           const avail = availability?.get(dateStr);
           const totalAvail = avail ? avail.morning + avail.afternoon : undefined;
 
-          let cls = 'relative flex h-10 items-center justify-center rounded-md text-[13px] transition-colors';
+          let cls = 'relative flex h-11 items-center justify-center rounded-md text-[13px] transition-colors sm:h-10';
           if (isDisabled) {
             cls += isBlocked
               ? ' cursor-not-allowed bg-rose-50 text-rose-300 line-through'
@@ -163,7 +163,7 @@ export function CalendarPicker({
               {day}
               {!isDisabled && totalAvail !== undefined && (
                 <span
-                  className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${
+                  className={`absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
                     isSelected
                       ? 'bg-white/80'
                       : totalAvail > 10
@@ -192,7 +192,7 @@ export function CalendarPicker({
           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
           {t('components.calendar.almostFull')}
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 sm:ml-auto">
           <span className="h-3 w-3 rounded-sm bg-rose-50 ring-1 ring-rose-200" />
           {t('components.calendar.blocked')}
         </div>

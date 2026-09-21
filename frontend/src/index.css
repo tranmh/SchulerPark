@@ -85,11 +85,38 @@ body {
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mobile / touch                                                      */
+/* ------------------------------------------------------------------ */
+
+/* iOS Safari zooms into any focused form control smaller than 16px.
+   Only touch devices get the bump so the desktop density is unchanged. */
+@media (pointer: coarse) {
+  :where(input, select, textarea) {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Safe-area padding for notched phones (needs viewport-fit=cover). */
+@utility pt-safe { padding-top: env(safe-area-inset-top); }
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+@utility pl-safe { padding-left: env(safe-area-inset-left); }
+@utility pr-safe { padding-right: env(safe-area-inset-right); }
+
+/* Horizontal scroll strips (filter chips) without a visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 
 /* Tabular numerals for tables, calendars, money-ish things */

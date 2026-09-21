@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Modal } from '../../components/Modal';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
@@ -97,15 +98,15 @@ export function LocationsPage() {
 
   return (
     <div>
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-[26px] font-bold tracking-tight text-ink-900">{t('admin.locations')}</h1>
           <p className="mt-1 text-[13.5px] text-ink-400">Manage parking sites, slot capacity and lottery algorithm per site.</p>
         </div>
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600 sm:min-h-0 sm:w-auto"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -120,8 +121,8 @@ export function LocationsPage() {
         </div>
       )}
 
-      <div className="mt-7 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full num">
+      <div className="mt-7 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px] num">
           <thead className="bg-surface-warm">
             <tr>
               <Th>Name</Th>
@@ -302,37 +303,6 @@ function FormField({ label, htmlFor, children }: { label: string; htmlFor?: stri
     <div>
       <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
       {children}
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-md rounded-card bg-white shadow-pop ring-1 ring-line">
-        <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <h3 className="text-[15.5px] font-semibold text-ink-900">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-400 hover:bg-line/60 hover:text-ink-900"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M6 18L18 6" />
-            </svg>
-          </button>
-        </div>
-        <div className="px-6 py-5">{children}</div>
-      </div>
     </div>
   );
 }

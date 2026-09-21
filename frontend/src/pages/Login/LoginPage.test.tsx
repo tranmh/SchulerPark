@@ -112,6 +112,31 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /continue with microsoft/i })).toBeInTheDocument();
   });
 
+  it('shows the MSAL error code when Azure AD login fails', async () => {
+    const user = userEvent.setup();
+    mockAuth.authConfig = { azureAdEnabled: true, azureAdClientId: 'id', azureAdTenantId: 'tid', ssoDomains: [] };
+    mockAuth.loginWithAzureAd.mockRejectedValueOnce({ errorCode: 'popup_window_error' });
+
+    renderWithRouter(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /continue with microsoft/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/azure ad login failed.*\(popup_window_error\)/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows a failed redirect-flow Azure AD login carried over from the auth context', async () => {
+    mockAuth.authConfig = { azureAdEnabled: true, azureAdClientId: 'id', azureAdTenantId: 'tid', ssoDomains: [] };
+    mockAuth.azureLoginError = { response: { data: { error: 'Invalid Azure AD token.' } } };
+
+    renderWithRouter(<LoginPage />, { initialEntries: ['/login'] });
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid Azure AD token.')).toBeInTheDocument();
+    });
+    expect(mockAuth.clearAzureLoginError).toHaveBeenCalled();
+  });
+
   it('redirects when already authenticated', () => {
     mockAuth = createMockAuth({ isAuthenticated: true, user: mockUser });
 

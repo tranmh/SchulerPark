@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Modal } from '../../components/Modal';
+import { modalActionsClass } from '../../components/modalChrome';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { CalendarPicker } from '../../components/CalendarPicker';
@@ -67,6 +69,11 @@ export function BlockedDaysPage() {
     setSelectedDate(date);
   };
 
+  const closeBlockModal = () => {
+    setSelectedDate(null);
+    setReason('');
+  };
+
   const handleAddBlock = async () => {
     if (!selectedLocationId || !selectedDate) return;
     setSaving(true);
@@ -108,7 +115,7 @@ export function BlockedDaysPage() {
           id="blocked-days-location"
           value={selectedLocationId ?? ''}
           onChange={(e) => setSelectedLocationId(e.target.value)}
-          className="w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+          className="w-full sm:w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
         >
           {locations.map((l) => (
             <option key={l.id} value={l.id}>{l.name}</option>
@@ -126,7 +133,7 @@ export function BlockedDaysPage() {
               {locationWideBlocks.length}
             </span>
           </div>
-          <div className="max-h-[28rem] overflow-auto scroll-thin p-5">
+          <div className="max-h-[60dvh] overflow-auto scroll-thin p-4 sm:p-5 lg:max-h-[28rem]">
             {locationWideBlocks.length === 0 ? (
               <p className="text-[12.5px] text-ink-400">No blocked days for this location.</p>
             ) : (
@@ -164,32 +171,21 @@ export function BlockedDaysPage() {
       </div>
 
       {selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/55 backdrop-blur-[2px] p-4">
-          <div className="w-full max-w-sm rounded-card bg-white shadow-pop ring-1 ring-line">
-            <div className="border-b border-line px-6 py-4">
-              <h3 className="text-[15.5px] font-semibold text-ink-900">
-                Block <span className="num">{selectedDate}</span>
-              </h3>
-              <p className="mt-1 text-[12.5px] text-ink-400">No bookings will be possible on this day.</p>
-            </div>
-            <div className="px-6 py-5">
-              <label htmlFor="block-reason" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Reason (optional)</label>
-              <input
-                id="block-reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Public holiday"
-                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
-              />
-            </div>
-            <div className="flex justify-end gap-2 border-t border-line px-6 py-3.5">
+        <Modal
+          size="sm"
+          title={
+            <>
+              Block <span className="num">{selectedDate}</span>
+            </>
+          }
+          subtitle="No bookings will be possible on this day."
+          onClose={closeBlockModal}
+          footer={
+            <div className={modalActionsClass}>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedDate(null);
-                  setReason('');
-                }}
-                className="rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken"
+                onClick={closeBlockModal}
+                className="min-h-11 rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken sm:min-h-0"
               >
                 Cancel
               </button>
@@ -197,13 +193,22 @@ export function BlockedDaysPage() {
                 type="button"
                 onClick={handleAddBlock}
                 disabled={saving}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-[13px] font-medium text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
+                className="min-h-11 rounded-lg bg-rose-600 px-4 py-2 text-[13px] font-medium text-white shadow-sm hover:bg-rose-700 disabled:opacity-60 sm:min-h-0"
               >
                 {saving ? 'Blocking…' : 'Block day'}
               </button>
             </div>
-          </div>
-        </div>
+          }
+        >
+          <label htmlFor="block-reason" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Reason (optional)</label>
+          <input
+            id="block-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Public holiday"
+            className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+          />
+        </Modal>
       )}
     </div>
   );

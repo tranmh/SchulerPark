@@ -166,15 +166,15 @@ export function DashboardPage() {
             {bookings.map((b) => {
               const { weekday, day, month } = formatDayParts(b.date);
               return (
-                <div key={b.id} className="flex items-center gap-4 p-4">
-                  <div className="w-14 text-center">
+                <div key={b.id} className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
+                  <div className="w-12 shrink-0 text-center sm:w-14">
                     <div className="text-[10.5px] font-semibold uppercase tracking-wider text-brand-500">{weekday}</div>
                     <div className="mt-0.5 text-[22px] font-bold leading-none text-ink-900 num">{day}</div>
                     <div className="mt-1 text-[10.5px] text-ink-400">{month}</div>
                   </div>
-                  <div className="h-12 w-px bg-line" />
+                  <div className="h-12 w-px shrink-0 bg-line" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <div className="truncate text-[14px] font-semibold text-ink-900">
                         {b.locationName} · {t(`components.timeSlot.${b.timeSlot}`)}
                       </div>
@@ -189,9 +189,17 @@ export function DashboardPage() {
                         </>
                       )}
                     </div>
+                    {b.status === 'Won' && b.confirmationDeadline && (
+                      <div className="mt-1.5 sm:hidden">
+                        <span className="inline-block rounded-md bg-amber-50 px-2 py-0.5 text-[11.5px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200 num">
+                          {t('dashboard.confirmBy')}{' '}
+                          {new Date(b.confirmationDeadline).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {b.status === 'Won' && b.confirmationDeadline && (
-                    <div className="hidden sm:block">
+                    <div className="hidden shrink-0 sm:block">
                       <div className="rounded-md bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200 num">
                         {t('dashboard.confirmBy')}{' '}
                         {new Date(b.confirmationDeadline).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}

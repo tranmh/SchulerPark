@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { modalActionsClass, modalOverlayClass, modalPanelClass, useEscapeToClose } from './modalChrome';
 
 interface Props {
   isOpen: boolean;
@@ -25,6 +27,8 @@ export function ConfirmDialog({
   tone = 'danger',
 }: Props) {
   const { t } = useTranslation();
+  useEscapeToClose(onCancel, isOpen && !isLoading);
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   const confirmClass =
@@ -33,9 +37,9 @@ export function ConfirmDialog({
       : 'bg-brand-500 hover:bg-brand-600 text-white';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-md rounded-card bg-white shadow-pop ring-1 ring-line">
-        <div className="p-6">
+    <div className={modalOverlayClass}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" className={modalPanelClass()}>
+        <div className="overflow-y-auto p-5 sm:p-6">
           <div className="flex items-start gap-4">
             {tone === 'danger' ? (
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600">
@@ -56,17 +60,17 @@ export function ConfirmDialog({
               </div>
             )}
             <div className="flex-1">
-              <h3 className="text-[15.5px] font-semibold text-ink-900">{title}</h3>
+              <h3 id="confirm-dialog-title" className="text-[15.5px] font-semibold text-ink-900">{title}</h3>
               <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-500">{message}</p>
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 rounded-b-card border-t border-line bg-surface-sunken/60 px-6 py-3.5">
+        <div className={`${modalActionsClass} border-t border-line bg-surface-sunken/60 px-5 py-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-3.5`}>
           <button
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken disabled:opacity-50 sm:min-h-0"
           >
             {cancelLabel ?? t('common.cancel')}
           </button>
@@ -74,7 +78,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={isLoading}
-            className={`rounded-lg px-4 py-2 text-[13px] font-medium shadow-sm disabled:opacity-50 ${confirmClass}`}
+            className={`min-h-11 rounded-lg px-4 py-2 text-[13px] font-medium shadow-sm disabled:opacity-50 sm:min-h-0 ${confirmClass}`}
           >
             {isLoading ? t('common.processing') : (confirmLabel ?? t('common.confirm'))}
           </button>

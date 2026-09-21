@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
@@ -28,6 +28,14 @@ export default defineConfig({
     },
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Desktop suite: everything except tests/mobile/. The sidebar is static at 1280px.
+    { name: 'chromium', use: { browserName: 'chromium' }, testIgnore: /tests\/mobile\// },
+    // Phone suite: Pixel 7 emulation (Chromium-based, so the same browser install).
+    // Only tests/mobile/ runs here; the top bar + drawer replace the sidebar.
+    {
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 7'], video: { mode: 'on', size: { width: 412, height: 915 } } },
+      testMatch: /tests\/mobile\//,
+    },
   ],
 });

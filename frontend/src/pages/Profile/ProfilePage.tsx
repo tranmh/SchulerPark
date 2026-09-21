@@ -212,7 +212,7 @@ export function ProfilePage() {
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 placeholder:text-ink-300 num"
             />
           </Field>
-          <div />
+          <div className="hidden sm:block" />
           <Field
             label={t('profile.labelPreferredLocation')}
             helper={t('profile.preferredLocationHelper')}
@@ -262,7 +262,7 @@ export function ProfilePage() {
             type="button"
             onClick={handleSave}
             disabled={saving || !displayName}
-            className="rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
+            className="min-h-11 w-full rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60 sm:min-h-0 sm:w-auto"
           >
             {saving ? t('common.saving') : t('common.save')}
           </button>
@@ -286,19 +286,19 @@ export function ProfilePage() {
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   {t('profile.pushEnabled')}
                 </span>
-                <div className="ml-auto flex items-center gap-2">
+                <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
                   <button
                     type="button"
                     onClick={() => void handleTestPush()}
                     disabled={pushTestState.kind === 'sending'}
-                    className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                    className="min-h-10 flex-1 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 sm:min-h-0 sm:flex-none"
                   >
                     {pushTestState.kind === 'sending' ? t('profile.pushTestSending') : t('profile.pushTest')}
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleDisablePush()}
-                    className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50"
+                    className="min-h-10 flex-1 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50 sm:min-h-0 sm:flex-none"
                   >
                     {t('profile.pushDisable')}
                   </button>
@@ -345,14 +345,14 @@ export function ProfilePage() {
       </Section>
 
       {/* Danger zone */}
-      <div className="mt-6 rounded-card border border-rose-200 bg-rose-50/50 p-6">
-        <div className="flex items-start gap-4">
+      <div className="mt-6 rounded-card border border-rose-200 bg-rose-50/50 p-4 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-rose-100 text-rose-600">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <h2 className="text-[15px] font-semibold text-rose-900">{t('profile.dangerTitle')}</h2>
             <p className="mt-1 max-w-lg text-[12.5px] leading-relaxed text-rose-700">
               {t('profile.dangerDescription')}
@@ -361,7 +361,7 @@ export function ProfilePage() {
           <button
             type="button"
             onClick={() => setShowDeleteDialog(true)}
-            className="rounded-lg bg-rose-600 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-rose-700"
+            className="min-h-11 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-rose-700 sm:min-h-0 sm:w-auto"
           >
             {t('profile.deleteBtn')}
           </button>

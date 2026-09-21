@@ -247,15 +247,23 @@ export function GridLayoutPage() {
         </div>
       )}
 
+      {/* The editor relies on drag & drop and right-click; tell phone users up front. */}
+      <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-800 lg:hidden">
+        <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {t('admin.desktopOnlyHint')}
+      </div>
+
       {/* Controls bar */}
-      <div className="mt-6 flex flex-wrap items-end gap-4">
+      <div className="mt-6 flex flex-wrap items-end gap-4 [&>div]:w-full sm:[&>div]:w-auto">
         <div>
           <label htmlFor="grid-location" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Location</label>
           <select
             id="grid-location"
             value={locationId}
             onChange={(e) => handleLocationChange(e.target.value)}
-            className="w-64 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+            className="w-full sm:w-64 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
           >
             <option value="">Select location…</option>
             {locations.map((l) => (
@@ -315,7 +323,7 @@ export function GridLayoutPage() {
           </div>
 
           <div>
-            <div className="mb-3 flex items-center justify-between text-[12.5px] text-ink-400">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[12.5px] text-ink-400">
               <div>
                 <b className="text-ink-700 num">{gridRows}</b> rows × <b className="text-ink-700 num">{gridColumns}</b> columns
               </div>

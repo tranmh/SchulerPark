@@ -84,7 +84,7 @@ export function LotteryHistoryPage() {
             setLocationFilter(e.target.value);
             setPage(1);
           }}
-          className="w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
+          className="w-full sm:w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[13px] text-ink-900"
         >
           <option value="">All locations</option>
           {locations.map((l) => (
@@ -93,8 +93,8 @@ export function LotteryHistoryPage() {
         </select>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full num">
+      <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px] num">
           <thead className="bg-surface-warm">
             <tr>
               <Th>Ran at</Th>

@@ -42,8 +42,8 @@ export function VerifyEmailPage() {
     : t('auth.emailVerifyFailedBody');
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-surface-sunken px-4 py-12">
-      <div className="absolute right-6 top-6">
+    <div className="relative flex min-h-dvh items-center justify-center bg-surface-sunken px-4 pb-12 pt-[calc(4.5rem+env(safe-area-inset-top))] sm:py-12">
+      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] sm:right-6 sm:top-6">
         <LanguageToggle variant="light" />
       </div>
       <div className="w-full max-w-sm rounded-card border border-line bg-white p-8 text-center shadow-card">

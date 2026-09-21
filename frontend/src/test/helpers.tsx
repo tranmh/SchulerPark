@@ -12,6 +12,8 @@ export interface MockAuthValue {
   login: ReturnType<typeof vi.fn>;
   register: ReturnType<typeof vi.fn>;
   loginWithAzureAd: ReturnType<typeof vi.fn>;
+  azureLoginError: unknown;
+  clearAzureLoginError: ReturnType<typeof vi.fn>;
   logout: ReturnType<typeof vi.fn>;
 }
 
@@ -42,6 +44,8 @@ export function createMockAuth(overrides: Partial<MockAuthValue> = {}): MockAuth
     login: vi.fn(),
     register: vi.fn(),
     loginWithAzureAd: vi.fn(),
+    azureLoginError: null,
+    clearAzureLoginError: vi.fn(),
     logout: vi.fn(),
     ...overrides,
   };

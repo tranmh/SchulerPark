@@ -39,7 +39,7 @@ export function LanguageToggle({ variant = 'light', className = '' }: Props) {
             if (current !== code) void i18n.changeLanguage(code);
           }}
           aria-pressed={current === code}
-          className={`rounded px-2 py-0.5 text-[11px] font-semibold tracking-wider transition-colors ${
+          className={`min-h-8 rounded px-2.5 py-1 text-[11px] font-semibold tracking-wider transition-colors ${
             current === code ? activeCls : inactiveCls
           }`}
         >

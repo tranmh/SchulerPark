@@ -1,13 +1,35 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 import { LanguageToggle } from '../../components/LanguageToggle';
 
+/**
+ * Turns an Azure AD login failure into a message the user can act on (or at
+ * least report). Backend errors carry their own text; MSAL errors get their
+ * error code appended so "login failed" on a phone is diagnosable.
+ */
+function describeAzureError(err: unknown, t: TFunction): string {
+  const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
+  if (data?.code === 'pending_approval') return t('auth.pendingApproval');
+  if (data?.error) return data.error;
+
+  const code = (err as { errorCode?: string } | null)?.errorCode;
+  return code ? `${t('auth.azureFailed')} (${code})` : t('auth.azureFailed');
+}
+
 export function LoginPage() {
   const { t } = useTranslation();
-  const { login, loginWithAzureAd, authConfig, isAuthenticated } = useAuth();
+  const {
+    login,
+    loginWithAzureAd,
+    azureLoginError,
+    clearAzureLoginError,
+    authConfig,
+    isAuthenticated,
+  } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -16,6 +38,15 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [resendNotice, setResendNotice] = useState('');
+
+  // A redirect-flow Microsoft login that failed on return lands here via the
+  // auth context (the page that started it has been unloaded).
+  useEffect(() => {
+    if (azureLoginError) {
+      setError(describeAzureError(azureLoginError, t));
+      clearAzureLoginError();
+    }
+  }, [azureLoginError, clearAzureLoginError, t]);
 
   if (isAuthenticated) {
     navigate('/', { replace: true });
@@ -64,8 +95,9 @@ export function LoginPage() {
     try {
       await loginWithAzureAd();
       navigate('/');
-    } catch {
-      setError(t('auth.azureFailed'));
+    } catch (err) {
+      console.error('Azure AD login failed', err);
+      setError(describeAzureError(err, t));
     } finally {
       setLoading(false);
     }
@@ -107,8 +139,8 @@ export function LoginPage() {
       </div>
 
       {/* Form */}
-      <div className="relative flex items-center justify-center bg-white px-6 py-12 lg:px-12">
-        <div className="absolute right-6 top-6">
+      <div className="relative flex items-center justify-center bg-white px-5 pb-12 pt-[calc(4.5rem+env(safe-area-inset-top))] sm:px-8 sm:py-12 lg:px-12">
+        <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] sm:right-6 sm:top-6">
           <LanguageToggle variant="light" />
         </div>
         <div className="w-full max-w-sm">
@@ -159,7 +191,7 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 placeholder:text-ink-300 transition-shadow"
+                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 placeholder:text-ink-300 transition-shadow sm:text-[14px]"
               />
             </div>
 
@@ -179,14 +211,14 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 placeholder:text-ink-300 transition-shadow"
+                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 placeholder:text-ink-300 transition-shadow sm:text-[14px]"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
+              className="mt-2 min-h-11 w-full rounded-lg bg-brand-500 px-4 py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60"
             >
               {loading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
@@ -209,7 +241,7 @@ export function LoginPage() {
                 type="button"
                 onClick={handleAzureAd}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-line-strong bg-white px-4 py-2.5 text-[14px] font-medium text-ink-700 transition-colors hover:bg-surface-sunken disabled:opacity-60"
+                className="flex min-h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-line-strong bg-white px-4 py-2.5 text-[14px] font-medium text-ink-700 transition-colors hover:bg-surface-sunken disabled:opacity-60"
               >
                 <svg className="h-4 w-4" viewBox="0 0 23 23">
                   <path fill="#F25022" d="M1 1h10v10H1z" />

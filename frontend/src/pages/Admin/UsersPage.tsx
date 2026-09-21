@@ -114,7 +114,7 @@ export function UsersPage() {
       )}
 
       {/* Filters */}
-      <div className="mt-5 flex flex-wrap items-end gap-3">
+      <div className="mt-5 flex flex-wrap items-end gap-3 [&>div]:w-full sm:[&>div]:w-auto">
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Search</label>
           <div className="relative">
@@ -134,7 +134,7 @@ export function UsersPage() {
                 setPage(1);
               }}
               placeholder="Search email or name…"
-              className="w-72 rounded-lg border border-line-strong bg-white pl-9 pr-3 py-2.5 text-[13px] text-ink-900 placeholder:text-ink-300"
+              className="w-full sm:w-72 rounded-lg border border-line-strong bg-white pl-9 pr-3 py-2.5 text-[13px] text-ink-900 placeholder:text-ink-300"
             />
           </div>
         </div>
@@ -158,8 +158,8 @@ export function UsersPage() {
       </div>
 
       {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full">
+      <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px]">
           <thead className="bg-surface-warm">
             <tr>
               <Th>User</Th>

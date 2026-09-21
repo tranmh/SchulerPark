@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Modal } from '../../components/Modal';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
@@ -121,7 +122,7 @@ export function SlotsPage() {
           id="slots-location"
           value={selectedLocationId ?? ''}
           onChange={(e) => setSelectedLocationId(e.target.value)}
-          className="w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+          className="w-full sm:w-72 rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
         >
           {locations.map((l) => (
             <option key={l.id} value={l.id}>{l.name}</option>
@@ -129,8 +130,8 @@ export function SlotsPage() {
         </select>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-card border border-line bg-white shadow-card">
-        <table className="min-w-full num">
+      <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
+        <table className="w-full min-w-[640px] num">
           <thead className="bg-surface-warm">
             <tr>
               <Th>Slot number</Th>
@@ -272,36 +273,6 @@ function FormField({ label, htmlFor, children }: { label: string; htmlFor?: stri
     <div>
       <label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{label}</label>
       {children}
-    </div>
-  );
-}
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-md rounded-card bg-white shadow-pop ring-1 ring-line">
-        <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <h3 className="text-[15.5px] font-semibold text-ink-900">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-400 hover:bg-line/60 hover:text-ink-900"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M6 18L18 6" />
-            </svg>
-          </button>
-        </div>
-        <div className="px-6 py-5">{children}</div>
-      </div>
     </div>
   );
 }

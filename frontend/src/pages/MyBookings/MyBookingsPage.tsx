@@ -137,7 +137,10 @@ export function MyBookingsPage() {
       </div>
 
       {/* Filter chips */}
-      <div className="mt-6 inline-flex flex-wrap items-center gap-1 rounded-lg border border-line bg-white p-1">
+      <div
+        data-testid="status-filter"
+        className="no-scrollbar -mx-4 mt-6 flex snap-x items-center gap-1 overflow-x-auto px-4 sm:mx-0 sm:inline-flex sm:flex-wrap sm:overflow-visible sm:rounded-lg sm:border sm:border-line sm:bg-white sm:p-1"
+      >
         {STATUS_OPTIONS.map((s) => (
           <button
             key={s}
@@ -146,10 +149,10 @@ export function MyBookingsPage() {
               setStatusFilter(s);
               setPage(1);
             }}
-            className={`rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+            className={`min-h-9 shrink-0 snap-start whitespace-nowrap rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-colors sm:min-h-0 ${
               statusFilter === s
                 ? 'bg-brand-500 text-white shadow-sm'
-                : 'text-ink-500 hover:bg-line/60 hover:text-ink-900'
+                : 'border border-line bg-white text-ink-500 hover:bg-line/60 hover:text-ink-900 sm:border-0 sm:bg-transparent'
             }`}
           >
             {filterLabel(s)}
@@ -188,8 +191,8 @@ export function MyBookingsPage() {
             const { weekday, day, month } = formatDayParts(b.date);
             const isFaded = b.status === 'Cancelled' || b.status === 'Expired' || b.status === 'Lost';
             return (
-              <div key={b.id} className={`flex flex-wrap items-center gap-4 p-5 ${isFaded ? 'opacity-90' : ''}`}>
-                <div className="w-14 text-center">
+              <div key={b.id} className={`flex flex-wrap items-center gap-3 p-4 sm:gap-4 sm:p-5 ${isFaded ? 'opacity-90' : ''}`}>
+                <div className="w-12 shrink-0 text-center sm:w-14">
                   <div className={`text-[10.5px] font-semibold uppercase tracking-wider ${isFaded ? 'text-ink-300' : 'text-brand-500'}`}>
                     {weekday}
                   </div>
@@ -198,8 +201,8 @@ export function MyBookingsPage() {
                   </div>
                   <div className="mt-1 text-[10.5px] text-ink-400">{month}</div>
                 </div>
-                <div className="h-12 w-px bg-line" />
-                <div className="min-w-0 flex-1">
+                <div className="h-12 w-px shrink-0 bg-line" />
+                <div className="min-w-0 flex-1 basis-40">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className={`text-[14.5px] font-semibold ${isFaded ? 'text-ink-500 line-through' : 'text-ink-900'}`}>
                       {b.locationName} · {t(`components.timeSlot.${b.timeSlot}`)}
@@ -217,7 +220,7 @@ export function MyBookingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                   {b.status === 'Won' && (
                     <>
                       {b.confirmationDeadline && <DeadlineCountdown deadline={b.confirmationDeadline} />}
@@ -225,7 +228,7 @@ export function MyBookingsPage() {
                         type="button"
                         onClick={() => handleConfirm(b.id)}
                         disabled={confirmingId === b.id}
-                        className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[12.5px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                        className="min-h-10 flex-1 rounded-lg bg-emerald-600 px-3.5 py-2 text-[12.5px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:flex-none"
                       >
                         {confirmingId === b.id ? t('myBookings.confirming') : t('myBookings.confirmUsage')}
                       </button>
@@ -235,7 +238,7 @@ export function MyBookingsPage() {
                     <button
                       type="button"
                       onClick={() => setCancelTarget(b)}
-                      className="rounded-lg border border-line-strong bg-white px-3 py-2 text-[12.5px] font-medium text-ink-700 hover:bg-surface-sunken"
+                      className="min-h-10 flex-1 rounded-lg border border-line-strong bg-white px-3 py-2 text-[12.5px] font-medium text-ink-700 hover:bg-surface-sunken sm:min-h-0 sm:flex-none"
                     >
                       {t('myBookings.cancel')}
                     </button>
@@ -249,12 +252,12 @@ export function MyBookingsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
+            className="min-h-10 rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50 sm:min-h-0"
           >
             ← {t('common.previous')}
           </button>
@@ -265,7 +268,7 @@ export function MyBookingsPage() {
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
+            className="min-h-10 rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50 sm:min-h-0"
           >
             {t('common.next')} →
           </button>

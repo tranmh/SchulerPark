@@ -28,7 +28,8 @@
     "inactive": "Inaktiv",
     "enable": "Aktivieren",
     "disable": "Deaktivieren",
-    "language": "Sprache"
+    "language": "Sprache",
+    "scrollHint": "Zum Scrollen wischen"
   },
   "nav": {
     "dashboard": "Übersicht",
@@ -48,7 +49,9 @@
     "tagline": "Parkplatzsystem",
     "roleSuper": "Super",
     "roleAdmin": "Admin",
-    "approvals": "Benutzer-Freigaben"
+    "approvals": "Benutzer-Freigaben",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -184,7 +187,8 @@
     "weekDayWaitlistedHeading": "Auf der Warteliste:",
     "goToMyBookings": "Zu meinen Buchungen",
     "parkingSlot_one": "{{count}} Parkplatz",
-    "parkingSlot_other": "{{count}} Parkplätze"
+    "parkingSlot_other": "{{count}} Parkplätze",
+    "stepOf": "Schritt {{current}} von {{total}}"
   },
   "myBookings": {
     "title": "Meine Buchungen",
@@ -298,7 +302,8 @@
     "create": "Erstellen",
     "update": "Aktualisieren",
     "save": "Speichern",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "desktopOnlyHint": "Der Layout-Editor ist für Desktop-Bildschirme ausgelegt. Auf dem Smartphone sind Bearbeitung per Drag & Drop und Rechtsklick nicht verfügbar."
   },
   "privacy": {
     "title": "Datenschutzerklärung",

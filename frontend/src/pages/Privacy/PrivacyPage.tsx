@@ -5,8 +5,8 @@ import { LanguageToggle } from '../../components/LanguageToggle';
 export function PrivacyPage() {
   const { t } = useTranslation();
   return (
-    <div className="relative mx-auto max-w-3xl px-6 py-12">
-      <div className="absolute right-6 top-6">
+    <div className="relative mx-auto max-w-3xl px-4 pb-8 pt-[calc(4.5rem+env(safe-area-inset-top))] sm:px-6 sm:py-12">
+      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] sm:right-6 sm:top-6">
         <LanguageToggle variant="light" />
       </div>
       <h1 className="text-3xl font-bold text-gray-900">{t('privacy.title')}</h1>

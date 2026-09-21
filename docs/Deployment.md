@@ -156,7 +156,10 @@ Edit `.env` (`nano .env` or `vim .env`) and fill in all required values:
 | `AZURE_AD_CLIENT_SECRET` | From Azure AD app registration |
 | `BACKUP_RETENTION_DAYS` | `30` |
 
-Azure AD redirect URI must be: `https://<SITE_DOMAIN>/signin-oidc`.
+Azure AD redirect URI must be `https://<SITE_DOMAIN>` (the site origin, platform
+"Single-page application"). MSAL uses `window.location.origin` for both the popup
+flow (desktop) and the redirect flow (mobile browsers / installed PWA), so the
+canonical host — and every alias users actually open — must be registered.
 
 Append VAPID (not in the example file):
 ```

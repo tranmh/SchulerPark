@@ -193,7 +193,7 @@ export function BookingPage() {
           title={t('booking.singleResultTitle')}
           subtitle={singleResult.fallbackReason ? t('booking.singleResultSubtitle') : undefined}
         />
-        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-6 shadow-card">
+        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-4 shadow-card sm:p-6">
           {singleResult.status === 'Confirmed' && (
             <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">
               <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,7 +247,7 @@ export function BookingPage() {
     return (
       <div>
         <PageHeader title={t('booking.weekResultTitle')} subtitle={t('booking.weekResultSubtitle')} />
-        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-6 shadow-card">
+        <div className="mt-6 max-w-2xl rounded-card border border-line bg-white p-4 shadow-card sm:p-6">
           <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">
             <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -345,8 +345,34 @@ export function BookingPage() {
         }
       />
 
-      {/* Stepper */}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      {/* Stepper — compact progress bar on phones, pills from sm up */}
+      <div className="mt-5 sm:hidden" aria-live="polite">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-400 num">
+            {t('booking.stepOf', { current: step, total: STEPS.length })}
+          </span>
+          <span className="truncate text-[13.5px] font-semibold text-ink-900">{STEPS[step - 1]}</span>
+        </div>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {STEPS.map((label, i) => {
+            const stepNum = i + 1;
+            const isDone = step > stepNum;
+            return (
+              <button
+                key={label}
+                type="button"
+                disabled={!isDone}
+                onClick={() => setStep(stepNum)}
+                aria-label={label}
+                className={`h-1.5 rounded-full transition-colors ${
+                  step === stepNum ? 'bg-brand-500' : isDone ? 'bg-emerald-500' : 'bg-line-strong'
+                }`}
+              />
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-6 hidden flex-wrap items-center gap-2 sm:flex">
         {STEPS.map((label, i) => {
           const stepNum = i + 1;
           const isCurrent = step === stepNum;
@@ -416,7 +442,7 @@ export function BookingPage() {
                   ? t('booking.selectWeekAt', { location: selectedLocation?.name ?? '' })
                   : t('booking.selectDateAt', { location: selectedLocation?.name ?? '' })}
               </h2>
-              <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-700">
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-700 sm:min-h-0">
                 <span className="relative inline-flex h-5 w-9 items-center">
                   <input
                     type="checkbox"
@@ -494,7 +520,7 @@ export function BookingPage() {
           <div>
             <h2 className="mb-4 text-[15px] font-semibold text-ink-700">{t('booking.reviewTitle')}</h2>
             <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-              <div className="rounded-card border border-line bg-white p-6 shadow-card">
+              <div className="rounded-card border border-line bg-white p-4 shadow-card sm:p-6">
                 <SummaryRow label={t('booking.labelLocation')} value={selectedLocation?.name ?? '—'} />
                 <SummaryRow
                   label={weekMode ? t('booking.labelWeek') : t('booking.labelDate')}
@@ -518,16 +544,19 @@ export function BookingPage() {
 
                 {gridAvailability && !weekMode && (
                   <div className="mt-6">
-                    <h3 className="mb-2 text-[12.5px] font-semibold text-ink-700">{t('booking.parkingLayout')}</h3>
+                    <div className="mb-2 flex items-baseline justify-between gap-3">
+                      <h3 className="text-[12.5px] font-semibold text-ink-700">{t('booking.parkingLayout')}</h3>
+                      <span className="text-[11px] text-ink-400 sm:hidden">{t('common.scrollHint')}</span>
+                    </div>
                     <ParkingGridView availability={gridAvailability} />
                   </div>
                 )}
 
-                <div className="mt-6 flex flex-wrap gap-2">
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken"
+                    className="min-h-11 rounded-lg border border-line-strong bg-white px-4 py-2 text-[13px] font-medium text-ink-700 hover:bg-surface-sunken sm:min-h-0"
                   >
                     {t('booking.startOver')}
                   </button>
@@ -535,7 +564,7 @@ export function BookingPage() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="rounded-lg bg-brand-500 px-5 py-2 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600 disabled:opacity-60"
+                    className="min-h-11 rounded-lg bg-brand-500 px-5 py-2 text-[13.5px] font-medium text-white shadow-sm hover:bg-brand-600 disabled:opacity-60 sm:min-h-0"
                   >
                     {isSubmitting ? t('booking.submitting') : weekMode ? t('booking.bookingWeek') : t('booking.confirmBooking')}
                   </button>
@@ -569,9 +598,9 @@ function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-line py-3 last:border-b-0">
+    <div className="flex flex-col gap-0.5 border-b border-line py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="text-[12.5px] text-ink-400">{label}</div>
-      <div className="text-[13.5px] font-medium text-ink-900">{value}</div>
+      <div className="break-words text-[13.5px] font-medium text-ink-900 sm:text-right">{value}</div>
     </div>
   );
 }
