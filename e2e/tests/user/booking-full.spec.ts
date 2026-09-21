@@ -90,11 +90,16 @@ test.describe('User → Booking flow (full)', () => {
     // Find the row for our specific location
     const row = page.locator('div.flex.flex-wrap.items-center.gap-4').filter({ hasText: loc.name }).first();
     await row.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByRole('button', { name: /cancel booking/i }).click();
 
-    await page.waitForResponse((r) =>
-      r.url().includes('/api/bookings/') && r.request().method() === 'DELETE' && r.ok()
+    // Register the listener BEFORE the click that fires the DELETE. Registering it
+    // after (as before) races the backend: when the response arrives quickly, it is
+    // gone by the time waitForResponse starts listening and the test times out even
+    // though the cancel succeeded (CI run 35562379079 captured the row as Cancelled).
+    const deleted = page.waitForResponse(
+      (r) => r.url().includes('/api/bookings/') && r.request().method() === 'DELETE' && r.ok(),
     );
+    await page.getByRole('button', { name: /cancel booking/i }).click();
+    await deleted;
   });
 
   test('shows error when API rejects booking with 400 (mocked)', async ({ page }) => {
