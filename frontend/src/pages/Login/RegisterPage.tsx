@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { LanguageToggle } from '../../components/LanguageToggle';
+import { PasswordInput } from '../../components/PasswordInput';
 import { describeApiError, getApiErrorCode } from '../../utils/apiError';
 
 export function RegisterPage() {
@@ -146,8 +147,8 @@ export function RegisterPage() {
           </div>
           <div>
             <label htmlFor="password" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.password')}</label>
-            <input
-              id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password"
+            <PasswordInput
+              id="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
             <p className="mt-1.5 text-[11.5px] text-ink-400">{t('auth.passwordHint')}</p>
@@ -157,8 +158,8 @@ export function RegisterPage() {
           </p>
           <div>
             <label htmlFor="confirmPassword" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.confirmPassword')}</label>
-            <input
-              id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password"
+            <PasswordInput
+              id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
           </div>

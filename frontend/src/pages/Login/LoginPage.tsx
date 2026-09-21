@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 import { LanguageToggle } from '../../components/LanguageToggle';
+import { PasswordInput } from '../../components/PasswordInput';
 import { describeApiError, getApiErrorCode, getApiErrorData } from '../../utils/apiError';
 
 /**
@@ -205,9 +206,8 @@ export function LoginPage() {
                   {t('auth.forgot')}
                 </a>
               </div>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

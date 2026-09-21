@@ -4,6 +4,8 @@
   },
   "common": {
     "loading": "Loading…",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "save": "Save changes",
     "saving": "Saving…",
     "cancel": "Cancel",

@@ -4,6 +4,8 @@
   },
   "common": {
     "loading": "Lädt…",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen",
     "save": "Änderungen speichern",
     "saving": "Speichern…",
     "cancel": "Abbrechen",
