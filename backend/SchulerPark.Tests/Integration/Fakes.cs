@@ -75,6 +75,30 @@ public class CapturingEmailService : IEmailService
 }
 
 /// <summary>
+/// Stands in for the Web Push transport. Every send is recorded; endpoints listed
+/// in <see cref="GoneEndpoints"/> are reported as expired (410) so tests can assert
+/// that stale subscriptions get pruned, and <see cref="FailingEndpoints"/> simulate
+/// a push service outage.
+/// </summary>
+public class RecordingPushSender : IPushSender
+{
+    public ConcurrentQueue<(string Endpoint, string Payload)> Sent { get; } = new();
+    public ConcurrentDictionary<string, byte> GoneEndpoints { get; } = new();
+    public ConcurrentDictionary<string, byte> FailingEndpoints { get; } = new();
+
+    public Task<PushSendOutcome> SendAsync(PushSubscription subscription, string jsonPayload, CancellationToken ct = default)
+    {
+        if (GoneEndpoints.ContainsKey(subscription.Endpoint))
+            return Task.FromResult(PushSendOutcome.Gone);
+        if (FailingEndpoints.ContainsKey(subscription.Endpoint))
+            return Task.FromResult(PushSendOutcome.Failed);
+
+        Sent.Enqueue((subscription.Endpoint, jsonPayload));
+        return Task.FromResult(PushSendOutcome.Delivered);
+    }
+}
+
+/// <summary>
 /// Accepts "tokens" of the form <c>fake|oid|email|name</c> so tests can drive
 /// the Azure AD account-linking logic without a real tenant.
 /// </summary>

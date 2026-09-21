@@ -21,6 +21,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public CapturingEmailService Emails =>
         (CapturingEmailService)Services.GetRequiredService<IEmailService>();
 
+    /// <summary>Recorded outbound push messages (see <see cref="RecordingPushSender"/>).</summary>
+    public RecordingPushSender Pushes =>
+        (RecordingPushSender)Services.GetRequiredService<IPushSender>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -41,11 +45,21 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // andritz.com must use Azure AD SSO — local registration is rejected.
         builder.UseSetting("Registration:SsoDomains", "andritz.com");
 
+        // Mark push as configured so /api/push/* is live; the real VAPID-signing
+        // transport is swapped for RecordingPushSender below, so the key values
+        // never reach a crypto API.
+        builder.UseSetting("Vapid:PublicKey", "test-vapid-public-key");
+        builder.UseSetting("Vapid:PrivateKey", "test-vapid-private-key");
+
         builder.ConfigureServices(services =>
         {
             // Capture emails instead of SMTP; tests read verification links from here.
             services.RemoveAll<IEmailService>();
             services.AddSingleton<IEmailService, CapturingEmailService>();
+
+            // Record outbound push messages instead of contacting a push service.
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<IPushSender, RecordingPushSender>();
 
             // Fake Azure AD token validation ("fake|oid|email|name" tokens).
             services.RemoveAll<AzureAdTokenValidator>();

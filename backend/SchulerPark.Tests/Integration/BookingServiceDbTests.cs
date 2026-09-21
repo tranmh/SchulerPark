@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Interfaces;
+using SchulerPark.Core.Models;
 using SchulerPark.Infrastructure.Services;
 using Xunit;
 
@@ -58,6 +59,7 @@ file sealed class NoopWeekPush : IPushNotificationService
     public Task SendWaitlistWonAsync(Booking booking) => Task.CompletedTask;
     public Task SendBookingDirectlyConfirmedAsync(Booking booking) => Task.CompletedTask;
     public Task SendBookingWaitlistedAsync(Booking booking) => Task.CompletedTask;
+    public Task<PushSendResult> SendTestAsync(Guid userId) => Task.FromResult(PushSendResult.NoSubscriptions);
 }
 
 [Collection("Postgres")]

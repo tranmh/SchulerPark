@@ -27,6 +27,12 @@ export function ProfilePage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  const [pushTestState, setPushTestState] = useState<
+    | { kind: 'idle' }
+    | { kind: 'sending' }
+    | { kind: 'ok'; delivered: number }
+    | { kind: 'error'; message: string }
+  >({ kind: 'idle' });
 
   const {
     isSupported: pushSupported,
@@ -34,6 +40,7 @@ export function ProfilePage() {
     isSubscribed: pushSubscribed,
     requestPermission: requestPush,
     disable: disablePush,
+    sendTest: sendTestPush,
   } = usePushNotifications();
 
   useEffect(() => {
@@ -115,6 +122,30 @@ export function ProfilePage() {
     if (!result.ok && result.reason === 'error') {
       setPushError(t('profile.pushError'));
     }
+  };
+
+  // Manual end-to-end push check (permission → stored subscription → VAPID
+  // delivery → service worker). The result is shown inline; the notification
+  // itself arrives via the OS.
+  const handleTestPush = async () => {
+    setPushTestState({ kind: 'sending' });
+    const result = await sendTestPush();
+    if (result.ok) {
+      setPushTestState({ kind: 'ok', delivered: result.delivered });
+      return;
+    }
+    const message =
+      result.reason === 'no-subscription'
+        ? t('profile.pushTestNoSubscription')
+        : result.reason === 'not-delivered'
+          ? t('profile.pushTestNotDelivered')
+          : t('profile.pushTestFailed');
+    setPushTestState({ kind: 'error', message });
+  };
+
+  const handleDisablePush = async () => {
+    setPushTestState({ kind: 'idle' });
+    await disablePush();
   };
 
   const roleLabel = isSuperAdmin ? t('profile.roleSuper') : isAdmin ? t('profile.roleAdmin') : t('profile.roleUser');
@@ -249,18 +280,38 @@ export function ProfilePage() {
               {t('profile.pushDenied')}
             </div>
           ) : pushSubscribed ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <span className="inline-flex items-center gap-2 text-[13px] font-medium text-emerald-800">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {t('profile.pushEnabled')}
-              </span>
-              <button
-                type="button"
-                onClick={disablePush}
-                className="ml-auto rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50"
-              >
-                {t('profile.pushDisable')}
-              </button>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-[13px] font-medium text-emerald-800">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  {t('profile.pushEnabled')}
+                </span>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleTestPush()}
+                    disabled={pushTestState.kind === 'sending'}
+                    className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    {pushTestState.kind === 'sending' ? t('profile.pushTestSending') : t('profile.pushTest')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDisablePush()}
+                    className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-50"
+                  >
+                    {t('profile.pushDisable')}
+                  </button>
+                </div>
+              </div>
+              {pushTestState.kind === 'ok' && (
+                <p role="status" className="text-[13px] text-emerald-800">
+                  {t('profile.pushTestOk', { count: pushTestState.delivered })}
+                </p>
+              )}
+              {pushTestState.kind === 'error' && (
+                <p role="alert" className="text-[13px] text-rose-700">{pushTestState.message}</p>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-2">

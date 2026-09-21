@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { subscribeToPush, unsubscribeFromPush } from '../services/pushService';
+import { subscribeToPush, unsubscribeFromPush, sendTestPush, type PushTestResult } from '../services/pushService';
 
 // Bug #11: a discriminated result so callers can tell a real failure ('error')
 // from the user declining ('denied') or an unsupported browser ('unsupported').
@@ -55,5 +55,16 @@ export function usePushNotifications() {
     return success;
   }, []);
 
-  return { isSupported, permission, isSubscribed, requestPermission, disable };
+  // Manual verification: ask the backend to push a test message to this account's
+  // devices. If the server no longer knows this device (404) the local state is
+  // stale, so drop the browser-side subscription too and show the Enable button.
+  const sendTest = useCallback(async (): Promise<PushTestResult> => {
+    const result = await sendTestPush();
+    if (!result.ok && result.reason === 'no-subscription') {
+      setIsSubscribed(false);
+    }
+    return result;
+  }, []);
+
+  return { isSupported, permission, isSubscribed, requestPermission, disable, sendTest };
 }

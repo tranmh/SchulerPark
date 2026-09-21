@@ -232,7 +232,8 @@ builder.Services.AddScoped<IDirectAssignmentService, DirectAssignmentService>();
 // Waitlist service
 builder.Services.AddScoped<IWaitlistService, WaitlistService>();
 
-// Push notification service
+// Push notification service (IPushSender is the Web Push transport seam; tests swap it)
+builder.Services.AddSingleton<IPushSender, WebPushSender>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 
 // Phase 7: Email service

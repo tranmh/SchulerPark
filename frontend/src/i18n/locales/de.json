@@ -1,4 +1,7 @@
 {
+  "offline": {
+    "banner": "Sie sind offline. Buchungen und Aktualisierungen sind erst wieder mit Verbindung möglich."
+  },
   "common": {
     "loading": "Lädt…",
     "save": "Änderungen speichern",
@@ -231,6 +234,13 @@
     "pushDisable": "Deaktivieren",
     "pushEnable": "Push-Benachrichtigungen aktivieren",
     "pushError": "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte später erneut versuchen.",
+    "pushTest": "Testbenachrichtigung senden",
+    "pushTestSending": "Wird gesendet…",
+    "pushTestOk_one": "Testbenachrichtigung an {{count}} Gerät gesendet. Bitte die Benachrichtigungen prüfen.",
+    "pushTestOk_other": "Testbenachrichtigung an {{count}} Geräte gesendet. Bitte die Benachrichtigungen prüfen.",
+    "pushTestNoSubscription": "Für dieses Konto ist keine Push-Registrierung vorhanden. Push-Benachrichtigungen deaktivieren, erneut aktivieren und noch einmal versuchen.",
+    "pushTestNotDelivered": "Der Push-Dienst hat die Nachricht abgelehnt. Push-Benachrichtigungen deaktivieren, erneut aktivieren und noch einmal versuchen.",
+    "pushTestFailed": "Die Testbenachrichtigung konnte nicht gesendet werden. Bitte später erneut versuchen.",
     "dsgvoTitle": "Ihre Daten (DSGVO Art. 15)",
     "dsgvoSubtitle": "Laden Sie alle personenbezogenen Daten als JSON-Datei herunter.",
     "downloadData": "Meine Daten herunterladen",

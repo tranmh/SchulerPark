@@ -15,7 +15,34 @@ export const pushService = {
   // not end up in access logs.
   unsubscribe: (endpoint: string) =>
     api.delete('/push/subscribe', { data: { endpoint } }),
+
+  // Manual end-to-end check: the backend pushes a test message to every device
+  // this account has subscribed. 404 = no subscription, 502 = nothing delivered.
+  sendTest: () => api.post<PushTestResponse>('/push/test').then((r) => r.data),
 };
+
+export interface PushTestResponse {
+  subscriptions: number;
+  delivered: number;
+  removed: number;
+  failed: number;
+}
+
+export type PushTestResult =
+  | { ok: true; delivered: number; subscriptions: number }
+  | { ok: false; reason: 'no-subscription' | 'not-delivered' | 'error' };
+
+export async function sendTestPush(): Promise<PushTestResult> {
+  try {
+    const res = await pushService.sendTest();
+    return { ok: true, delivered: res.delivered, subscriptions: res.subscriptions };
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404) return { ok: false, reason: 'no-subscription' };
+    if (status === 502) return { ok: false, reason: 'not-delivered' };
+    return { ok: false, reason: 'error' };
+  }
+}
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

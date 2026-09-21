@@ -1,4 +1,7 @@
 {
+  "offline": {
+    "banner": "You are offline. Bookings and updates will fail until the connection is back."
+  },
   "common": {
     "loading": "Loading…",
     "save": "Save changes",
@@ -231,6 +234,13 @@
     "pushDisable": "Disable",
     "pushEnable": "Enable push notifications",
     "pushError": "Could not enable push notifications. Please try again later.",
+    "pushTest": "Send test notification",
+    "pushTestSending": "Sending…",
+    "pushTestOk_one": "Test notification sent to {{count}} device. Check your notification tray.",
+    "pushTestOk_other": "Test notification sent to {{count}} devices. Check your notification tray.",
+    "pushTestNoSubscription": "No push subscription is registered for this account. Disable and re-enable push notifications, then try again.",
+    "pushTestNotDelivered": "The push service rejected the message. Disable and re-enable push notifications, then try again.",
+    "pushTestFailed": "Could not send the test notification. Please try again later.",
     "dsgvoTitle": "Your data (DSGVO Art. 15)",
     "dsgvoSubtitle": "Download all personal data we hold about you as a JSON file.",
     "downloadData": "Download my data",
