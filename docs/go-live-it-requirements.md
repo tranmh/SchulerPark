@@ -95,7 +95,10 @@ These don't need IT but must be done before go-live:
 - Replace the seeded bootstrap admin (`admin@schulerpark.local` / `Admin123!`) — create a real admin, disable/delete the seed.
 - Generate and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` in `.env` so push notifications work.
 - Seed the six Schuler sites (Goeppingen, Erfurt, Hessdorf, Gemmingen, Weingarten, Netphen) with real slot capacity numbers via the admin UI.
-- Configure GitHub Actions secrets for auto-deploy: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PATH`.
+- Register the self-hosted GitHub Actions runner on this box for auto-deploy (needs a
+  registration token from a repo *admin*; `prache19` only has write). Steps in
+  `docs/deploy-this-server.md`. The old `DEPLOY_*` SSH secrets are obsolete — inbound
+  SSH to the box is firewalled.
 
 ## Suggested order of operations
 

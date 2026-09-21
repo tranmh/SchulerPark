@@ -64,8 +64,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 ### CI/CD
 Push to master triggers: backend build+test, frontend lint+test+build, E2E Playwright tests.
-If all pass, auto-deploys to production via SSH (`appleboy/ssh-action`).
-Requires GitHub secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_PATH`.
+If all pass, the `deploy` job runs on a self-hosted runner installed on the prod box
+itself (`runs-on: [self-hosted, linux, prod]`, user-level systemd unit `github-runner`)
+and does `git pull --ff-only` + `docker compose up -d --build` there. No deploy secrets
+needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 
 ### Default Credentials
 - SuperAdmin (dev seed): `superadmin@schulerpark.local` / `Admin123!`

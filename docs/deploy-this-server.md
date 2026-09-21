@@ -113,3 +113,54 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-re
 # Scale app to 3 instances
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale app=3
 ```
+
+## CI/CD: self-hosted GitHub Actions runner (auto-deploy)
+
+The `deploy` job in `.github/workflows/ci.yml` runs **on this box** via a
+self-hosted runner (`runs-on: [self-hosted, linux, prod]`). Inbound SSH to
+`193.28.217.49` is firewalled from the internet (verified 2026-09-21: port 443
+reachable, port 22 times out), so the earlier `appleboy/ssh-action` deploy from a
+GitHub-hosted runner could never connect and the `DEPLOY_*` secrets are no longer
+used. The runner only needs outbound HTTPS to GitHub, which goes through the
+corporate proxy.
+
+Layout (all as user `Prache.Maurya`, no root needed):
+
+- `~/actions-runner/` — runner binaries (`actions/runner` release tarball).
+- `~/actions-runner/.env` — proxy variables the runner and its jobs inherit
+  (`https_proxy`, `http_proxy`, `no_proxy`). systemd does not pass the login
+  shell's proxy env, so this file is what makes GitHub reachable.
+- `~/.config/systemd/user/github-runner.service` — user-level unit running
+  `run.sh`, `Restart=always`. `loginctl enable-linger Prache.Maurya` is set so the
+  unit keeps running when nobody is logged in.
+
+Registering (one-time; needs a registration token from repo **Settings → Actions
+→ Runners → New self-hosted runner**, which requires *admin* on the repo — the
+`prache19` account only has *write*):
+
+```bash
+cd ~/actions-runner
+./config.sh --unattended --url https://github.com/tranmh/SchulerPark \
+  --token <REGISTRATION_TOKEN> --name park-schuler-de --labels prod \
+  --work _work --replace
+systemctl --user daemon-reload
+systemctl --user enable --now github-runner
+```
+
+Operating it:
+
+```bash
+systemctl --user status github-runner        # should say "Listening for Jobs"
+journalctl --user -u github-runner -f        # live log
+systemctl --user restart github-runner
+# Upgrade: runner self-updates; to move to a new major, stop the unit, replace
+# ~/actions-runner/bin + externals from the new tarball, start again.
+# Remove: systemctl --user disable --now github-runner && cd ~/actions-runner && ./config.sh remove --token <REMOVAL_TOKEN>
+```
+
+What the deploy job does on this box: `git pull --ff-only` in
+`/home/Prache.Maurya/data/SchulerPark` (the live checkout that also holds the
+untracked `.env`), `docker compose ... up -d --build --remove-orphans`, then polls
+`https://localhost/api/health` through Caddy with `-k --noproxy '*'`. A dirty
+working tree or a non-fast-forward makes the pull fail, and therefore the deploy,
+on purpose — commit or stash local edits on the server before pushing to master.
