@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 import { LanguageToggle } from '../../components/LanguageToggle';
+import { describeApiError, getApiErrorCode, getApiErrorData } from '../../utils/apiError';
 
 /**
  * Turns an Azure AD login failure into a message the user can act on (or at
@@ -12,9 +13,9 @@ import { LanguageToggle } from '../../components/LanguageToggle';
  * error code appended so "login failed" on a phone is diagnosable.
  */
 function describeAzureError(err: unknown, t: TFunction): string {
-  const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
+  const data = getApiErrorData(err);
   if (data?.code === 'pending_approval') return t('auth.pendingApproval');
-  if (data?.error) return data.error;
+  if (data?.error) return describeApiError(err, 'auth.azureFailed');
 
   const code = (err as { errorCode?: string } | null)?.errorCode;
   return code ? `${t('auth.azureFailed')} (${code})` : t('auth.azureFailed');
@@ -64,14 +65,14 @@ export function LoginPage() {
       await login(email, password);
       navigate('/');
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
-      if (data?.code === 'email_not_verified') {
+      const code = getApiErrorCode(err);
+      if (code === 'email_not_verified') {
         setNeedsVerification(true);
         setError(t('auth.emailNotVerified'));
-      } else if (data?.code === 'pending_approval') {
+      } else if (code === 'pending_approval') {
         setError(t('auth.pendingApproval'));
       } else {
-        setError(data?.error || t('auth.loginFailed'));
+        setError(describeApiError(err, 'auth.loginFailed'));
       }
     } finally {
       setLoading(false);

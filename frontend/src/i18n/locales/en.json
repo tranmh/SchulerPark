@@ -156,6 +156,13 @@
     "labelTimeSlot": "Time slot",
     "weekInfo": "Individual bookings will be created for each weekday. Blocked or already-booked days are skipped automatically.",
     "parkingLayout": "Parking layout",
+    "slotStatus": {
+      "Free": "Available",
+      "Booked": "Booked",
+      "Own": "Your booking",
+      "Blocked": "Blocked",
+      "Inactive": "Inactive"
+    },
     "startOver": "Start over",
     "confirmBooking": "Confirm booking",
     "bookingWeek": "Book entire week",
@@ -348,5 +355,25 @@
     "loadFailed": "Failed to load pending users.",
     "decisionFailed": "Failed to save the decision.",
     "rejectConfirm": "Reject the registration of {{email}}? The address will not be able to sign in."
+  },
+  "apiErrors": {
+    "booking_date_not_in_future": "Bookings are only possible for future dates, not for today or the past.",
+    "booking_too_far_ahead": "Bookings can be made at most one month in advance.",
+    "booking_daily_limit": "You have reached today's limit for new bookings. Please try again tomorrow.",
+    "booking_duplicate": "You already have a booking for this date, time slot and location.",
+    "week_start_not_monday": "A week booking must start on a Monday.",
+    "week_all_skipped": "No bookings could be created for this week — every day was blocked or already booked.",
+    "booking_not_cancellable": "Only pending, won or confirmed bookings can be cancelled.",
+    "booking_not_confirmable": "Only won bookings can be confirmed.",
+    "confirmation_deadline_passed": "The confirmation deadline for this booking has passed.",
+    "location_no_active_slots": "This location has no active parking slots.",
+    "location_blocked": "This location is blocked on the selected date.",
+    "slots_all_blocked": "All parking slots are blocked on the selected date.",
+    "no_preferred_location": "No location selected and no preferred location set. Please choose a location or set a preferred one in your profile.",
+    "preferred_location_unavailable": "Your preferred location is unavailable on that date and no alternative location is available.",
+    "invalid_credentials": "Invalid email or password.",
+    "azure_not_configured": "Microsoft sign-in is not available.",
+    "azure_token_invalid": "Microsoft sign-in could not be verified. Please try again.",
+    "verification_link_invalid": "This verification link is invalid or has expired."
   }
 }

@@ -25,7 +25,7 @@ public class ExceptionHandlingMiddleware
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await WriteProblemDetails(context, "Bad Request", ex.Message,
-                "https://tools.ietf.org/html/rfc9110#section-15.5.1");
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1", ex.Code);
         }
         catch (NotFoundException ex)
         {
@@ -49,7 +49,8 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    private static async Task WriteProblemDetails(HttpContext context, string title, string detail, string type)
+    private static async Task WriteProblemDetails(
+        HttpContext context, string title, string detail, string type, string? code = null)
     {
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
         var problem = new ProblemDetails
@@ -61,6 +62,8 @@ public class ExceptionHandlingMiddleware
             Instance = context.Request.Path
         };
         problem.Extensions["traceId"] = traceId;
+        if (code != null)
+            problem.Extensions["code"] = code;
 
         context.Response.ContentType = "application/problem+json";
         await context.Response.WriteAsJsonAsync(problem);

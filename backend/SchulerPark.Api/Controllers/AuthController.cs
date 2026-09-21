@@ -74,7 +74,7 @@ public class AuthController : ControllerBase
         var verified = await _authService.VerifyEmailAsync(request.Token);
 
         if (!verified)
-            return BadRequest(new { error = "Verification link is invalid or has expired." });
+            return BadRequest(new { error = "Verification link is invalid or has expired.", code = "verification_link_invalid" });
 
         return Ok(new { message = "Email verified. You can sign in now." });
     }
@@ -107,7 +107,7 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException)
         {
-            return Unauthorized(new { error = "Invalid email or password." });
+            return Unauthorized(new { error = "Invalid email or password.", code = "invalid_credentials" });
         }
         catch (EmailNotVerifiedException)
         {
@@ -133,7 +133,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> AzureAdCallback([FromBody] AzureAdTokenRequest request)
     {
         if (!_azureAdSettings.IsConfigured)
-            return NotFound(new { error = "Azure AD is not configured." });
+            return NotFound(new { error = "Azure AD is not configured.", code = "azure_not_configured" });
 
         try
         {
@@ -149,7 +149,7 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException)
         {
-            return Unauthorized(new { error = "Invalid Azure AD token." });
+            return Unauthorized(new { error = "Invalid Azure AD token.", code = "azure_token_invalid" });
         }
     }
 

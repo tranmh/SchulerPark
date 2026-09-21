@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { LanguageToggle } from '../../components/LanguageToggle';
+import { describeApiError, getApiErrorCode } from '../../utils/apiError';
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -65,10 +66,9 @@ export function RegisterPage() {
       // No auto-login: the account must verify its email address first.
       setSubmitted(true);
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: { error?: string; code?: string } } })?.response?.data;
-      const message = data?.code === 'sso_only_domain'
+      const message = getApiErrorCode(err) === 'sso_only_domain'
         ? t('auth.ssoDomainNote')
-        : data?.error || t('auth.registerFailed');
+        : describeApiError(err, 'auth.registerFailed');
       setError(message);
     } finally {
       setLoading(false);

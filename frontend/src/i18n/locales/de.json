@@ -156,6 +156,13 @@
     "labelTimeSlot": "Zeitfenster",
     "weekInfo": "Für jeden Werktag wird eine separate Buchung erstellt. Gesperrte oder bereits gebuchte Tage werden automatisch übersprungen.",
     "parkingLayout": "Parkplatz-Layout",
+    "slotStatus": {
+      "Free": "Frei",
+      "Booked": "Belegt",
+      "Own": "Ihre Buchung",
+      "Blocked": "Gesperrt",
+      "Inactive": "Inaktiv"
+    },
     "startOver": "Von vorne",
     "confirmBooking": "Buchung bestätigen",
     "bookingWeek": "Ganze Woche buchen",
@@ -348,5 +355,25 @@
     "loadFailed": "Ausstehende Benutzer konnten nicht geladen werden.",
     "decisionFailed": "Die Entscheidung konnte nicht gespeichert werden.",
     "rejectConfirm": "Registrierung von {{email}} ablehnen? Die Adresse kann sich dann nicht anmelden."
+  },
+  "apiErrors": {
+    "booking_date_not_in_future": "Buchungen sind nur für zukünftige Tage möglich, nicht für heute oder die Vergangenheit.",
+    "booking_too_far_ahead": "Buchungen sind höchstens einen Monat im Voraus möglich.",
+    "booking_daily_limit": "Sie haben das heutige Limit für neue Buchungen erreicht. Bitte versuchen Sie es morgen erneut.",
+    "booking_duplicate": "Sie haben für diesen Tag, dieses Zeitfenster und diesen Standort bereits eine Buchung.",
+    "week_start_not_monday": "Eine Wochenbuchung muss an einem Montag beginnen.",
+    "week_all_skipped": "Für diese Woche konnte keine Buchung erstellt werden — alle Tage waren gesperrt oder bereits gebucht.",
+    "booking_not_cancellable": "Nur ausstehende, gewonnene oder bestätigte Buchungen können storniert werden.",
+    "booking_not_confirmable": "Nur gewonnene Buchungen können bestätigt werden.",
+    "confirmation_deadline_passed": "Die Bestätigungsfrist für diese Buchung ist abgelaufen.",
+    "location_no_active_slots": "Dieser Standort hat keine aktiven Parkplätze.",
+    "location_blocked": "Dieser Standort ist am gewählten Tag gesperrt.",
+    "slots_all_blocked": "Am gewählten Tag sind alle Parkplätze gesperrt.",
+    "no_preferred_location": "Kein Standort gewählt und kein bevorzugter Standort hinterlegt. Bitte wählen Sie einen Standort oder legen Sie im Profil einen bevorzugten fest.",
+    "preferred_location_unavailable": "Ihr bevorzugter Standort ist an diesem Tag nicht verfügbar und es gibt keinen Ausweichstandort.",
+    "invalid_credentials": "E-Mail-Adresse oder Passwort ist ungültig.",
+    "azure_not_configured": "Die Microsoft-Anmeldung ist nicht verfügbar.",
+    "azure_token_invalid": "Die Microsoft-Anmeldung konnte nicht überprüft werden. Bitte versuchen Sie es erneut.",
+    "verification_link_invalid": "Dieser Bestätigungslink ist ungültig oder abgelaufen."
   }
 }

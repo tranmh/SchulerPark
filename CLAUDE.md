@@ -105,7 +105,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 
 ## Error Handling
 - Backend throws `ValidationException`, `NotFoundException`, `ForbiddenException` from Core/Exceptions
-- `ExceptionHandlingMiddleware` maps these to RFC 9457 ProblemDetails with TraceId
+- `ExceptionHandlingMiddleware` maps these to RFC 9457 ProblemDetails with TraceId. A `ValidationException` a user can trigger through normal use carries a snake_case `code` (second ctor arg), emitted as the ProblemDetails `code` extension; the auth controller's `{ error, code }` responses use the same codes. The frontend maps them via `apiErrors.<code>` in both locale files (`utils/apiError.ts`) — never show backend `detail` text to users directly
 - Frontend pages use try/catch with inline error display (red alert boxes)
 - Email sending is fire-and-forget with internal error logging (never blocks the request)
 

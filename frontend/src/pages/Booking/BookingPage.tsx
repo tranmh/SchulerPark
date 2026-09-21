@@ -12,6 +12,7 @@ import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { Location, Availability, Booking, TimeSlot, SkippedDay } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
 import { getBookingWindow } from '../../utils/bookingWindow';
+import { describeApiError } from '../../utils/apiError';
 
 function getWeekFriday(mondayStr: string): string {
   const [y, m, d] = mondayStr.split('-').map(Number);
@@ -175,9 +176,7 @@ export function BookingPage() {
         }
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        ?? t('booking.createFailed');
-      setError(msg);
+      setError(describeApiError(err, 'booking.createFailed'));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { GridAvailability, SlotStatus, GridCellType } from '../../types/grid';
 
 interface Props {
@@ -20,15 +21,12 @@ const cellTypeStyles: Record<GridCellType, string> = {
   Label:    'bg-yellow-100 border-yellow-300 text-yellow-900',
 };
 
-const legendItems: { status: SlotStatus; label: string }[] = [
-  { status: 'Free',    label: 'Available' },
-  { status: 'Booked',  label: 'Booked' },
-  { status: 'Own',     label: 'Your booking' },
-  { status: 'Blocked', label: 'Blocked' },
-];
+const legendStatuses: SlotStatus[] = ['Free', 'Booked', 'Own', 'Blocked'];
 
 export function ParkingGridView({ availability }: Props) {
+  const { t } = useTranslation();
   const { gridRows, gridColumns, slots, cells } = availability;
+  const statusLabel = (status: SlotStatus) => t(`booking.slotStatus.${status}`);
 
   const slotMap = new Map(slots.map((s) => [`${s.row},${s.column}`, s]));
   const cellMap = new Map(cells.map((c) => [`${c.row},${c.column}`, c]));
@@ -73,7 +71,7 @@ export function ParkingGridView({ availability }: Props) {
                 className={className}
                 title={
                   slot
-                    ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} - ${slot.status}`
+                    ? `${slot.slotNumber}${slot.label ? ` (${slot.label})` : ''} - ${statusLabel(slot.status)}`
                     : undefined
                 }
               >
@@ -85,10 +83,10 @@ export function ParkingGridView({ availability }: Props) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        {legendItems.map(({ status, label }) => (
+        {legendStatuses.map((status) => (
           <div key={status} className="flex items-center gap-1.5">
             <span className={`h-3 w-3 rounded-sm border ${statusStyles[status]}`} />
-            <span className="text-[11.5px] text-ink-500">{label}</span>
+            <span className="text-[11.5px] text-ink-500">{statusLabel(status)}</span>
           </div>
         ))}
       </div>

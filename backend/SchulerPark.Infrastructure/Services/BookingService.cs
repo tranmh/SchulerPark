@@ -40,14 +40,14 @@ public class BookingService : IBookingService
         var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
         var today = DateOnly.FromDateTime(berlinNow);
         if (date <= today)
-            throw new ValidationException("Cannot book for today or past dates.");
+            throw new ValidationException("Cannot book for today or past dates.", "booking_date_not_in_future");
         if (date > today.AddMonths(1))
-            throw new ValidationException("Cannot book more than 1 month in advance.");
+            throw new ValidationException("Cannot book more than 1 month in advance.", "booking_too_far_ahead");
 
         var createdToday = await _db.Bookings.CountAsync(b =>
             b.UserId == userId && b.CreatedAt >= DateTime.UtcNow.AddDays(-1));
         if (createdToday >= MaxBookingsCreatedPerUserPerDay)
-            throw new ValidationException("Daily booking creation limit reached. Please try again tomorrow.");
+            throw new ValidationException("Daily booking creation limit reached. Please try again tomorrow.", "booking_daily_limit");
 
         var (resolvedLocationId, fallbackReason) = await ResolveLocationAsync(userId, locationId, date);
 
@@ -58,7 +58,7 @@ public class BookingService : IBookingService
             b.Date == date && b.TimeSlot == timeSlot &&
             b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
         if (duplicate)
-            throw new ValidationException("You already have a booking for this date, time slot, and location.");
+            throw new ValidationException("You already have a booking for this date, time slot, and location.", "booking_duplicate");
 
         var booking = new Booking
         {
@@ -132,7 +132,7 @@ public class BookingService : IBookingService
         CreateWeekBookingAsync(Guid userId, Guid? locationId, DateOnly weekStartDate, TimeSlot timeSlot)
     {
         if (weekStartDate.DayOfWeek != DayOfWeek.Monday)
-            throw new ValidationException("WeekStartDate must be a Monday.");
+            throw new ValidationException("WeekStartDate must be a Monday.", "week_start_not_monday");
 
         var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
         var today = DateOnly.FromDateTime(berlinNow);
@@ -225,7 +225,7 @@ public class BookingService : IBookingService
         }
 
         if (created.Count == 0)
-            throw new ValidationException("No bookings could be created for the selected week. All days were skipped.");
+            throw new ValidationException("No bookings could be created for the selected week. All days were skipped.", "week_all_skipped");
 
         // All days that were going to be created succeeded — commit the whole week atomically.
         await tx.CommitAsync();
@@ -286,7 +286,7 @@ public class BookingService : IBookingService
 
         if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Won
             && booking.Status != BookingStatus.Confirmed)
-            throw new ValidationException("Only Pending, Won, or Confirmed bookings can be cancelled.");
+            throw new ValidationException("Only Pending, Won, or Confirmed bookings can be cancelled.", "booking_not_cancellable");
 
         var freedSlotId = booking.ParkingSlotId;
         booking.Status = BookingStatus.Cancelled;
@@ -314,10 +314,10 @@ public class BookingService : IBookingService
             throw new ForbiddenException("You can only confirm your own bookings.");
 
         if (booking.Status != BookingStatus.Won)
-            throw new ValidationException("Only Won bookings can be confirmed.");
+            throw new ValidationException("Only Won bookings can be confirmed.", "booking_not_confirmable");
 
         if (DeadlineHelper.IsDeadlinePassed(booking.Date, booking.TimeSlot))
-            throw new ValidationException("Confirmation deadline has passed.");
+            throw new ValidationException("Confirmation deadline has passed.", "confirmation_deadline_passed");
 
         booking.Status = BookingStatus.Confirmed;
         booking.ConfirmedAt = DateTime.UtcNow;
@@ -339,7 +339,7 @@ public class BookingService : IBookingService
         if (!user.PreferredLocationId.HasValue)
             throw new ValidationException(
                 "No location specified and no preferred location set. " +
-                "Please choose a location or set a preferred one in your profile.");
+                "Please choose a location or set a preferred one in your profile.", "no_preferred_location");
 
         var preferredId = user.PreferredLocationId.Value;
         var preferredReason = await GetUnavailabilityReasonAsync(preferredId, date);
@@ -362,7 +362,7 @@ public class BookingService : IBookingService
         if (valid.Count == 0)
             throw new ValidationException(
                 $"Your preferred location is unavailable on {date:yyyy-MM-dd} " +
-                "and no alternative locations are available.");
+                "and no alternative locations are available.", "preferred_location_unavailable");
 
         var picked = valid[Random.Shared.Next(valid.Count)];
 
@@ -416,18 +416,18 @@ public class BookingService : IBookingService
             ?? throw new NotFoundException("Location not found or inactive.");
 
         if (location.ParkingSlots.Count == 0)
-            throw new ValidationException("No active parking slots at this location.");
+            throw new ValidationException("No active parking slots at this location.", "location_no_active_slots");
 
         var isLocationBlocked = await _db.BlockedDays.AnyAsync(b =>
             b.LocationId == locationId && b.Date == date && b.ParkingSlotId == null);
         if (isLocationBlocked)
-            throw new ValidationException("This location is blocked on the selected date.");
+            throw new ValidationException("This location is blocked on the selected date.", "location_blocked");
 
         var activeSlotIds = location.ParkingSlots.Select(s => s.Id).ToList();
         var blockedSlotCount = await _db.BlockedDays.CountAsync(b =>
             b.LocationId == locationId && b.Date == date &&
             b.ParkingSlotId != null && activeSlotIds.Contains(b.ParkingSlotId.Value));
         if (blockedSlotCount >= activeSlotIds.Count)
-            throw new ValidationException("All parking slots are blocked on the selected date.");
+            throw new ValidationException("All parking slots are blocked on the selected date.", "slots_all_blocked");
     }
 }

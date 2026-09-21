@@ -6,6 +6,7 @@ import { BookingStatusBadge } from '../../components/BookingStatusBadge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { Booking, BookingStatus } from '../../types/booking';
+import { describeApiError } from '../../utils/apiError';
 
 const STATUS_OPTIONS: (BookingStatus | 'All')[] = [
   'All',
@@ -72,8 +73,8 @@ export function MyBookingsPage() {
       await bookingService.cancel(cancelTarget.id);
       setCancelTarget(null);
       await loadBookings();
-    } catch {
-      setError(t('myBookings.cancelFailed'));
+    } catch (err: unknown) {
+      setError(describeApiError(err, 'myBookings.cancelFailed'));
     } finally {
       setIsCancelling(false);
     }
@@ -85,8 +86,8 @@ export function MyBookingsPage() {
     try {
       const updated = await bookingService.confirm(bookingId);
       setBookings((prev) => prev.map((b) => (b.id === bookingId ? updated : b)));
-    } catch {
-      setError(t('myBookings.confirmFailed'));
+    } catch (err: unknown) {
+      setError(describeApiError(err, 'myBookings.confirmFailed'));
     } finally {
       setConfirmingId(null);
     }
