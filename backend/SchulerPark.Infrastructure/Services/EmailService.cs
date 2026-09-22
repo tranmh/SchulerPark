@@ -1,5 +1,6 @@
 namespace SchulerPark.Infrastructure.Services;
 
+using System.Net.Security;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,32 @@ public class EmailService : IEmailService
 
     private readonly SmtpSettings _smtp;
     private readonly ILogger<EmailService> _logger;
+
+    /// <summary>
+    /// TLS cipher suites offered on STARTTLS. The Schuler mail gateway
+    /// (mgate01.schulergroup.com) accepts only DHE-RSA suites for TLS 1.2, and
+    /// .NET on Linux does not offer DHE by default — the handshake then dies with
+    /// "sslv3 alert handshake failure" and no mail ever leaves the box. This list is
+    /// the usual TLS 1.3 + ECDHE set plus the DHE-RSA AEAD suites. Null on Windows,
+    /// where <see cref="CipherSuitesPolicy"/> is unsupported and the OS default is used.
+    /// </summary>
+    private static readonly CipherSuitesPolicy? SmtpCipherSuites = OperatingSystem.IsWindows()
+        ? null
+        : new CipherSuitesPolicy(new[]
+        {
+            TlsCipherSuite.TLS_AES_256_GCM_SHA384,
+            TlsCipherSuite.TLS_AES_128_GCM_SHA256,
+            TlsCipherSuite.TLS_CHACHA20_POLY1305_SHA256,
+            TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+            TlsCipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+            TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            TlsCipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+            TlsCipherSuite.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+            TlsCipherSuite.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+            TlsCipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,
+            TlsCipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+            TlsCipherSuite.TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+        });
 
     public EmailService(IOptions<SmtpSettings> smtp, ILogger<EmailService> logger)
     {
@@ -436,6 +463,8 @@ public class EmailService : IEmailService
         message.Body = new TextPart("html") { Text = htmlBody };
 
         using var client = new SmtpClient();
+        if (SmtpCipherSuites is not null)
+            client.SslCipherSuitesPolicy = SmtpCipherSuites;
         try
         {
             await client.ConnectAsync(_smtp.Host, _smtp.Port, MailKit.Security.SecureSocketOptions.Auto);
