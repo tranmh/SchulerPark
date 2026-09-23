@@ -17,4 +17,26 @@ public interface IAuthService
     Task<(User User, string AccessToken, string RefreshToken)> LoginWithAzureAdAsync(string idToken, string? ipAddress);
     Task<(User User, string AccessToken, string RefreshToken)> RefreshAsync(string refreshToken, string? ipAddress);
     Task<User> GetUserAsync(Guid userId);
+
+    // ── Phase 20 WP2: password self-service ──
+
+    /// <summary>
+    /// Always completes silently (no enumeration). A live local account gets a reset
+    /// mail; an SSO-only account gets a "sign in with Microsoft" mail; unknown → nothing.
+    /// </summary>
+    Task RequestPasswordResetAsync(string email);
+
+    /// <summary>
+    /// Consumes a reset token. Codes: <c>reset_token_invalid</c>, <c>password_too_weak</c>.
+    /// Also marks the mailbox verified and clears any lockout; all refresh tokens are revoked.
+    /// </summary>
+    Task ResetPasswordAsync(string token, string newPassword);
+
+    /// <summary>
+    /// Changes the password of a signed-in user and rotates every session: all refresh
+    /// tokens are revoked and a fresh pair is returned so the current session continues.
+    /// Codes: <c>password_incorrect</c>, <c>password_not_set</c> (SSO-only), <c>password_too_weak</c>.
+    /// </summary>
+    Task<(User User, string AccessToken, string RefreshToken)> ChangePasswordAsync(
+        Guid userId, string currentPassword, string newPassword, string? ipAddress);
 }

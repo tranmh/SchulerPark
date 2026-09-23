@@ -5,6 +5,8 @@ import { OfflineBanner } from './components/OfflineBanner'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
 import { VerifyEmailPage } from './pages/Login/VerifyEmailPage'
+import { ForgotPasswordPage } from './pages/Login/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/Login/ResetPasswordPage'
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
 import { BookingPage } from './pages/Booking/BookingPage'
 import { MyBookingsPage } from './pages/MyBookings/MyBookingsPage'
@@ -27,6 +29,8 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/" element={
         <ProtectedRoute>
           <AppLayout>

@@ -89,6 +89,10 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `POST /api/auth/register` — Local registration (sends verification email; no auto-login)
 - `POST /api/auth/verify-email` — Confirm email via token from the verification mail
 - `POST /api/auth/resend-verification` — Resend verification email (generic response)
+- `POST /api/auth/forgot-password` — Request a password-reset mail (always 202, no enumeration)
+- `POST /api/auth/reset-password` — Set a new password with the single-use token (1 h validity)
+- `POST /api/profile/change-password` — Change password; revokes other sessions, returns a fresh token pair
+- `GET /api/bookings/window` — Server-side bookable window in Berlin (`today`, `minDate`, `maxDate`, same-day slot flags)
 - `GET /api/locations` — List active locations
 - `POST /api/bookings` — Create booking
 - `GET /api/bookings/my` — User's bookings
@@ -96,6 +100,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `GET /api/profile/data-export` — DSGVO data export
 - `DELETE /api/profile/data` — DSGVO account deletion
 - `POST /api/lottery/run?date=` — Manual lottery trigger (admin)
+- `GET /api/admin/lottery/status?date=` — Per location × slot: pending count, run time, `ran|not_run|no_demand` (admin)
 - `POST /api/bookings/week` — Create week booking (Mon-Fri)
 - `GET /api/push/vapid-public-key` — VAPID public key for push subscriptions
 - `POST /api/push/subscribe` — Subscribe to push notifications
@@ -113,9 +118,17 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 ## Hangfire Jobs
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `LotteryJob` | Daily 10 PM | Assign parking slots for next day |
+| `LotteryJob` | Daily 10 PM (Relaxed misfire, 3 retries) | Assign parking slots for next day; a failing slot mails admins and fails the job |
+| `LotteryWatchdogJob` | 23:30 (tomorrow) and 05:00 (today) | Runs any lottery that never ran, sweeps stale Pending to Lost, mails admins |
 | `ConfirmationExpiryJob` | Hourly | Expire unconfirmed Won bookings |
 | `DataRetentionJob` | Weekly Sunday 2 AM | Delete data older than 1 year, hard-delete soft-deleted users |
+
+## Booking Rules (Phase 20)
+- Window: Berlin today … today + `Booking:MaxDaysAhead` (default 31, env `Booking__MaxDaysAhead`); the frontend reads it from `GET /api/bookings/window`. Same-day bookings are allowed until the slot ends (Morning 12:00, Afternoon 18:00 Berlin) and are always assigned directly; a full day is a 400 `no_slots_today`.
+- One live booking per user per date and time slot across all locations (`booking_duplicate_other_location` carries the other location in `params.location`).
+- Availability: `bookingCount` = Won + Confirmed; `pendingCount`/`waitlistCount`/`lotteryRan` let the UI show demand before the lottery and free slots after it.
+- `IBookingLifecycleService` is the single place that releases/reassigns bookings when a user is disabled/deleted or a slot/location is blocked/deactivated; `Booking.CancelledByUserId/CancelReason/CancelledAt` hold the audit trail.
+- Time-dependent code takes `TimeProvider` (tests pin it via `CustomWebApplicationFactory.Clock`). Migrations are hand-written (no `dotnet-ef` on the box); update `AppDbContextModelSnapshot.cs` by hand to match.
 
 ## Environment Variables
 See `.env.example` for all required/optional configuration.

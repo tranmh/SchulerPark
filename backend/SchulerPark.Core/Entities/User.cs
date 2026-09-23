@@ -13,6 +13,9 @@ public class User
     public bool EmailVerified { get; set; }
     public string? EmailVerificationTokenHash { get; set; }
     public DateTime? EmailVerificationTokenExpiresAt { get; set; }
+    /// <summary>SHA-256 of the single-use password-reset token (Phase 20, WP2); null when none is outstanding.</summary>
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
     public int AccessFailedCount { get; set; }
     public DateTime? LockoutEnd { get; set; }
     public UserRole Role { get; set; } = UserRole.User;

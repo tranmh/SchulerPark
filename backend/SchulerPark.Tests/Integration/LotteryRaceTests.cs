@@ -8,7 +8,6 @@ using Npgsql;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Interfaces;
-using SchulerPark.Core.Models;
 using SchulerPark.Infrastructure.Services;
 using Xunit;
 
@@ -48,16 +47,6 @@ file sealed class InsertStragglerAfterPendingReadInterceptor(
         await MaybeInsertAsync(command, ct);
         return await base.ReaderExecutedAsync(command, eventData, result, ct);
     }
-}
-
-file sealed class NoopPushService : IPushNotificationService
-{
-    public Task SendLotteryWonAsync(Booking booking) => Task.CompletedTask;
-    public Task SendLotteryLostAsync(Booking booking) => Task.CompletedTask;
-    public Task SendWaitlistWonAsync(Booking booking) => Task.CompletedTask;
-    public Task SendBookingDirectlyConfirmedAsync(Booking booking) => Task.CompletedTask;
-    public Task SendBookingWaitlistedAsync(Booking booking) => Task.CompletedTask;
-    public Task<PushSendResult> SendTestAsync(Guid userId) => Task.FromResult(PushSendResult.NoSubscriptions);
 }
 
 // Assigns each winner to the first available slot (enough for a single-slot test).
@@ -121,7 +110,7 @@ public class LotteryRaceTests
 
         var service = new LotteryService(
             db, NullLogger<LotteryService>.Instance,
-            new CapturingEmailService(), new NoopPushService(), new FirstFitSlotPlacer());
+            new CapturingEmailService(), new RecordingPushService(), new FirstFitSlotPlacer());
 
         await service.RunLotteryForSlotAsync(locationId, date, TimeSlot.Morning);
 

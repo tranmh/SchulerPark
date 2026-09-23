@@ -39,6 +39,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [accountLocked, setAccountLocked] = useState(false);
   const [resendNotice, setResendNotice] = useState('');
 
   // A redirect-flow Microsoft login that failed on return lands here via the
@@ -59,6 +60,7 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     setNeedsVerification(false);
+    setAccountLocked(false);
     setResendNotice('');
     setLoading(true);
 
@@ -72,6 +74,12 @@ export function LoginPage() {
         setError(t('auth.emailNotVerified'));
       } else if (code === 'pending_approval') {
         setError(t('auth.pendingApproval'));
+      } else if (code === 'account_locked') {
+        // 423: only reachable with the correct password, so telling the user how long
+        // to wait (and offering a reset) reveals nothing to a guesser.
+        const seconds = (getApiErrorData(err) as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds ?? 60;
+        setAccountLocked(true);
+        setError(t('auth.accountLocked', { minutes: Math.max(1, Math.ceil(seconds / 60)) }));
       } else {
         setError(describeApiError(err, 'auth.loginFailed'));
       }
@@ -171,6 +179,14 @@ export function LoginPage() {
                     {t('auth.resendVerification')}
                   </button>
                 )}
+                {accountLocked && (
+                  <Link
+                    to="/forgot-password"
+                    className="mt-1.5 block font-medium text-brand-500 underline hover:text-brand-700"
+                  >
+                    {t('auth.accountLockedResetLink')}
+                  </Link>
+                )}
               </div>
             </div>
           )}
@@ -202,9 +218,9 @@ export function LoginPage() {
                 <label htmlFor="password" className="text-[12.5px] font-medium text-ink-500">
                   {t('auth.password')}
                 </label>
-                <a className="text-[12px] font-medium text-brand-500 hover:text-brand-700" href="#">
+                <Link className="text-[12px] font-medium text-brand-500 hover:text-brand-700" to="/forgot-password">
                   {t('auth.forgot')}
-                </a>
+                </Link>
               </div>
               <PasswordInput
                 id="password"

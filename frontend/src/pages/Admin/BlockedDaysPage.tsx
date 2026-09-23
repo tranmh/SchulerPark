@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Modal } from '../../components/Modal';
 import { modalActionsClass } from '../../components/modalChrome';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import type { AdminLocation, AdminBlockedDay } from '../../types/admin';
+import { CapacityImpactBanner } from '../../components/CapacityImpactBanner';
+import type { AdminLocation, AdminBlockedDay, CapacityChangeResult } from '../../types/admin';
 
 export function BlockedDaysPage() {
   const { t } = useTranslation();
@@ -19,6 +20,11 @@ export function BlockedDaysPage() {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // WP1 3.4: the block dialog previews how many live bookings the day holds, and the
+  // page reports what the block did to them afterwards.
+  const [affectedCount, setAffectedCount] = useState<number | null>(null);
+  const [impact, setImpact] = useState<CapacityChangeResult | null>(null);
+
   useEffect(() => {
     adminService.getLocations()
       .then((locs) => {
@@ -29,18 +35,18 @@ export function BlockedDaysPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const loadBlockedDays = async () => {
+  const loadBlockedDays = useCallback(async () => {
     if (!selectedLocationId) return;
     try {
       setBlockedDays(await adminService.getBlockedDays(selectedLocationId));
     } catch {
       setError('Failed to load blocked days.');
     }
-  };
+  }, [selectedLocationId]);
 
   useEffect(() => {
     loadBlockedDays();
-  }, [selectedLocationId]);
+  }, [loadBlockedDays]);
 
   const blockedDates = useMemo(() => {
     const set = new Set<string>();
@@ -67,6 +73,12 @@ export function BlockedDaysPage() {
       return;
     }
     setSelectedDate(date);
+    setAffectedCount(null);
+    setImpact(null);
+    adminService
+      .countBookings({ locationId: selectedLocationId, from: date, to: date, status: 'Pending,Won,Confirmed,Lost' })
+      .then(setAffectedCount)
+      .catch(() => setAffectedCount(0));
   };
 
   const closeBlockModal = () => {
@@ -79,11 +91,12 @@ export function BlockedDaysPage() {
     setSaving(true);
     setError(null);
     try {
-      await adminService.createBlockedDay({
+      const created = await adminService.createBlockedDay({
         locationId: selectedLocationId,
         date: selectedDate,
         reason: reason || undefined,
       });
+      setImpact(created.impact);
       setSelectedDate(null);
       setReason('');
       await loadBlockedDays();
@@ -95,6 +108,13 @@ export function BlockedDaysPage() {
   };
 
   if (loading) return <LoadingSpinner />;
+
+  const impactPreview =
+    affectedCount === null
+      ? t('admin.capacityImpact.checking')
+      : affectedCount === 0
+        ? t('admin.capacityImpact.none')
+        : t('admin.capacityImpact.locationAffected', { count: affectedCount });
 
   return (
     <div>
@@ -108,6 +128,8 @@ export function BlockedDaysPage() {
           {error}
         </div>
       )}
+
+      <CapacityImpactBanner impact={impact} onDismiss={() => setImpact(null)} />
 
       <div className="mt-6">
         <label htmlFor="blocked-days-location" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
@@ -200,6 +222,14 @@ export function BlockedDaysPage() {
             </div>
           }
         >
+          <p
+            data-testid="block-impact-preview"
+            className={`mb-4 rounded-lg px-3 py-2.5 text-[12.5px] leading-relaxed ${
+              affectedCount ? 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200' : 'bg-surface-sunken text-ink-500'
+            }`}
+          >
+            {impactPreview}
+          </p>
           <label htmlFor="block-reason" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Reason (optional)</label>
           <input
             id="block-reason"

@@ -2,8 +2,12 @@ import { test, expect } from '@playwright/test';
 
 const MAILHOG_URL = process.env.MAILHOG_URL || 'http://localhost:8026';
 
-/** Poll MailHog for the verification link sent to `email`. */
-async function fetchVerificationLink(email: string): Promise<string> {
+/**
+ * Poll MailHog for a mail to `email` whose body contains a link matching `pattern`
+ * (capture group 1 = token). MailHog returns every mail to the address, so the
+ * pattern picks the right one (verification vs. password reset).
+ */
+async function fetchMailLink(email: string, pattern: RegExp, path: string): Promise<string> {
   for (let attempt = 0; attempt < 20; attempt++) {
     const res = await fetch(
       `${MAILHOG_URL}/api/v2/search?kind=to&query=${encodeURIComponent(email)}`
@@ -13,14 +17,20 @@ async function fetchVerificationLink(email: string): Promise<string> {
       for (const item of data.items) {
         // MailHog stores quoted-printable bodies: undo soft line breaks and =3D.
         const body = item.Content.Body.replace(/=\r?\n/g, '').replace(/=3D/g, '=');
-        const match = body.match(/verify-email\?token=([A-Za-z0-9_-]+)/);
-        if (match) return `/verify-email?token=${match[1]}`;
+        const match = body.match(pattern);
+        if (match) return `${path}?token=${match[1]}`;
       }
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`No verification email for ${email} in MailHog`);
+  throw new Error(`No email matching ${pattern} for ${email} in MailHog`);
 }
+
+const fetchVerificationLink = (email: string) =>
+  fetchMailLink(email, /verify-email\?token=([A-Za-z0-9_-]+)/, '/verify-email');
+
+const fetchResetLink = (email: string) =>
+  fetchMailLink(email, /reset-password\?token=([A-Za-z0-9_-]+)/, '/reset-password');
 
 test.describe('Authentication', () => {
   test('shows login page by default', async ({ page }) => {
@@ -71,6 +81,51 @@ test.describe('Authentication', () => {
 
     await expect(page).toHaveURL('/', { timeout: 10000 });
     await expect(page.getByText('Playwright User')).toBeVisible();
+  });
+
+  test('forgot password → reset via MailHog link → sign in with new password', async ({ page, request }) => {
+    const email = `pw-reset-${Date.now()}@schuler.de`;
+    const oldPassword = 'Test1234!';
+    const newPassword = 'Reset-Pass-2026';
+
+    // A verified local account, created through the API (no UI needed for setup).
+    const reg = await request.post('/api/auth/register', {
+      data: { email, displayName: 'Reset User', password: oldPassword },
+    });
+    expect(reg.ok()).toBeTruthy();
+    const verifyLink = await fetchVerificationLink(email);
+    const verifyToken = new URL(verifyLink, 'http://x').searchParams.get('token');
+    const verify = await request.post('/api/auth/verify-email', { data: { token: verifyToken } });
+    expect(verify.ok()).toBeTruthy();
+
+    // Request the reset from the login page.
+    await page.goto('/login');
+    await page.getByRole('link', { name: /forgot\?/i }).click();
+    await expect(page).toHaveURL(/\/forgot-password/);
+    await page.getByLabel('Email').fill(email);
+    await page.getByRole('button', { name: /send reset link/i }).click();
+    await expect(page.getByRole('heading', { name: /check your email/i })).toBeVisible({ timeout: 10000 });
+
+    // Follow the link from MailHog and choose a new password.
+    const resetLink = await fetchResetLink(email);
+    await page.goto(resetLink);
+    await expect(page.getByRole('heading', { name: /choose a new password/i })).toBeVisible();
+    await page.getByLabel('New password', { exact: true }).fill(newPassword);
+    await page.getByLabel(/confirm new password/i).fill(newPassword);
+    await page.getByRole('button', { name: /save password/i }).click();
+    await expect(page.getByRole('heading', { name: /password changed/i })).toBeVisible({ timeout: 10000 });
+
+    // The new password signs in; the old one no longer does.
+    await page.getByRole('link', { name: /back to sign in/i }).click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Password').fill(oldPassword);
+    await page.getByRole('button', { name: /sign in/i }).click();
+    await expect(page.locator('.bg-rose-50')).toBeVisible({ timeout: 5000 });
+
+    await page.getByLabel('Password').fill(newPassword);
+    await page.getByRole('button', { name: /sign in/i }).click();
+    await expect(page).toHaveURL('/', { timeout: 10000 });
+    await expect(page.getByText('Reset User')).toBeVisible();
   });
 
   test('login with admin credentials', async ({ page }) => {

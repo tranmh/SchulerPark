@@ -21,4 +21,21 @@ public interface IEmailService
     Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink, string adminLanguage);
     Task SendAccountApprovedAsync(string email, string displayName, string loginLink, string language);
     Task SendAccountRejectedAsync(string email, string displayName, string language);
+
+    // ── Phase 20 WP1: capacity changes ──
+    /// <summary>The booking kept its status but was moved from <paramref name="oldSlotNumber"/> to <c>booking.ParkingSlot</c>.</summary>
+    Task SendSlotReassignedAsync(Booking booking, string oldSlotNumber);
+    /// <summary>The booking lost its slot (blocked/deactivated) and is now on the waitlist.</summary>
+    Task SendSlotWithdrawnAsync(Booking booking);
+    /// <summary>An admin cancelled the booking (directly or by blocking/deactivating the location).</summary>
+    Task SendBookingCancelledByAdminAsync(Booking booking, string? reason);
+    /// <summary>Operational alert to one admin (lottery failure, watchdog intervention). Paragraphs are plain text, already localized.</summary>
+    Task SendAdminAlertAsync(string adminEmail, string adminDisplayName, string subject, IReadOnlyList<string> paragraphs, string language);
+
+    // ── Phase 20 WP2: password self-service ──
+    Task SendPasswordResetAsync(string email, string displayName, string resetLink, string language);
+    /// <summary>Reset requested for an SSO-only account: tells the user to sign in with Microsoft instead.</summary>
+    Task SendPasswordResetNotApplicableAsync(string email, string displayName, string loginLink, string language);
+    /// <summary>Account locked after repeated failures; the only in-band hint the owner gets.</summary>
+    Task SendAccountLockedAsync(string email, string displayName, int lockoutMinutes, string forgotPasswordLink, string language);
 }

@@ -13,6 +13,7 @@ public class RecurringJobConcurrencyTests
     [InlineData(typeof(LotteryJob))]
     [InlineData(typeof(ConfirmationExpiryJob))]
     [InlineData(typeof(DataRetentionJob))]
+    [InlineData(typeof(LotteryWatchdogJob))]
     public void RecurringJob_HasDisableConcurrentExecution(Type jobType)
     {
         var attr = jobType.GetCustomAttribute<DisableConcurrentExecutionAttribute>(inherit: false);

@@ -21,9 +21,9 @@ public class DirectAssignmentService : IDirectAssignmentService
         _logger = logger;
     }
 
-    public async Task<DirectAssignmentOutcome> ApplyAsync(Booking booking)
+    public async Task<DirectAssignmentOutcome> ApplyAsync(Booking booking, bool assumeLotteryRan = false)
     {
-        var lotteryRan = await _db.LotteryRuns.AnyAsync(lr =>
+        var lotteryRan = assumeLotteryRan || await _db.LotteryRuns.AnyAsync(lr =>
             lr.LocationId == booking.LocationId && lr.Date == booking.Date
             && lr.TimeSlot == booking.TimeSlot);
         if (!lotteryRan)

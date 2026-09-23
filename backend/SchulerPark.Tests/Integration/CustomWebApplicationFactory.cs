@@ -25,6 +25,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public RecordingPushSender Pushes =>
         (RecordingPushSender)Services.GetRequiredService<IPushSender>();
 
+    /// <summary>The app clock; pin it with <c>Clock.Pin(...)</c> inside a using block.</summary>
+    public MutableTimeProvider Clock =>
+        (MutableTimeProvider)Services.GetRequiredService<TimeProvider>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -64,6 +68,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Fake Azure AD token validation ("fake|oid|email|name" tokens).
             services.RemoveAll<AzureAdTokenValidator>();
             services.AddSingleton<AzureAdTokenValidator, FakeAzureAdTokenValidator>();
+
+            // Phase 20: pinnable clock for booking-window / deadline / same-day tests.
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<MutableTimeProvider>();
+            services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<MutableTimeProvider>());
 
             // Remove DbContext registrations (replace PostgreSQL with InMemory)
             var dbDescriptors = services

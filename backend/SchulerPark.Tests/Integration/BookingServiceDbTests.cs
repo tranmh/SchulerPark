@@ -3,10 +3,11 @@ namespace SchulerPark.Tests.Integration;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Options;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Interfaces;
-using SchulerPark.Core.Models;
+using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Services;
 using Xunit;
 
@@ -42,7 +43,7 @@ file sealed class FailOnNthBookingInsertInterceptor(int failOn) : DbCommandInter
 // Lottery hasn't run → booking stays Pending (the normal week-booking path).
 file sealed class NotApplicableDirectAssignment : IDirectAssignmentService
 {
-    public Task<DirectAssignmentOutcome> ApplyAsync(Booking booking)
+    public Task<DirectAssignmentOutcome> ApplyAsync(Booking booking, bool assumeLotteryRan = false)
         => Task.FromResult(DirectAssignmentOutcome.NotApplicable);
 }
 
@@ -50,16 +51,6 @@ file sealed class NoopWeekWaitlist : IWaitlistService
 {
     public Task TryPromoteWaitlistAsync(Guid locationId, DateOnly date, TimeSlot timeSlot, Guid freedSlotId)
         => Task.CompletedTask;
-}
-
-file sealed class NoopWeekPush : IPushNotificationService
-{
-    public Task SendLotteryWonAsync(Booking booking) => Task.CompletedTask;
-    public Task SendLotteryLostAsync(Booking booking) => Task.CompletedTask;
-    public Task SendWaitlistWonAsync(Booking booking) => Task.CompletedTask;
-    public Task SendBookingDirectlyConfirmedAsync(Booking booking) => Task.CompletedTask;
-    public Task SendBookingWaitlistedAsync(Booking booking) => Task.CompletedTask;
-    public Task<PushSendResult> SendTestAsync(Guid userId) => Task.FromResult(PushSendResult.NoSubscriptions);
 }
 
 [Collection("Postgres")]
@@ -99,7 +90,8 @@ public class BookingServiceDbTests
         var email = new CapturingEmailService();
         await using var db = _fx.NewContext(new FailOnNthBookingInsertInterceptor(4)); // fail on day 4
         var service = new BookingService(
-            db, new NoopWeekWaitlist(), new NotApplicableDirectAssignment(), email, new NoopWeekPush());
+            db, new NoopWeekWaitlist(), new NotApplicableDirectAssignment(), email, new RecordingPushService(),
+            Options.Create(new BookingSettings()), TimeProvider.System);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
             service.CreateWeekBookingAsync(userId, locationId, monday, TimeSlot.Morning));

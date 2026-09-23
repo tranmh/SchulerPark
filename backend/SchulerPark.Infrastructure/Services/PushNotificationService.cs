@@ -100,6 +100,46 @@ public class PushNotificationService : IPushNotificationService
         });
     }
 
+    public Task SendSlotReassignedAsync(Booking booking, string oldSlotNumber)
+    {
+        var (_, de) = LanguageOf(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Ihr Parkplatz wurde geändert" : "Your parking slot has changed",
+            Body = de
+                ? $"{booking.Location.Name} am {booking.Date:dd.MM.yyyy}: Platz {oldSlotNumber} ist nicht mehr verfügbar — Sie parken jetzt auf Platz {booking.ParkingSlot?.SlotNumber}."
+                : $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy}: slot {oldSlotNumber} is no longer available — you now park on slot {booking.ParkingSlot?.SlotNumber}.",
+            Url = "/my-bookings"
+        });
+    }
+
+    public Task SendSlotWithdrawnAsync(Booking booking)
+    {
+        var (_, de) = LanguageOf(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Parkplatz nicht mehr verfügbar" : "Parking slot no longer available",
+            Body = de
+                ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} wurde gesperrt. Sie stehen jetzt auf der Warteliste."
+                : $"Your slot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} was blocked. You are now on the waitlist.",
+            Url = "/my-bookings"
+        });
+    }
+
+    public Task SendBookingCancelledByAdminAsync(Booking booking, string? reason)
+    {
+        var (_, de) = LanguageOf(booking);
+        var why = string.IsNullOrWhiteSpace(reason) ? "" : $" ({reason.Trim()})";
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Buchung storniert" : "Booking cancelled",
+            Body = de
+                ? $"Ihre Buchung in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} wurde von der Verwaltung storniert{why}."
+                : $"Your booking at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} was cancelled by an administrator{why}.",
+            Url = "/my-bookings"
+        });
+    }
+
     public async Task<PushSendResult> SendTestAsync(Guid userId)
     {
         var language = await _db.Users

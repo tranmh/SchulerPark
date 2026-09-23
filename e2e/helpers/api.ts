@@ -61,10 +61,12 @@ export class AdminApi {
       .get(`/api/admin/blocked-days?locationId=${locationId}`, { headers: this.headers() })
       .then(r => r.json());
   }
+  /** Resolves with the created block (Phase 20: the API wraps it as `{ blockedDay, impact }`). */
   createBlockedDay(body: { locationId: string; date: string; reason?: string; parkingSlotId?: string }) {
     return this.request
       .post('/api/admin/blocked-days', { headers: this.headers(), data: body })
-      .then(r => r.json());
+      .then(r => r.json())
+      .then((json: { blockedDay?: Record<string, unknown> } & Record<string, unknown>) => json.blockedDay ?? json);
   }
   removeBlockedDay(id: string) {
     return this.request.delete(`/api/admin/blocked-days/${id}`, { headers: this.headers() });

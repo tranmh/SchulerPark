@@ -30,12 +30,15 @@ public class LotteryService : ILotteryService
         _placer = placer;
     }
 
-    public async Task RunAllLotteriesAsync(DateOnly date)
+    public async Task<LotteryRunSummary> RunAllLotteriesAsync(DateOnly date)
     {
         var locations = await _db.Locations
             .Where(l => l.IsActive)
+            .Select(l => new { l.Id, l.Name })
             .ToListAsync();
 
+        var succeeded = 0;
+        var failures = new List<LotteryFailure>();
         foreach (var location in locations)
         {
             foreach (var timeSlot in Enum.GetValues<TimeSlot>())
@@ -43,14 +46,20 @@ public class LotteryService : ILotteryService
                 try
                 {
                     await RunLotteryForSlotAsync(location.Id, date, timeSlot);
+                    succeeded++;
                 }
                 catch (Exception ex)
                 {
+                    // WP1 3.5: keep going, but report — the job turns failures into an admin
+                    // alert and a failed Hangfire run instead of a silent log line.
                     _logger.LogError(ex, "Lottery failed for location {LocationId} on {Date} {TimeSlot}",
                         location.Id, date, timeSlot);
+                    failures.Add(new LotteryFailure(location.Id, location.Name, timeSlot, ex.Message));
                 }
             }
         }
+
+        return new LotteryRunSummary(date, succeeded, failures);
     }
 
     public async Task RunLotteryForSlotAsync(Guid locationId, DateOnly date, TimeSlot timeSlot)
@@ -94,11 +103,14 @@ public class LotteryService : ILotteryService
             return;
         }
 
-        // 2. Fetch pending bookings (include User + PreferredSlot for placement)
+        // 2. Fetch pending bookings (include User + PreferredSlot for placement).
+        // WP1 3.3: a disabled/deleted user's bookings are released when the account goes,
+        // but never hand a slot to one that slipped through.
         var pendingBookings = await _db.Bookings
             .Include(b => b.User)
             .Where(b => b.LocationId == locationId && b.Date == date
-                && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending)
+                && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending
+                && b.User.DeletedAt == null)
             .ToListAsync();
 
         // 3. Fetch location (with grid cells for placement) + algorithm

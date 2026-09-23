@@ -97,7 +97,28 @@
     "passwordTooWeak": "Password is too weak: use at least 3 of lowercase, uppercase, digit and special character, and avoid common passwords.",
     "pendingApproval": "Your account is awaiting approval by an administrator. You will be notified by email once it has been accepted.",
     "registerApprovalNote": "Technikum Laubholz email addresses can sign in right after email verification. Andritz employees sign in directly with Microsoft — no registration needed. Registrations with other addresses additionally need to be accepted by an administrator — you will be notified by email.",
-    "ssoDomainNote": "This email address signs in with Microsoft (SSO) — no registration needed. Please use \"Continue with Microsoft\" on the sign-in page."
+    "ssoDomainNote": "This email address signs in with Microsoft (SSO) — no registration needed. Please use \"Continue with Microsoft\" on the sign-in page.",
+    "forgotTitle": "Forgot your password?",
+    "forgotBody": "Enter your email address. If an account exists, we'll send you a link to reset your password.",
+    "forgotSubmit": "Send reset link",
+    "forgotSending": "Sending…",
+    "forgotSentTitle": "Check your email",
+    "forgotSentBody": "If an account exists for {{email}}, we sent a link to reset the password. The link is valid for 1 hour.",
+    "forgotFailed": "Request failed. Please try again.",
+    "resetTitle": "Choose a new password",
+    "resetBody": "Pick a new password for your account.",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "resetSubmit": "Save password",
+    "resetSaving": "Saving…",
+    "resetSuccessTitle": "Password changed",
+    "resetSuccessBody": "Your password has been changed. You can sign in now.",
+    "resetInvalidTitle": "Link invalid",
+    "resetInvalidBody": "This link is invalid or has expired. Request a new one.",
+    "resetRequestNew": "Request a new link",
+    "resetFailed": "Could not change the password. Please try again.",
+    "accountLocked": "Your account is temporarily locked after too many failed attempts. Try again in {{minutes}} minute(s) or reset your password.",
+    "accountLockedResetLink": "Reset password"
   },
   "dashboard": {
     "todayPrefix": "Today",
@@ -266,7 +287,18 @@
     "deleteDialogKeep": "Keep account",
     "roleSuper": "Super admin",
     "roleAdmin": "Admin",
-    "roleUser": "User"
+    "roleUser": "User",
+    "changePassword": {
+      "title": "Change password",
+      "subtitle": "All other sessions are signed out after the change.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Change password",
+      "saving": "Changing…",
+      "success": "Password changed.",
+      "failed": "Could not change the password."
+    }
   },
   "components": {
     "status": {
@@ -284,7 +316,11 @@
       "afternoonRange": "12:00 – 18:00",
       "available_one": "{{count}} slot available",
       "available_other": "{{count}} slots available",
-      "full": "Full"
+      "full": "Full",
+      "requests_one": "{{count}} request for {{total}} slots",
+      "requests_other": "{{count}} requests for {{total}} slots",
+      "lotteryPending": "Lottery at 22:00",
+      "closedToday": "This time slot has already ended today"
     },
     "calendar": {
       "prevMonth": "Previous month",
@@ -292,7 +328,10 @@
       "plenty": "Plenty",
       "limited": "Limited",
       "almostFull": "Almost full",
-      "blocked": "Blocked"
+      "blocked": "Blocked",
+      "demandLow": "Low demand",
+      "demandHigh": "High demand",
+      "today": "Today"
     },
     "location": {
       "slots_one": "{{count}} parking slot",
@@ -312,7 +351,21 @@
     "update": "Update",
     "save": "Save",
     "delete": "Delete",
-    "desktopOnlyHint": "The layout editor is designed for desktop screens. Drag & drop and right-click editing are not available on phones."
+    "desktopOnlyHint": "The layout editor is designed for desktop screens. Drag & drop and right-click editing are not available on phones.",
+    "capacityImpact": {
+      "deactivateSlotTitle": "Deactivate slot",
+      "deactivateSlotMessage": "Slot {{slot}} will be deactivated and is no longer available from now on.",
+      "deactivateLocationTitle": "Deactivate location",
+      "deactivateLocationMessage": "Location {{location}} will be deactivated. No further bookings can be made.",
+      "checking": "Checking affected bookings…",
+      "none": "No existing bookings are affected.",
+      "slotAffected_one": "{{count}} won or confirmed booking will be moved to another slot or waitlisted.",
+      "slotAffected_other": "{{count}} won or confirmed bookings will be moved to other slots or waitlisted.",
+      "locationAffected_one": "{{count}} booking will be cancelled; the users will be notified.",
+      "locationAffected_other": "{{count}} bookings will be cancelled; the users will be notified.",
+      "result": "Affected: {{affected}} · moved: {{reassigned}} · waitlisted: {{waitlisted}} · cancelled: {{cancelled}}",
+      "deactivate": "Deactivate"
+    }
   },
   "privacy": {
     "title": "Privacy Notice",
@@ -360,7 +413,7 @@
   },
   "apiErrors": {
     "booking_date_not_in_future": "Bookings are only possible for future dates, not for today or the past.",
-    "booking_too_far_ahead": "Bookings can be made at most one month in advance.",
+    "booking_too_far_ahead": "Bookings cannot be made that far in advance.",
     "booking_daily_limit": "You have reached today's limit for new bookings. Please try again tomorrow.",
     "booking_duplicate": "You already have a booking for this date, time slot and location.",
     "week_start_not_monday": "A week booking must start on a Monday.",
@@ -376,6 +429,15 @@
     "invalid_credentials": "Invalid email or password.",
     "azure_not_configured": "Microsoft sign-in is not available.",
     "azure_token_invalid": "Microsoft sign-in could not be verified. Please try again.",
-    "verification_link_invalid": "This verification link is invalid or has expired."
+    "verification_link_invalid": "This verification link is invalid or has expired.",
+    "booking_date_in_past": "Bookings are not possible for past dates.",
+    "booking_same_day_closed": "This time slot has already ended today.",
+    "no_slots_today": "No parking slots are left for today.",
+    "booking_duplicate_other_location": "You already have a booking for this date and time slot at {{location}}.",
+    "reset_token_invalid": "This link is invalid or has expired. Please request a new one.",
+    "password_too_weak": "Password is too weak: at least 8 characters and 3 of lowercase, uppercase, digit and special character; no common passwords.",
+    "password_incorrect": "The current password is incorrect.",
+    "password_not_set": "This account signs in with Microsoft and has no password of its own.",
+    "account_locked": "Your account is temporarily locked after too many failed attempts."
   }
 }

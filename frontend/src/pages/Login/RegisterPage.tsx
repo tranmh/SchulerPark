@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { PasswordInput } from '../../components/PasswordInput';
 import { describeApiError, getApiErrorCode } from '../../utils/apiError';
+import { passwordProblemKey, validatePassword } from '../../utils/passwordRules';
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -39,19 +40,10 @@ export function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError(t('auth.passwordTooShort'));
-      return;
-    }
-
-    // Mirrors the backend PasswordComplexity rule: at least 3 of 4 character classes.
-    const classes =
-      Number(/[a-z]/.test(password)) +
-      Number(/[A-Z]/.test(password)) +
-      Number(/[0-9]/.test(password)) +
-      Number(/[^a-zA-Z0-9]/.test(password));
-    if (classes < 3) {
-      setError(t('auth.passwordTooWeak'));
+    // Mirrors the backend PasswordPolicy (see utils/passwordRules).
+    const problem = validatePassword(password);
+    if (problem) {
+      setError(t(passwordProblemKey(problem)));
       return;
     }
 

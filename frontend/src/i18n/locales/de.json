@@ -97,7 +97,28 @@
     "passwordTooWeak": "Passwort ist zu schwach: mindestens 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen verwenden und keine gängigen Passwörter.",
     "pendingApproval": "Ihr Konto wartet auf die Freigabe durch einen Administrator. Sie werden per E-Mail benachrichtigt, sobald es akzeptiert wurde.",
     "registerApprovalNote": "Technikum-Laubholz-E-Mail-Adressen können sich direkt nach der E-Mail-Bestätigung anmelden. Andritz-Mitarbeitende melden sich direkt mit Microsoft an — keine Registrierung nötig. Registrierungen mit anderen Adressen müssen zusätzlich von einem Administrator akzeptiert werden — Sie werden per E-Mail benachrichtigt.",
-    "ssoDomainNote": "Diese E-Mail-Adresse meldet sich mit Microsoft an (SSO) — keine Registrierung nötig. Bitte verwenden Sie „Mit Microsoft fortfahren“ auf der Anmeldeseite."
+    "ssoDomainNote": "Diese E-Mail-Adresse meldet sich mit Microsoft an (SSO) — keine Registrierung nötig. Bitte verwenden Sie „Mit Microsoft fortfahren“ auf der Anmeldeseite.",
+    "forgotTitle": "Passwort vergessen?",
+    "forgotBody": "Geben Sie Ihre E-Mail-Adresse ein. Falls ein Konto existiert, senden wir Ihnen einen Link zum Zurücksetzen.",
+    "forgotSubmit": "Link senden",
+    "forgotSending": "Wird gesendet…",
+    "forgotSentTitle": "E-Mail prüfen",
+    "forgotSentBody": "Falls für {{email}} ein Konto existiert, haben wir einen Link zum Zurücksetzen des Passworts gesendet. Der Link ist 1 Stunde gültig.",
+    "forgotFailed": "Anfrage fehlgeschlagen. Bitte erneut versuchen.",
+    "resetTitle": "Neues Passwort vergeben",
+    "resetBody": "Wählen Sie ein neues Passwort für Ihr Konto.",
+    "newPassword": "Neues Passwort",
+    "confirmNewPassword": "Neues Passwort bestätigen",
+    "resetSubmit": "Passwort speichern",
+    "resetSaving": "Wird gespeichert…",
+    "resetSuccessTitle": "Passwort geändert",
+    "resetSuccessBody": "Ihr Passwort wurde geändert. Sie können sich jetzt anmelden.",
+    "resetInvalidTitle": "Link ungültig",
+    "resetInvalidBody": "Dieser Link ist ungültig oder abgelaufen. Fordern Sie einen neuen an.",
+    "resetRequestNew": "Neuen Link anfordern",
+    "resetFailed": "Passwort konnte nicht geändert werden. Bitte erneut versuchen.",
+    "accountLocked": "Ihr Konto ist nach zu vielen Fehlversuchen vorübergehend gesperrt. Versuchen Sie es in {{minutes}} Minute(n) erneut oder setzen Sie Ihr Passwort zurück.",
+    "accountLockedResetLink": "Passwort zurücksetzen"
   },
   "dashboard": {
     "todayPrefix": "Heute",
@@ -266,7 +287,18 @@
     "deleteDialogKeep": "Konto behalten",
     "roleSuper": "Super-Admin",
     "roleAdmin": "Admin",
-    "roleUser": "Benutzer"
+    "roleUser": "Benutzer",
+    "changePassword": {
+      "title": "Passwort ändern",
+      "subtitle": "Nach der Änderung werden alle anderen Sitzungen abgemeldet.",
+      "current": "Aktuelles Passwort",
+      "new": "Neues Passwort",
+      "confirm": "Neues Passwort bestätigen",
+      "submit": "Passwort ändern",
+      "saving": "Wird geändert…",
+      "success": "Passwort geändert.",
+      "failed": "Passwort konnte nicht geändert werden."
+    }
   },
   "components": {
     "status": {
@@ -284,7 +316,11 @@
       "afternoonRange": "12:00 – 18:00",
       "available_one": "{{count}} Platz verfügbar",
       "available_other": "{{count}} Plätze verfügbar",
-      "full": "Voll"
+      "full": "Voll",
+      "requests_one": "{{count}} Anfrage für {{total}} Plätze",
+      "requests_other": "{{count}} Anfragen für {{total}} Plätze",
+      "lotteryPending": "Verlosung um 22:00 Uhr",
+      "closedToday": "Zeitfenster ist heute bereits vorbei"
     },
     "calendar": {
       "prevMonth": "Vorheriger Monat",
@@ -292,7 +328,10 @@
       "plenty": "Viele",
       "limited": "Wenige",
       "almostFull": "Fast voll",
-      "blocked": "Gesperrt"
+      "blocked": "Gesperrt",
+      "demandLow": "Wenig Nachfrage",
+      "demandHigh": "Hohe Nachfrage",
+      "today": "Heute"
     },
     "location": {
       "slots_one": "{{count}} Parkplatz",
@@ -312,7 +351,21 @@
     "update": "Aktualisieren",
     "save": "Speichern",
     "delete": "Löschen",
-    "desktopOnlyHint": "Der Layout-Editor ist für Desktop-Bildschirme ausgelegt. Auf dem Smartphone sind Bearbeitung per Drag & Drop und Rechtsklick nicht verfügbar."
+    "desktopOnlyHint": "Der Layout-Editor ist für Desktop-Bildschirme ausgelegt. Auf dem Smartphone sind Bearbeitung per Drag & Drop und Rechtsklick nicht verfügbar.",
+    "capacityImpact": {
+      "deactivateSlotTitle": "Parkplatz deaktivieren",
+      "deactivateSlotMessage": "Parkplatz {{slot}} wird deaktiviert und steht ab sofort nicht mehr zur Verfügung.",
+      "deactivateLocationTitle": "Standort deaktivieren",
+      "deactivateLocationMessage": "Standort {{location}} wird deaktiviert. Es können keine Buchungen mehr erstellt werden.",
+      "checking": "Betroffene Buchungen werden geprüft…",
+      "none": "Keine bestehenden Buchungen betroffen.",
+      "slotAffected_one": "{{count}} gewonnene oder bestätigte Buchung wird auf einen anderen Platz verschoben oder auf die Warteliste gesetzt.",
+      "slotAffected_other": "{{count}} gewonnene oder bestätigte Buchungen werden auf andere Plätze verschoben oder auf die Warteliste gesetzt.",
+      "locationAffected_one": "{{count}} Buchung wird storniert; die Nutzer werden benachrichtigt.",
+      "locationAffected_other": "{{count}} Buchungen werden storniert; die Nutzer werden benachrichtigt.",
+      "result": "Betroffen: {{affected}} · verschoben: {{reassigned}} · Warteliste: {{waitlisted}} · storniert: {{cancelled}}",
+      "deactivate": "Deaktivieren"
+    }
   },
   "privacy": {
     "title": "Datenschutzerklärung",
@@ -360,7 +413,7 @@
   },
   "apiErrors": {
     "booking_date_not_in_future": "Buchungen sind nur für zukünftige Tage möglich, nicht für heute oder die Vergangenheit.",
-    "booking_too_far_ahead": "Buchungen sind höchstens einen Monat im Voraus möglich.",
+    "booking_too_far_ahead": "Buchungen sind so weit im Voraus nicht möglich.",
     "booking_daily_limit": "Sie haben das heutige Limit für neue Buchungen erreicht. Bitte versuchen Sie es morgen erneut.",
     "booking_duplicate": "Sie haben für diesen Tag, dieses Zeitfenster und diesen Standort bereits eine Buchung.",
     "week_start_not_monday": "Eine Wochenbuchung muss an einem Montag beginnen.",
@@ -376,6 +429,15 @@
     "invalid_credentials": "E-Mail-Adresse oder Passwort ist ungültig.",
     "azure_not_configured": "Die Microsoft-Anmeldung ist nicht verfügbar.",
     "azure_token_invalid": "Die Microsoft-Anmeldung konnte nicht überprüft werden. Bitte versuchen Sie es erneut.",
-    "verification_link_invalid": "Dieser Bestätigungslink ist ungültig oder abgelaufen."
+    "verification_link_invalid": "Dieser Bestätigungslink ist ungültig oder abgelaufen.",
+    "booking_date_in_past": "Buchungen sind für vergangene Tage nicht möglich.",
+    "booking_same_day_closed": "Dieses Zeitfenster ist heute bereits vorbei.",
+    "no_slots_today": "Für heute sind keine Parkplätze mehr frei.",
+    "booking_duplicate_other_location": "Sie haben für diesen Tag und dieses Zeitfenster bereits eine Buchung am Standort {{location}}.",
+    "reset_token_invalid": "Dieser Link ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
+    "password_too_weak": "Passwort ist zu schwach: mindestens 8 Zeichen und 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen; keine gängigen Passwörter.",
+    "password_incorrect": "Das aktuelle Passwort ist nicht korrekt.",
+    "password_not_set": "Dieses Konto meldet sich mit Microsoft an und hat kein eigenes Passwort.",
+    "account_locked": "Ihr Konto ist nach zu vielen Fehlversuchen vorübergehend gesperrt."
   }
 }

@@ -9,15 +9,20 @@ import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
 import { ParkingGridView } from '../../components/grid/ParkingGridView';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import type { Location, Availability, Booking, TimeSlot, SkippedDay } from '../../types/booking';
+import type { Location, Availability, Booking, TimeSlot, SkippedDay, DayAvailability } from '../../types/booking';
 import type { GridAvailability } from '../../types/grid';
-import { getBookingWindow } from '../../utils/bookingWindow';
+import { getBookingWindow, type BookingWindow } from '../../utils/bookingWindow';
 import { describeApiError } from '../../utils/apiError';
+import { EMPTY_DEMAND, slotUnavailable, toDemand } from '../../utils/availability';
+
+function addDaysStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const next = new Date(y, m - 1, d + days);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+}
 
 function getWeekFriday(mondayStr: string): string {
-  const [y, m, d] = mondayStr.split('-').map(Number);
-  const fri = new Date(y, m - 1, d + 4);
-  return `${fri.getFullYear()}-${String(fri.getMonth() + 1).padStart(2, '0')}-${String(fri.getDate()).padStart(2, '0')}`;
+  return addDaysStr(mondayStr, 4);
 }
 
 export function BookingPage() {
@@ -58,6 +63,16 @@ export function BookingPage() {
 
   const [singleResult, setSingleResult] = useState<Booking | null>(null);
 
+  // WP3 3.1 / 2.1: the bookable window comes from the server (Berlin dates, configured
+  // horizon, same-day cutoffs). Until it arrives — or if it fails — a conservative local
+  // fallback (tomorrow … +31 days) is used.
+  const [bookingWindow, setBookingWindow] = useState<BookingWindow>(() => getBookingWindow());
+  useEffect(() => {
+    bookingService.getWindow()
+      .then((w) => setBookingWindow(w))
+      .catch(() => setBookingWindow(getBookingWindow()));
+  }, []);
+
   useEffect(() => {
     locationService.getLocations()
       .then((locs) => {
@@ -78,43 +93,53 @@ export function BookingPage() {
   useEffect(() => {
     if (!locationId) return;
     setAvailability([]);
-    locationService.getAvailability(locationId)
+    // From Berlin today (same-day booking) through the server's horizon.
+    locationService.getAvailability(locationId, bookingWindow.today, bookingWindow.maxDate)
       .then(setAvailability)
       .catch(() => setError(t('booking.loadAvailabilityFailed')));
-  }, [locationId, t]);
+  }, [locationId, bookingWindow.today, bookingWindow.maxDate, t]);
 
   const selectedLocation = locations.find((l) => l.id === locationId);
 
-  const blockedDates = useMemo(() => {
-    const dateMap = new Map<string, { morning: number; afternoon: number }>();
-    for (const a of availability) {
-      const entry = dateMap.get(a.date) ?? { morning: 0, afternoon: 0 };
-      if (a.timeSlot === 'Morning') entry.morning = a.availableSlots;
-      else entry.afternoon = a.availableSlots;
-      dateMap.set(a.date, entry);
-    }
-    const blocked = new Set<string>();
-    for (const [d, slots] of dateMap) {
-      if (slots.morning <= 0 && slots.afternoon <= 0) blocked.add(d);
-    }
-    return blocked;
-  }, [availability]);
+  // Slots that are already over today (Berlin wall clock past the slot end).
+  const closedToday = useMemo<TimeSlot[]>(() => {
+    const closed: TimeSlot[] = [];
+    if (!bookingWindow.morningOpenToday) closed.push('Morning');
+    if (!bookingWindow.afternoonOpenToday) closed.push('Afternoon');
+    return closed;
+  }, [bookingWindow.morningOpenToday, bookingWindow.afternoonOpenToday]);
 
   const availabilityMap = useMemo(() => {
-    const map = new Map<string, { morning: number; afternoon: number }>();
+    const map = new Map<string, DayAvailability>();
     for (const a of availability) {
-      const entry = map.get(a.date) ?? { morning: 0, afternoon: 0 };
-      if (a.timeSlot === 'Morning') entry.morning = a.availableSlots;
-      else entry.afternoon = a.availableSlots;
+      const entry = map.get(a.date) ?? { morning: EMPTY_DEMAND, afternoon: EMPTY_DEMAND };
+      if (a.timeSlot === 'Morning') entry.morning = toDemand(a);
+      else entry.afternoon = toDemand(a);
       map.set(a.date, entry);
     }
     return map;
   }, [availability]);
 
-  const dateAvailability = date ? availabilityMap.get(date) : undefined;
+  // WP3 3.2: a day is unselectable only when neither half can take a booking — blocked,
+  // full after the lottery, or (today) already over. Pre-lottery demand never blocks.
+  const blockedDates = useMemo(() => {
+    const blocked = new Set<string>();
+    for (const [d, day] of availabilityMap) {
+      const isToday = d === bookingWindow.today;
+      const morningOut = slotUnavailable(day.morning, isToday && closedToday.includes('Morning'));
+      const afternoonOut = slotUnavailable(day.afternoon, isToday && closedToday.includes('Afternoon'));
+      if (morningOut && afternoonOut) blocked.add(d);
+    }
+    return blocked;
+  }, [availabilityMap, bookingWindow.today, closedToday]);
 
-  // Bug #21: compute the window from local calendar days (see utils/bookingWindow).
-  const { minDate, maxDate } = getBookingWindow();
+  const dateAvailability = date ? availabilityMap.get(date) : undefined;
+  const closedForSelectedDate = date === bookingWindow.today ? closedToday : [];
+
+  // Week bookings stay tomorrow+ (today is skipped server-side), single bookings may
+  // start today while a slot is still open.
+  const minDate = weekMode ? (bookingWindow.minDate > bookingWindow.today ? bookingWindow.minDate : addDaysStr(bookingWindow.today, 1)) : bookingWindow.minDate;
+  const maxDate = bookingWindow.maxDate;
 
   const handleLocationSelect = (id: string) => {
     setLocationId(id);
@@ -508,8 +533,8 @@ export function BookingPage() {
             <TimeSlotSelector
               value={timeSlot}
               onChange={handleTimeSlotSelect}
-              morningAvailable={dateAvailability?.morning}
-              afternoonAvailable={dateAvailability?.afternoon}
+              demand={dateAvailability}
+              closedSlots={weekMode ? [] : closedForSelectedDate}
             />
           </div>
         )}

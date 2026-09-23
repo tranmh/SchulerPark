@@ -22,6 +22,14 @@ export const authService = {
   resendVerification: (email: string) =>
     api.post<{ message: string }>('/auth/resend-verification', { email }).then(r => r.data),
 
+  // Phase 20 WP2: password self-service. forgot-password is deliberately
+  // non-committal (202 whether or not the address has an account).
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }).then(() => undefined),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, newPassword }).then(() => undefined),
+
   loginWithAzureAd: (idToken: string) =>
     api.post<AuthResponse>('/auth/azure-callback', { idToken }).then(r => r.data),
 

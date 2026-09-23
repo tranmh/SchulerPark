@@ -9,6 +9,8 @@ export interface User {
   preferredSlotId: string | null;
   /** 'de' | 'en' — language of emails and push notifications; follows the UI language last used. */
   preferredLanguage: string;
+  /** True when the account has a local password (change-password is offered); false for SSO-only accounts. */
+  hasPassword: boolean;
 }
 
 export interface AuthResponse {

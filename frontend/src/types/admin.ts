@@ -57,6 +57,19 @@ export interface CreateBlockedDayRequest {
   reason?: string;
 }
 
+/** What a capacity change did to existing bookings (Phase 20 WP1 3.4). */
+export interface CapacityChangeResult {
+  affected: number;
+  reassigned: number;
+  waitlisted: number;
+  cancelled: number;
+}
+
+export interface AdminBlockedDayCreated {
+  blockedDay: AdminBlockedDay;
+  impact: CapacityChangeResult;
+}
+
 export interface AdminBooking {
   id: string;
   userId: string;
@@ -71,6 +84,9 @@ export interface AdminBooking {
   status: string;
   confirmedAt: string | null;
   createdAt: string;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  cancelledByUserId: string | null;
 }
 
 export interface LotteryRun {

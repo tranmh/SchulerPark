@@ -22,6 +22,14 @@ public class BookingController : ControllerBase
         _emailService = emailService;
     }
 
+    /// <summary>WP3 3.1: the bookable window as the server computes it, so the calendar matches the validation.</summary>
+    [HttpGet("window")]
+    public ActionResult<BookingWindowDto> GetWindow()
+    {
+        var w = _bookingService.GetBookingWindow();
+        return Ok(new BookingWindowDto(w.Today, w.MinDate, w.MaxDate, w.MaxDaysAhead, w.MorningOpenToday, w.AfternoonOpenToday));
+    }
+
     [HttpPost]
     public async Task<ActionResult<BookingDto>> Create([FromBody] CreateBookingRequest request)
     {

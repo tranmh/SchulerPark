@@ -9,6 +9,7 @@ using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Admin;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Core.Interfaces;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -18,11 +19,13 @@ public class UsersAdminController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
+    private readonly IBookingLifecycleService _lifecycle;
 
-    public UsersAdminController(AppDbContext db, IMemoryCache cache)
+    public UsersAdminController(AppDbContext db, IMemoryCache cache, IBookingLifecycleService lifecycle)
     {
         _db = db;
         _cache = cache;
+        _lifecycle = lifecycle;
     }
 
     [HttpGet]
@@ -135,6 +138,9 @@ public class UsersAdminController : ControllerBase
             // Bug #49/#4: drop the cached "active" result so the disable takes effect on the
             // user's next request, not up to the cache TTL later.
             UserActiveCache.Evict(_cache, user.Id);
+
+            // WP1 3.3: a disabled account must not keep holding parking slots.
+            await _lifecycle.ReleaseUserBookingsAsync(user.Id, BookingReleaseReason.UserDisabled);
         }
 
         return Ok(ToDto(user));
@@ -177,6 +183,10 @@ public class UsersAdminController : ControllerBase
             if (remainingSuperAdmins == 0)
                 throw new ValidationException("Cannot delete the last remaining SuperAdmin.");
         }
+
+        // WP1 3.3: release the slots (and promote waitlisters) BEFORE the cascade erases
+        // the bookings — afterwards there is nothing left to promote from.
+        await _lifecycle.ReleaseUserBookingsAsync(user.Id, BookingReleaseReason.UserDeleted);
 
         // BlockedDay.BlockedByUserId has DeleteBehavior.Restrict — clear those first.
         // Using Remove (not ExecuteDelete) keeps this provider-agnostic for tests.

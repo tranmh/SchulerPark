@@ -2,6 +2,7 @@ namespace SchulerPark.Core.Interfaces;
 
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
+using SchulerPark.Core.Models;
 
 public interface IBookingService
 {
@@ -15,4 +16,7 @@ public interface IBookingService
         CreateWeekBookingAsync(Guid userId, Guid? locationId, DateOnly weekStartDate, TimeSlot timeSlot);
     Task<Booking> CancelBookingAsync(Guid bookingId, Guid userId);
     Task<Booking> ConfirmBookingAsync(Guid bookingId, Guid userId);
+
+    /// <summary>The bookable date window as the server sees it right now (WP3 3.1).</summary>
+    BookingWindow GetBookingWindow();
 }

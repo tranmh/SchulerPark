@@ -9,6 +9,8 @@ using SchulerPark.Api.DTOs.Grid;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Core.Helpers;
+using SchulerPark.Core.Interfaces;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -17,11 +19,17 @@ using SchulerPark.Infrastructure.Data;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IBookingLifecycleService _lifecycle;
+    private readonly TimeProvider _time;
 
-    public AdminController(AppDbContext db)
+    public AdminController(AppDbContext db, IBookingLifecycleService lifecycle, TimeProvider time)
     {
         _db = db;
+        _lifecycle = lifecycle;
+        _time = time;
     }
+
+    private DateOnly BerlinToday => DeadlineHelper.BerlinToday(_time.GetUtcNow().UtcDateTime);
 
     // ── Locations ──────────────────────────────────────────────
 
@@ -78,10 +86,16 @@ public class AdminController : ControllerBase
             .FirstOrDefaultAsync(l => l.Id == id);
         if (location == null) return NotFound();
 
+        var deactivating = location.IsActive && !request.IsActive;
         location.Name = request.Name;
         location.Address = request.Address;
         location.IsActive = request.IsActive;
         await _db.SaveChangesAsync();
+
+        // WP1 3.4: an inactive location cannot host bookings — release the future ones.
+        if (deactivating)
+            await _lifecycle.HandleCapacityRemovedAsync(location.Id, BerlinToday, null, null,
+                BookingReleaseReason.LocationDeactivated, GetUserId(), null);
 
         return Ok(new AdminLocationDto(
             location.Id, location.Name, location.Address, location.IsActive,
@@ -90,15 +104,22 @@ public class AdminController : ControllerBase
             location.ParkingSlots.Count(s => s.IsActive)));
     }
 
+    /// <summary>Deactivates the location; returns what happened to its future bookings (WP1 3.4).</summary>
     [HttpDelete("locations/{id:guid}")]
-    public async Task<IActionResult> DeactivateLocation(Guid id)
+    public async Task<ActionResult<CapacityChangeResultDto>> DeactivateLocation(Guid id)
     {
         var location = await _db.Locations.FindAsync(id);
         if (location == null) return NotFound();
 
+        var wasActive = location.IsActive;
         location.IsActive = false;
         await _db.SaveChangesAsync();
-        return NoContent();
+
+        var impact = wasActive
+            ? await _lifecycle.HandleCapacityRemovedAsync(location.Id, BerlinToday, null, null,
+                BookingReleaseReason.LocationDeactivated, GetUserId(), null)
+            : Core.Models.CapacityChangeResult.Empty;
+        return Ok(CapacityChangeResultDto.From(impact));
     }
 
     [HttpPut("locations/{id:guid}/algorithm")]
@@ -166,23 +187,36 @@ public class AdminController : ControllerBase
         var slot = await _db.ParkingSlots.FindAsync(id);
         if (slot == null) return NotFound();
 
+        var deactivating = slot.IsActive && !request.IsActive;
         slot.SlotNumber = request.SlotNumber;
         slot.Label = request.Label;
         slot.IsActive = request.IsActive;
         await _db.SaveChangesAsync();
 
+        // WP1 3.4: bookings holding this slot on future dates are moved or waitlisted.
+        if (deactivating)
+            await _lifecycle.HandleCapacityRemovedAsync(slot.LocationId, BerlinToday, null, slot.Id,
+                BookingReleaseReason.SlotDeactivated, GetUserId(), null);
+
         return Ok(new AdminSlotDto(slot.Id, slot.LocationId, slot.SlotNumber, slot.Label, slot.IsActive));
     }
 
+    /// <summary>Deactivates the slot; returns what happened to the bookings holding it (WP1 3.4).</summary>
     [HttpDelete("slots/{id:guid}")]
-    public async Task<IActionResult> DeactivateSlot(Guid id)
+    public async Task<ActionResult<CapacityChangeResultDto>> DeactivateSlot(Guid id)
     {
         var slot = await _db.ParkingSlots.FindAsync(id);
         if (slot == null) return NotFound();
 
+        var wasActive = slot.IsActive;
         slot.IsActive = false;
         await _db.SaveChangesAsync();
-        return NoContent();
+
+        var impact = wasActive
+            ? await _lifecycle.HandleCapacityRemovedAsync(slot.LocationId, BerlinToday, null, slot.Id,
+                BookingReleaseReason.SlotDeactivated, GetUserId(), null)
+            : Core.Models.CapacityChangeResult.Empty;
+        return Ok(CapacityChangeResultDto.From(impact));
     }
 
     // ── Blocked Days ───────────────────────────────────────────
@@ -207,21 +241,28 @@ public class AdminController : ControllerBase
             b.Date, b.Reason, b.CreatedAt)).ToList());
     }
 
+    /// <summary>
+    /// Blocks a day (or one slot on it). Existing bookings are re-evaluated right away
+    /// (WP1 3.4): slot block → moved or waitlisted, whole-location block → cancelled with
+    /// the reason. The response carries both the block and that impact.
+    /// </summary>
     [HttpPost("blocked-days")]
-    public async Task<ActionResult<AdminBlockedDayDto>> CreateBlockedDay([FromBody] CreateBlockedDayRequest request)
+    public async Task<ActionResult<AdminBlockedDayCreatedDto>> CreateBlockedDay([FromBody] CreateBlockedDayRequest request)
     {
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-            TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin")));
-        if (request.Date < today)
+        if (request.Date < BerlinToday)
             throw new ValidationException("Cannot block a date in the past.");
 
         var location = await _db.Locations.FindAsync(request.LocationId);
         if (location == null) throw new ValidationException("Location not found.");
 
+        string? slotNumber = null;
         if (request.ParkingSlotId.HasValue)
         {
-            var slotExists = await _db.ParkingSlots.AnyAsync(s => s.Id == request.ParkingSlotId.Value);
-            if (!slotExists) throw new ValidationException("Parking slot not found.");
+            var slot = await _db.ParkingSlots.FindAsync(request.ParkingSlotId.Value);
+            if (slot == null) throw new ValidationException("Parking slot not found.");
+            if (slot.LocationId != request.LocationId)
+                throw new ValidationException("Parking slot does not belong to this location.");
+            slotNumber = slot.SlotNumber;
         }
 
         var blocked = new BlockedDay
@@ -237,11 +278,18 @@ public class AdminController : ControllerBase
         _db.BlockedDays.Add(blocked);
         await _db.SaveChangesAsync();
 
+        var impact = await _lifecycle.HandleCapacityRemovedAsync(
+            blocked.LocationId, blocked.Date, blocked.Date, blocked.ParkingSlotId,
+            blocked.ParkingSlotId.HasValue ? BookingReleaseReason.SlotBlocked : BookingReleaseReason.LocationBlocked,
+            GetUserId(), blocked.Reason);
+
         return CreatedAtAction(nameof(GetBlockedDays), new { locationId = blocked.LocationId },
-            new AdminBlockedDayDto(
-                blocked.Id, blocked.LocationId, location.Name,
-                blocked.ParkingSlotId, null,
-                blocked.Date, blocked.Reason, blocked.CreatedAt));
+            new AdminBlockedDayCreatedDto(
+                new AdminBlockedDayDto(
+                    blocked.Id, blocked.LocationId, location.Name,
+                    blocked.ParkingSlotId, slotNumber,
+                    blocked.Date, blocked.Reason, blocked.CreatedAt),
+                CapacityChangeResultDto.From(impact)));
     }
 
     [HttpDelete("blocked-days/{id:guid}")]
@@ -261,7 +309,8 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetBookings(
         [FromQuery] Guid? locationId, [FromQuery] string? status,
         [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
-        [FromQuery] Guid? userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        [FromQuery] Guid? userId, [FromQuery] Guid? parkingSlotId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var query = _db.Bookings
             .Include(b => b.User)
@@ -273,12 +322,30 @@ public class AdminController : ControllerBase
             query = query.Where(b => b.LocationId == locationId.Value);
         if (userId.HasValue)
             query = query.Where(b => b.UserId == userId.Value);
+        if (parkingSlotId.HasValue)
+            query = query.Where(b => b.ParkingSlotId == parkingSlotId.Value);
         if (from.HasValue)
             query = query.Where(b => b.Date >= from.Value);
         if (to.HasValue)
             query = query.Where(b => b.Date <= to.Value);
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<BookingStatus>(status, ignoreCase: true, out var s) && Enum.IsDefined(s))
-            query = query.Where(b => b.Status == s);
+        // `status` accepts a comma-separated list (e.g. "Won,Confirmed") for the capacity-impact preview.
+        if (!string.IsNullOrEmpty(status))
+        {
+            var statuses = status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(v => Enum.TryParse<BookingStatus>(v, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : (BookingStatus?)null)
+                .Where(s => s.HasValue)
+                .Select(s => s!.Value)
+                .ToList();
+            if (statuses.Count == 1)
+            {
+                var single = statuses[0];
+                query = query.Where(b => b.Status == single);
+            }
+            else if (statuses.Count > 1)
+            {
+                query = query.Where(b => statuses.Contains(b.Status));
+            }
+        }
 
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -296,7 +363,8 @@ public class AdminController : ControllerBase
             b.LocationId, b.Location.Name,
             b.ParkingSlotId, b.ParkingSlot?.SlotNumber,
             b.Date, b.TimeSlot.ToString(), b.Status.ToString(),
-            b.ConfirmedAt, b.CreatedAt)).ToList();
+            b.ConfirmedAt, b.CreatedAt,
+            b.CancelledAt, b.CancelReason, b.CancelledByUserId)).ToList();
 
         return Ok(new { bookings = dtos, totalCount, page, pageSize });
     }

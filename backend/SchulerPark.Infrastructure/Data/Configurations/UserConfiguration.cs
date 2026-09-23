@@ -17,6 +17,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CarLicensePlate).HasMaxLength(20);
         builder.Property(u => u.AzureAdObjectId).HasMaxLength(36);
         builder.Property(u => u.PasswordHash).HasMaxLength(512);
+        // Phase 20 WP2: SHA-256 hex of the outstanding reset token; looked up on reset.
+        builder.Property(u => u.PasswordResetTokenHash).HasMaxLength(64);
+        builder.HasIndex(u => u.PasswordResetTokenHash)
+            .HasFilter("\"PasswordResetTokenHash\" is not null");
         // Default 'de' so all pre-existing rows get German notifications, as before.
         builder.Property(u => u.PreferredLanguage).IsRequired().HasMaxLength(5)
             .HasDefaultValue(Core.Helpers.Localization.Default);

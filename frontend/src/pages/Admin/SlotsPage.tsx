@@ -3,7 +3,10 @@ import { Modal } from '../../components/Modal';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import type { AdminLocation, AdminSlot } from '../../types/admin';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CapacityImpactBanner } from '../../components/CapacityImpactBanner';
+import { todayInBerlin } from '../../utils/berlinTime';
+import type { AdminLocation, AdminSlot, CapacityChangeResult } from '../../types/admin';
 
 export function SlotsPage() {
   const { t } = useTranslation();
@@ -19,6 +22,13 @@ export function SlotsPage() {
   const [formLabel, setFormLabel] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // WP1 3.4: deactivation goes through a confirm dialog that previews how many live
+  // bookings hold the slot, and reports what happened to them afterwards.
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminSlot | null>(null);
+  const [affectedCount, setAffectedCount] = useState<number | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const [impact, setImpact] = useState<CapacityChangeResult | null>(null);
 
   useEffect(() => {
     adminService.getLocations()
@@ -78,17 +88,44 @@ export function SlotsPage() {
     }
   };
 
-  const handleDeactivate = async (id: string) => {
-    if (!selectedLocationId) return;
+  const openDeactivate = (slot: AdminSlot) => {
+    setDeactivateTarget(slot);
+    setAffectedCount(null);
+    setImpact(null);
+    adminService
+      .countBookings({ parkingSlotId: slot.id, from: todayInBerlin(), status: 'Won,Confirmed' })
+      .then(setAffectedCount)
+      .catch(() => setAffectedCount(0));
+  };
+
+  const handleDeactivate = async () => {
+    if (!selectedLocationId || !deactivateTarget) return;
+    setDeactivating(true);
+    setError(null);
     try {
-      await adminService.deactivateSlot(id);
+      const result = await adminService.deactivateSlot(deactivateTarget.id);
+      setImpact(result);
+      setDeactivateTarget(null);
       setSlots(await adminService.getSlots(selectedLocationId));
     } catch {
       setError('Failed to deactivate slot.');
+    } finally {
+      setDeactivating(false);
     }
   };
 
   if (loading) return <LoadingSpinner />;
+
+  const deactivateMessage = deactivateTarget
+    ? [
+        t('admin.capacityImpact.deactivateSlotMessage', { slot: deactivateTarget.slotNumber }),
+        affectedCount === null
+          ? t('admin.capacityImpact.checking')
+          : affectedCount === 0
+            ? t('admin.capacityImpact.none')
+            : t('admin.capacityImpact.slotAffected', { count: affectedCount }),
+      ].join(' ')
+    : '';
 
   return (
     <div>
@@ -115,6 +152,8 @@ export function SlotsPage() {
           {error}
         </div>
       )}
+
+      <CapacityImpactBanner impact={impact} onDismiss={() => setImpact(null)} />
 
       <div className="mt-6">
         <label htmlFor="slots-location" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">Location</label>
@@ -172,7 +211,7 @@ export function SlotsPage() {
                         <span className="mx-2 text-line">·</span>
                         <button
                           type="button"
-                          onClick={() => handleDeactivate(slot.id)}
+                          onClick={() => openDeactivate(slot)}
                           className="text-[12.5px] font-medium text-rose-600 hover:text-rose-700"
                         >
                           Deactivate
@@ -186,6 +225,16 @@ export function SlotsPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deactivateTarget}
+        title={t('admin.capacityImpact.deactivateSlotTitle')}
+        message={deactivateMessage}
+        confirmLabel={t('admin.capacityImpact.deactivate')}
+        onConfirm={handleDeactivate}
+        onCancel={() => setDeactivateTarget(null)}
+        isLoading={deactivating}
+      />
 
       {modalOpen && (
         <Modal title={editingId ? 'Edit slot' : 'New slot'} onClose={() => setModalOpen(false)}>

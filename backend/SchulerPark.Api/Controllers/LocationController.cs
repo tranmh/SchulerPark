@@ -4,10 +4,12 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SchulerPark.Api.DTOs.Grid;
 using SchulerPark.Api.DTOs.Location;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Interfaces;
+using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -17,11 +19,16 @@ public class LocationController : ControllerBase
 {
     private readonly ILocationService _locationService;
     private readonly AppDbContext _db;
+    private readonly BookingSettings _bookingSettings;
+    private readonly TimeProvider _time;
 
-    public LocationController(ILocationService locationService, AppDbContext db)
+    public LocationController(ILocationService locationService, AppDbContext db,
+        IOptions<BookingSettings> bookingSettings, TimeProvider time)
     {
         _locationService = locationService;
         _db = db;
+        _bookingSettings = bookingSettings.Value;
+        _time = time;
     }
 
     [HttpGet]
@@ -46,11 +53,11 @@ public class LocationController : ControllerBase
     public async Task<ActionResult<List<BlockedDayDto>>> GetBlockedDays(
         Guid id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
-        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(_time.GetUtcNow().UtcDateTime,
             TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"));
         var today = DateOnly.FromDateTime(berlinNow);
-        var fromDate = from ?? today.AddDays(1);
-        var toDate = to ?? fromDate.AddMonths(1);
+        var fromDate = from ?? today;
+        var toDate = to ?? today.AddDays(_bookingSettings.MaxDaysAhead);
 
         var blocked = await _locationService.GetBlockedDaysAsync(id, fromDate, toDate);
         var dtos = blocked.Select(b => new BlockedDayDto(
@@ -62,11 +69,12 @@ public class LocationController : ControllerBase
     public async Task<ActionResult<List<AvailabilityDto>>> GetAvailability(
         Guid id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
-        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(_time.GetUtcNow().UtcDateTime,
             TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"));
         var today = DateOnly.FromDateTime(berlinNow);
-        var fromDate = from ?? today.AddDays(1);
-        var toDate = to ?? fromDate.AddMonths(1);
+        // Default window: today (same-day booking, WP3 2.1) through the configured horizon.
+        var fromDate = from ?? today;
+        var toDate = to ?? today.AddDays(_bookingSettings.MaxDaysAhead);
 
         // The service builds an in-memory entry per day×slot: an uncapped range
         // (e.g. 0001-01-01..9999-12-31) is a single-request OOM. Clamp hard.
@@ -82,7 +90,8 @@ public class LocationController : ControllerBase
 
         var availability = await _locationService.GetAvailabilityAsync(id, fromDate, toDate);
         var dtos = availability.Select(a => new AvailabilityDto(
-            a.Date, a.TimeSlot.ToString(), a.Available, a.Total, a.Booked)).ToList();
+            a.Date, a.TimeSlot.ToString(), a.Available, a.Total, a.Booked,
+            a.PendingCount, a.WaitlistCount, a.LotteryRan)).ToList();
         return Ok(dtos);
     }
 

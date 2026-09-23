@@ -31,6 +31,8 @@ services:
       Registration__AutoApprovedDomains: "${REGISTRATION_AUTO_APPROVED_DOMAINS:-technikumlaubholz.de}"
       # Domains that must sign in via Azure AD SSO (local registration blocked).
       Registration__SsoDomains: "${REGISTRATION_SSO_DOMAINS:-andritz.com}"
+      # Phase 20: booking horizon in days (last bookable day = Berlin today + N).
+      Booking__MaxDaysAhead: "${BOOKING_MAX_DAYS_AHEAD:-31}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"

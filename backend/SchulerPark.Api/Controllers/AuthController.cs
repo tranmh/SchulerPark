@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Auth;
 using SchulerPark.Core.Exceptions;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Settings;
-using SchulerPark.Infrastructure.Services;
 
 [ApiController]
 [Route("api/auth")]
@@ -89,6 +89,26 @@ public class AuthController : ControllerBase
         return Ok(new { message = "If the address has an unverified account, a new verification email has been sent." });
     }
 
+    // ── Phase 20 WP2: password self-service ──
+
+    /// <summary>Always 202 — whether or not the address has an account (no enumeration).</summary>
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        await _authService.RequestPasswordResetAsync(request.Email);
+        return Accepted(new { message = "If the address has an account, a password reset email has been sent." });
+    }
+
+    /// <summary>204 on success; 400 with code <c>reset_token_invalid</c> / <c>password_too_weak</c> otherwise.</summary>
+    [HttpPost("reset-password")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        await _authService.ResetPasswordAsync(request.Token, request.NewPassword);
+        return NoContent();
+    }
+
     [HttpPost("login")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -98,12 +118,12 @@ public class AuthController : ControllerBase
             var (user, accessToken, refreshToken) = await _authService.LoginAsync(
                 request.Email, request.Password, GetIpAddress());
 
-            SetRefreshTokenCookie(refreshToken);
+            RefreshTokenCookie.Set(Response, refreshToken, _jwtSettings);
 
             return Ok(new AuthResponse(
                 accessToken,
                 DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-                ToUserDto(user)));
+                UserDto.From(user)));
         }
         catch (UnauthorizedAccessException)
         {
@@ -127,6 +147,18 @@ public class AuthController : ControllerBase
                 code = "pending_approval"
             });
         }
+        catch (AccountLockedException ex)
+        {
+            // Likewise only reachable with the correct password.
+            var retryAfterSeconds = (int)Math.Ceiling(ex.RetryAfter.TotalSeconds);
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+            return StatusCode(StatusCodes.Status423Locked, new
+            {
+                error = "Your account is temporarily locked after too many failed sign-in attempts.",
+                code = "account_locked",
+                retryAfterSeconds
+            });
+        }
     }
 
     [HttpPost("azure-callback")]
@@ -140,12 +172,12 @@ public class AuthController : ControllerBase
             var (user, accessToken, refreshToken) = await _authService.LoginWithAzureAdAsync(
                 request.IdToken, GetIpAddress());
 
-            SetRefreshTokenCookie(refreshToken);
+            RefreshTokenCookie.Set(Response, refreshToken, _jwtSettings);
 
             return Ok(new AuthResponse(
                 accessToken,
                 DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-                ToUserDto(user)));
+                UserDto.From(user)));
         }
         catch (UnauthorizedAccessException)
         {
@@ -156,7 +188,7 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh()
     {
-        var token = Request.Cookies["refreshToken"];
+        var token = Request.Cookies[RefreshTokenCookie.Name];
 
         if (string.IsNullOrEmpty(token))
             return Unauthorized(new { error = "No refresh token provided." });
@@ -166,12 +198,12 @@ public class AuthController : ControllerBase
             var (user, accessToken, refreshToken) = await _authService.RefreshAsync(
                 token, GetIpAddress());
 
-            SetRefreshTokenCookie(refreshToken);
+            RefreshTokenCookie.Set(Response, refreshToken, _jwtSettings);
 
             return Ok(new AuthResponse(
                 accessToken,
                 DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-                ToUserDto(user)));
+                UserDto.From(user)));
         }
         catch (UnauthorizedAccessException)
         {
@@ -190,7 +222,7 @@ public class AuthController : ControllerBase
         try
         {
             var user = await _authService.GetUserAsync(userId.Value);
-            return Ok(ToUserDto(user));
+            return Ok(UserDto.From(user));
         }
         catch (KeyNotFoundException)
         {
@@ -202,20 +234,12 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        var token = Request.Cookies["refreshToken"];
+        var token = Request.Cookies[RefreshTokenCookie.Name];
 
         if (!string.IsNullOrEmpty(token))
             await _tokenService.RevokeRefreshTokenAsync(token);
 
-        // Mirror the attributes used when setting the cookie so the delete
-        // reliably matches it in all browsers.
-        Response.Cookies.Delete("refreshToken", new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Path = "/api/auth"
-        });
+        RefreshTokenCookie.Clear(Response);
 
         return NoContent();
     }
@@ -234,18 +258,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    private void SetRefreshTokenCookie(string token)
-    {
-        Response.Cookies.Append("refreshToken", token, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Path = "/api/auth",
-            MaxAge = TimeSpan.FromDays(_jwtSettings.RefreshExpiryDays)
-        });
-    }
-
     private Guid? GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -255,19 +267,5 @@ public class AuthController : ControllerBase
     private string? GetIpAddress()
     {
         return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString();
-    }
-
-    private static UserDto ToUserDto(Core.Entities.User user)
-    {
-        return new UserDto(
-            user.Id,
-            user.Email,
-            user.DisplayName,
-            user.CarLicensePlate,
-            user.Role.ToString(),
-            !string.IsNullOrEmpty(user.AzureAdObjectId),
-            user.PreferredLocationId,
-            user.PreferredSlotId,
-            user.PreferredLanguage);
     }
 }

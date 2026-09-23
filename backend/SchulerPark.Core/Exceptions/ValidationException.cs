@@ -10,8 +10,22 @@ public class ValidationException : Exception
     /// </summary>
     public string? Code { get; }
 
+    /// <summary>
+    /// Optional interpolation values for the localized message (emitted as the
+    /// ProblemDetails <c>params</c> extension), e.g. the other location's name for
+    /// <c>booking_duplicate_other_location</c>. Values must be safe to show to the user.
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? Parameters { get; }
+
     public ValidationException(string message, string? code = null) : base(message)
     {
         Code = code;
+    }
+
+    public ValidationException(string message, string code, IReadOnlyDictionary<string, object?> parameters)
+        : base(message)
+    {
+        Code = code;
+        Parameters = parameters;
     }
 }

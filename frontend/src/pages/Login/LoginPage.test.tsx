@@ -37,6 +37,30 @@ describe('LoginPage', () => {
     expect(screen.getByRole('link', { name: /create an account/i })).toHaveAttribute('href', '/register');
   });
 
+  it('links "Forgot?" to the forgot-password page', () => {
+    renderWithRouter(<LoginPage />);
+
+    expect(screen.getByRole('link', { name: /forgot\?/i })).toHaveAttribute('href', '/forgot-password');
+  });
+
+  it('shows the lockout message with minutes and a reset link on 423', async () => {
+    const user = userEvent.setup();
+    mockAuth.login.mockRejectedValueOnce({
+      response: { status: 423, data: { error: 'locked', code: 'account_locked', retryAfterSeconds: 150 } },
+    });
+
+    renderWithRouter(<LoginPage />);
+
+    await user.type(screen.getByLabelText(/email/i), 'test@schuler.de');
+    await user.type(screen.getByLabelText(/^password$/i), 'Test1234!');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/temporarily locked.*3 minute/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', { name: /reset password/i })).toHaveAttribute('href', '/forgot-password');
+  });
+
   it('calls login with email and password on submit', async () => {
     const user = userEvent.setup();
     mockAuth.login.mockResolvedValueOnce(undefined);

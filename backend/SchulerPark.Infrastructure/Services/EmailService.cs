@@ -383,6 +383,187 @@ public class EmailService : IEmailService
         await SendEmailAsync(email, subject, body);
     }
 
+    // ---- Phase 20 WP1: capacity changes ---------------------------------------------
+
+    public async Task SendSlotReassignedAsync(Booking booking, string oldSlotNumber)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var newSlot = Enc(booking.ParkingSlot?.SlotNumber ?? "?");
+        var subject = de
+            ? $"Neuer Parkplatz: {booking.ParkingSlot?.SlotNumber} — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"New parking slot: {booking.ParkingSlot?.SlotNumber} — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2>Ihr Parkplatz wurde geändert</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Platz <strong>{Enc(oldSlotNumber)}</strong> steht an diesem Tag nicht mehr zur Verfügung (gesperrt oder außer Betrieb). Ihre Buchung bleibt bestehen — Sie parken stattdessen hier:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>Neuer Platz:</strong> {newSlot}</p>
+              <p>Es ist nichts weiter zu tun.</p>
+              """
+            : $"""
+              <h2>Your parking slot has changed</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Slot <strong>{Enc(oldSlotNumber)}</strong> is no longer available on this day (blocked or taken out of service). Your booking stands — you park here instead:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>New slot:</strong> {newSlot}</p>
+              <p>No further action is needed.</p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendSlotWithdrawnAsync(Booking booking)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var subject = de
+            ? $"Parkplatz nicht mehr verfügbar — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"Parking slot no longer available — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2 style="color: #d97706;">Ihr Parkplatz ist nicht mehr verfügbar</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Der Ihnen zugewiesene Platz wurde für diesen Tag gesperrt oder außer Betrieb genommen, und es war kein anderer Platz mehr frei:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p>Ihre Buchung steht jetzt auf der <strong>Warteliste</strong>. Wird ein Platz frei, erhalten Sie ihn automatisch und werden benachrichtigt.</p>
+              """
+            : $"""
+              <h2 style="color: #d97706;">Your parking slot is no longer available</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>The slot assigned to you was blocked or taken out of service for this day, and no other slot was free:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p>Your booking is now on the <strong>waitlist</strong>. If a slot frees up you get it automatically and will be notified.</p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendBookingCancelledByAdminAsync(Booking booking, string? reason)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var reasonRow = string.IsNullOrWhiteSpace(reason)
+            ? ""
+            : (de ? $"<p><strong>Grund:</strong> {Enc(reason.Trim())}</p>" : $"<p><strong>Reason:</strong> {Enc(reason.Trim())}</p>");
+        var subject = de
+            ? $"Buchung storniert — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"Booking Cancelled — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2>Buchung von der Verwaltung storniert</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Ihre Parkplatzbuchung wurde von einem Administrator storniert:</p>
+              {BookingDetailsTable(booking, lang)}
+              {reasonRow}
+              <p>Falls Sie an diesem Tag trotzdem parken möchten, buchen Sie bitte einen anderen Standort.</p>
+              """
+            : $"""
+              <h2>Booking cancelled by an administrator</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Your parking booking has been cancelled by an administrator:</p>
+              {BookingDetailsTable(booking, lang)}
+              {reasonRow}
+              <p>If you still need to park that day, please book another location.</p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendAdminAlertAsync(string adminEmail, string adminDisplayName, string subject, IReadOnlyList<string> paragraphs, string language)
+    {
+        var content = string.Join("\n", paragraphs.Select(p => $"<p>{Enc(p)}</p>"));
+        var body = BuildHtml(language, $"""
+            <h2 style="color: #b91c1c;">{Enc(subject)}</h2>
+            {Greeting(adminDisplayName, language)}
+            {content}
+            """);
+
+        await SendEmailAsync(adminEmail, subject, body);
+    }
+
+    // ---- Phase 20 WP2: password self-service ----------------------------------------
+
+    public async Task SendPasswordResetAsync(string email, string displayName, string resetLink, string language)
+    {
+        var de = Localization.IsGerman(language);
+        var subject = de
+            ? "Passwort zurücksetzen — LouisE"
+            : "Reset your password — LouisE";
+        var body = BuildHtml(language, de
+            ? $"""
+              <h2>Passwort zurücksetzen</h2>
+              {Greeting(displayName, language)}
+              <p>Für Ihr LouisE-Konto wurde ein neues Passwort angefordert. Klicken Sie auf den Button, um ein neues Passwort zu vergeben:</p>
+              {Button(resetLink, "Neues Passwort vergeben")}
+              {LinkFallback(resetLink, language)}
+              <p>Der Link ist 1 Stunde gültig und kann nur einmal verwendet werden. Falls Sie kein neues Passwort angefordert haben, können Sie diese E-Mail ignorieren — Ihr Passwort bleibt unverändert.</p>
+              """
+            : $"""
+              <h2>Reset your password</h2>
+              {Greeting(displayName, language)}
+              <p>A password reset was requested for your LouisE account. Click the button to choose a new password:</p>
+              {Button(resetLink, "Choose a new password")}
+              {LinkFallback(resetLink, language)}
+              <p>The link is valid for 1 hour and can be used once. If you did not request a reset, you can ignore this email — your password stays unchanged.</p>
+              """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    public async Task SendPasswordResetNotApplicableAsync(string email, string displayName, string loginLink, string language)
+    {
+        var de = Localization.IsGerman(language);
+        var subject = de
+            ? "Ihr Konto meldet sich mit Microsoft an — LouisE"
+            : "Your account signs in with Microsoft — LouisE";
+        var body = BuildHtml(language, de
+            ? $"""
+              <h2>Kein Passwort zum Zurücksetzen</h2>
+              {Greeting(displayName, language)}
+              <p>Für dieses Konto wurde ein neues Passwort angefordert. Ihr LouisE-Konto hat jedoch kein eigenes Passwort — Sie melden sich mit Ihrem Microsoft-Konto an.</p>
+              {Button(loginLink, "Mit Microsoft anmelden")}
+              <p>Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.</p>
+              """
+            : $"""
+              <h2>No password to reset</h2>
+              {Greeting(displayName, language)}
+              <p>A password reset was requested for this account, but your LouisE account has no password of its own — you sign in with your Microsoft account.</p>
+              {Button(loginLink, "Sign in with Microsoft")}
+              <p>If you did not make this request, you can ignore this email.</p>
+              """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    public async Task SendAccountLockedAsync(string email, string displayName, int lockoutMinutes, string forgotPasswordLink, string language)
+    {
+        var de = Localization.IsGerman(language);
+        var subject = de
+            ? "Konto vorübergehend gesperrt — LouisE"
+            : "Account temporarily locked — LouisE";
+        var body = BuildHtml(language, de
+            ? $"""
+              <h2 style="color: #d97706;">Konto vorübergehend gesperrt</h2>
+              {Greeting(displayName, language)}
+              <p>Nach mehreren fehlgeschlagenen Anmeldeversuchen wurde Ihr LouisE-Konto für <strong>{lockoutMinutes} Minute(n)</strong> gesperrt. Danach können Sie sich wieder anmelden.</p>
+              <p>Falls Sie Ihr Passwort vergessen haben, können Sie es hier zurücksetzen:</p>
+              {Button(forgotPasswordLink, "Passwort zurücksetzen")}
+              <p>Waren das nicht Sie? Dann versucht möglicherweise jemand, sich mit Ihrer Adresse anzumelden. Ihr Konto ist weiterhin geschützt; wir empfehlen trotzdem, das Passwort zu ändern.</p>
+              """
+            : $"""
+              <h2 style="color: #d97706;">Account temporarily locked</h2>
+              {Greeting(displayName, language)}
+              <p>After several failed sign-in attempts your LouisE account has been locked for <strong>{lockoutMinutes} minute(s)</strong>. You can sign in again afterwards.</p>
+              <p>If you forgot your password, you can reset it here:</p>
+              {Button(forgotPasswordLink, "Reset password")}
+              <p>Wasn't you? Someone may be trying to sign in with your address. Your account remains protected; we still recommend changing your password.</p>
+              """);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
     // ---- building blocks -------------------------------------------------------------
 
     private static string LanguageOf(Booking booking) =>

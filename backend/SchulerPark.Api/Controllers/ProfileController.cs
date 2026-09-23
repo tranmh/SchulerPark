@@ -5,11 +5,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using SchulerPark.Api.Auth;
 using SchulerPark.Api.DTOs.Auth;
 using SchulerPark.Api.DTOs.Profile;
 using SchulerPark.Core.Exceptions;
 using SchulerPark.Core.Helpers;
+using SchulerPark.Core.Interfaces;
+using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Data;
 
 [ApiController]
@@ -19,11 +22,18 @@ public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
+    private readonly IAuthService _authService;
+    private readonly IBookingLifecycleService _lifecycle;
+    private readonly JwtSettings _jwtSettings;
 
-    public ProfileController(AppDbContext db, IMemoryCache cache)
+    public ProfileController(AppDbContext db, IMemoryCache cache, IAuthService authService,
+        IBookingLifecycleService lifecycle, IOptions<JwtSettings> jwtSettings)
     {
         _db = db;
         _cache = cache;
+        _authService = authService;
+        _lifecycle = lifecycle;
+        _jwtSettings = jwtSettings.Value;
     }
 
     [HttpGet]
@@ -32,7 +42,7 @@ public class ProfileController : ControllerBase
         var user = await _db.Users.FindAsync(GetUserId());
         if (user == null || user.DeletedAt != null) return NotFound();
 
-        return Ok(ToDto(user));
+        return Ok(UserDto.From(user));
     }
 
     [HttpPut]
@@ -71,7 +81,7 @@ public class ProfileController : ControllerBase
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return Ok(ToDto(user));
+        return Ok(UserDto.From(user));
     }
 
     /// <summary>
@@ -93,7 +103,27 @@ public class ProfileController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
-        return Ok(ToDto(user));
+        return Ok(UserDto.From(user));
+    }
+
+    /// <summary>
+    /// Phase 20 WP2: change the local password. Every other session is revoked; the
+    /// response carries a fresh token pair (and refresh cookie) so this one continues.
+    /// Codes: <c>password_incorrect</c>, <c>password_not_set</c>, <c>password_too_weak</c>.
+    /// </summary>
+    [HttpPost("change-password")]
+    public async Task<ActionResult<AuthResponse>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var (user, accessToken, refreshToken) = await _authService.ChangePasswordAsync(
+            GetUserId(), request.CurrentPassword, request.NewPassword,
+            HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString());
+
+        RefreshTokenCookie.Set(Response, refreshToken, _jwtSettings);
+
+        return Ok(new AuthResponse(
+            accessToken,
+            DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
+            UserDto.From(user)));
     }
 
     private static string ParseLanguage(string language)
@@ -102,17 +132,6 @@ public class ProfileController : ControllerBase
             throw new ValidationException("Language must be 'de' or 'en'.", "unsupported_language");
         return language.ToLowerInvariant();
     }
-
-    private static UserDto ToDto(Core.Entities.User user) => new(
-        user.Id,
-        user.Email,
-        user.DisplayName,
-        user.CarLicensePlate,
-        user.Role.ToString(),
-        user.AzureAdObjectId != null,
-        user.PreferredLocationId,
-        user.PreferredSlotId,
-        user.PreferredLanguage);
 
     [HttpGet("data-export")]
     public async Task<ActionResult<DataExportDto>> ExportData()
@@ -170,6 +189,9 @@ public class ProfileController : ControllerBase
         // Bug #49/#4: evict the cached "active" result so the existing access token is rejected
         // on its very next request, not up to the cache TTL later.
         UserActiveCache.Evict(_cache, user.Id);
+
+        // WP1 3.3: the account is gone, so its upcoming bookings must not keep holding slots.
+        await _lifecycle.ReleaseUserBookingsAsync(user.Id, BookingReleaseReason.UserDeleted);
 
         return Ok(new { message = "Account scheduled for deletion. Data will be permanently removed after 30 days." });
     }

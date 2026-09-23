@@ -72,6 +72,16 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("ConfirmedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -109,6 +119,8 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CancelledByUserId");
 
                     b.HasIndex("LocationId");
 
@@ -461,6 +473,13 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<DateTime?>("PasswordResetTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordResetTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("PreferredLanguage")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -493,6 +512,9 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasFilter("\"DeletedAt\" is null");
+
+                    b.HasIndex("PasswordResetTokenHash")
+                        .HasFilter("\"PasswordResetTokenHash\" is not null");
 
                     b.HasIndex("PreferredLocationId");
 
@@ -529,6 +551,11 @@ namespace SchulerPark.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("SchulerPark.Core.Entities.Booking", b =>
                 {
+                    b.HasOne("SchulerPark.Core.Entities.User", "CancelledByUser")
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SchulerPark.Core.Entities.Location", "Location")
                         .WithMany("Bookings")
                         .HasForeignKey("LocationId")
@@ -545,6 +572,8 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CancelledByUser");
 
                     b.Navigation("Location");
 

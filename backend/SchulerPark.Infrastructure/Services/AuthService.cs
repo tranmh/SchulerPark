@@ -17,6 +17,7 @@ using SchulerPark.Infrastructure.Data;
 public class AuthService : IAuthService
 {
     private const int VerificationTokenValidHours = 24;
+    internal const int PasswordResetTokenValidMinutes = 60;
     private const int MaxFailedAttemptsBeforeLockout = 5;
     private static readonly TimeSpan MaxLockout = TimeSpan.FromHours(1);
 
@@ -32,6 +33,7 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly AzureAdTokenValidator _azureAdValidator;
     private readonly IEmailService _emailService;
+    private readonly IAdminNotifier _adminNotifier;
     private readonly AppSettings _appSettings;
     private readonly RegistrationSettings _registrationSettings;
     private readonly ILogger<AuthService> _logger;
@@ -42,6 +44,7 @@ public class AuthService : IAuthService
         IPasswordHasher<User> passwordHasher,
         AzureAdTokenValidator azureAdValidator,
         IEmailService emailService,
+        IAdminNotifier adminNotifier,
         IOptions<AppSettings> appSettings,
         IOptions<RegistrationSettings> registrationSettings,
         ILogger<AuthService> logger)
@@ -51,6 +54,7 @@ public class AuthService : IAuthService
         _passwordHasher = passwordHasher;
         _azureAdValidator = azureAdValidator;
         _emailService = emailService;
+        _adminNotifier = adminNotifier;
         _appSettings = appSettings.Value;
         _registrationSettings = registrationSettings.Value;
         _logger = logger;
@@ -121,25 +125,9 @@ public class AuthService : IAuthService
         // Phase 18: admins are notified about external registrations only once the
         // address is verified — bots that never verify must not generate admin mail.
         if (user.ApprovalStatus == ApprovalStatus.Pending)
-            await NotifyAdminsOfPendingUserAsync(user);
+            await _adminNotifier.PendingUserAsync(user);
 
         return true;
-    }
-
-    private async Task NotifyAdminsOfPendingUserAsync(User pendingUser)
-    {
-        var admins = await _context.Users
-            .Where(u => (u.Role == UserRole.Admin || u.Role == UserRole.SuperAdmin)
-                        && u.DeletedAt == null)
-            .Select(u => new { u.Email, u.DisplayName, u.PreferredLanguage })
-            .ToListAsync();
-
-        var approvalLink = $"{_appSettings.BaseUrl.TrimEnd('/')}/admin/approvals";
-        foreach (var admin in admins)
-        {
-            await _emailService.SendApprovalRequestToAdminAsync(
-                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, approvalLink, admin.PreferredLanguage);
-        }
     }
 
     public async Task ResendVerificationEmailAsync(string email)
@@ -166,16 +154,23 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
 
-        if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
-            throw new UnauthorizedAccessException("Invalid email or password.");
+        var now = DateTime.UtcNow;
+        var isLocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > now;
 
+        // WP2: the password is verified even while locked. A wrong password stays a
+        // generic 401 (and does not extend the lock); only the account owner — who has
+        // the right password — learns that the account is locked (423).
         var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
 
         if (result == PasswordVerificationResult.Failed)
         {
-            await RegisterFailedAttemptAsync(user);
+            if (!isLocked)
+                await RegisterFailedAttemptAsync(user, now);
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
+
+        if (isLocked)
+            throw new AccountLockedException(user.LockoutEnd!.Value - now);
 
         if (!user.EmailVerified)
             throw new EmailNotVerifiedException("Email address is not verified.");
@@ -245,6 +240,8 @@ public class AuthService : IAuthService
                     user.DisplayName = userInfo.DisplayName;
                     user.EmailVerificationTokenHash = null;
                     user.EmailVerificationTokenExpiresAt = null;
+                    user.PasswordResetTokenHash = null;
+                    user.PasswordResetTokenExpiresAt = null;
                     await _tokenService.RevokeAllUserTokensAsync(user.Id);
                 }
 
@@ -299,28 +296,137 @@ public class AuthService : IAuthService
             ?? throw new KeyNotFoundException("User not found.");
     }
 
+    // ── Phase 20 WP2: password self-service ──────────────────────────────────────
+
+    public async Task RequestPasswordResetAsync(string email)
+    {
+        email = NormalizeEmail(email);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.DeletedAt == null);
+
+        // Unknown or deleted address: nothing happens, same response either way.
+        if (user == null)
+            return;
+
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            // SSO-only account: there is no password to reset. Tell the mailbox owner how to
+            // sign in instead of leaving them puzzled by a mail that never arrives.
+            await _emailService.SendPasswordResetNotApplicableAsync(
+                user.Email, user.DisplayName, $"{BaseUrl}/login", user.PreferredLanguage);
+            return;
+        }
+
+        var rawToken = GenerateToken();
+        user.PasswordResetTokenHash = HashToken(rawToken);
+        user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(PasswordResetTokenValidMinutes);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var link = $"{BaseUrl}/reset-password?token={rawToken}";
+        await _emailService.SendPasswordResetAsync(user.Email, user.DisplayName, link, user.PreferredLanguage);
+    }
+
+    public async Task ResetPasswordAsync(string token, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ValidationException("Reset link is invalid or has expired.", "reset_token_invalid");
+
+        var tokenHash = HashToken(token);
+        var user = await _context.Users.FirstOrDefaultAsync(u =>
+            u.PasswordResetTokenHash == tokenHash && u.DeletedAt == null);
+
+        if (user == null || user.PasswordResetTokenExpiresAt < DateTime.UtcNow)
+            throw new ValidationException("Reset link is invalid or has expired.", "reset_token_invalid");
+
+        EnsureAcceptablePassword(newPassword);
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiresAt = null;
+        // Following the link proves control of the mailbox — the same proof the
+        // verification mail asks for.
+        user.EmailVerified = true;
+        user.EmailVerificationTokenHash = null;
+        user.EmailVerificationTokenExpiresAt = null;
+        user.AccessFailedCount = 0;
+        user.LockoutEnd = null;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        // Every other session is signed out; whoever reset the password has to log in.
+        await _tokenService.RevokeAllUserTokensAsync(user.Id);
+        _logger.LogInformation("Password reset completed for user {UserId}.", user.Id);
+    }
+
+    public async Task<(User User, string AccessToken, string RefreshToken)> ChangePasswordAsync(
+        Guid userId, string currentPassword, string newPassword, string? ipAddress)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null)
+            ?? throw new NotFoundException("User not found.");
+
+        if (string.IsNullOrEmpty(user.PasswordHash))
+            throw new ValidationException("This account signs in with Microsoft and has no password.", "password_not_set");
+
+        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword);
+        if (result == PasswordVerificationResult.Failed)
+            throw new ValidationException("The current password is incorrect.", "password_incorrect");
+
+        EnsureAcceptablePassword(newPassword);
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiresAt = null;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        // Rotate every session, then hand the caller a fresh pair so they stay signed in.
+        await _tokenService.RevokeAllUserTokensAsync(user.Id);
+        _logger.LogInformation("Password changed for user {UserId}.", user.Id);
+
+        return await GenerateTokensAsync(user, ipAddress);
+    }
+
+    private static void EnsureAcceptablePassword(string password)
+    {
+        if (!PasswordPolicy.IsAcceptable(password))
+            throw new ValidationException(PasswordPolicy.RequirementText, "password_too_weak");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+
     private async Task IssueVerificationTokenAsync(User user)
     {
-        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
-            .Replace('/', '_')
-            .Replace('+', '-')
-            .TrimEnd('=');
+        var rawToken = GenerateToken();
 
         user.EmailVerificationTokenHash = HashToken(rawToken);
         user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(VerificationTokenValidHours);
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        var baseUrl = _appSettings.BaseUrl.TrimEnd('/');
-        if (string.IsNullOrEmpty(baseUrl))
+        if (string.IsNullOrEmpty(BaseUrl))
             _logger.LogWarning("App:BaseUrl is not configured; verification link for {Email} will be relative.", user.Email);
 
-        var link = $"{baseUrl}/verify-email?token={rawToken}";
+        var link = $"{BaseUrl}/verify-email?token={rawToken}";
         await _emailService.SendEmailVerificationAsync(user.Email, user.DisplayName, link, user.PreferredLanguage);
     }
 
-    private async Task RegisterFailedAttemptAsync(User user)
+    /// <summary>32 random bytes, base64url without padding — safe inside a query string.</summary>
+    private static string GenerateToken() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('/', '_')
+            .Replace('+', '-')
+            .TrimEnd('=');
+
+    private async Task RegisterFailedAttemptAsync(User user, DateTime now)
     {
+        // WP2: an expired lockout is over — start counting afresh instead of re-locking
+        // (with a doubled duration) on the very first wrong password afterwards.
+        if (user.LockoutEnd.HasValue && user.LockoutEnd.Value <= now)
+        {
+            user.AccessFailedCount = 0;
+            user.LockoutEnd = null;
+        }
+
         user.AccessFailedCount++;
 
         if (user.AccessFailedCount >= MaxFailedAttemptsBeforeLockout)
@@ -330,9 +436,21 @@ public class AuthService : IAuthService
             var minutes = Math.Min(
                 Math.Pow(2, user.AccessFailedCount - MaxFailedAttemptsBeforeLockout),
                 MaxLockout.TotalMinutes);
-            user.LockoutEnd = DateTime.UtcNow.AddMinutes(minutes);
+            var isNewLock = user.AccessFailedCount == MaxFailedAttemptsBeforeLockout;
+            user.LockoutEnd = now.AddMinutes(minutes);
             _logger.LogWarning("Account {UserId} locked until {LockoutEnd} after {Count} failed logins.",
                 user.Id, user.LockoutEnd, user.AccessFailedCount);
+
+            await _context.SaveChangesAsync();
+
+            // The owner's only in-band hint that someone is hammering their account (D3).
+            if (isNewLock)
+            {
+                await _emailService.SendAccountLockedAsync(
+                    user.Email, user.DisplayName, (int)Math.Ceiling(minutes),
+                    $"{BaseUrl}/forgot-password", user.PreferredLanguage);
+            }
+            return;
         }
 
         await _context.SaveChangesAsync();
@@ -346,6 +464,8 @@ public class AuthService : IAuthService
 
         return (user, accessToken, refreshToken);
     }
+
+    private string BaseUrl => _appSettings.BaseUrl.TrimEnd('/');
 
     internal static string NormalizeEmail(string email) =>
         email.Trim().ToLowerInvariant();

@@ -40,12 +40,44 @@ export interface Booking {
   fallbackReason: string | null;
 }
 
+/**
+ * Availability of one date × time slot (Phase 20 WP3 3.2). `bookingCount` is Won +
+ * Confirmed (slots actually held); before the lottery the meaningful number is
+ * `pendingCount` against `totalSlots`.
+ */
 export interface Availability {
   date: string;
   timeSlot: TimeSlot;
   availableSlots: number;
   totalSlots: number;
   bookingCount: number;
+  pendingCount: number;
+  waitlistCount: number;
+  lotteryRan: boolean;
+}
+
+/** The per-slot figures the calendar and time-slot picker render. */
+export interface SlotDemand {
+  available: number;
+  total: number;
+  pending: number;
+  waitlist: number;
+  lotteryRan: boolean;
+}
+
+export interface DayAvailability {
+  morning: SlotDemand;
+  afternoon: SlotDemand;
+}
+
+/** Server-side bookable window in Europe/Berlin (`GET /api/bookings/window`). */
+export interface BookingWindowResponse {
+  today: string;
+  minDate: string;
+  maxDate: string;
+  maxDaysAhead: number;
+  morningOpenToday: boolean;
+  afternoonOpenToday: boolean;
 }
 
 export interface CreateBookingRequest {

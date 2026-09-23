@@ -3,7 +3,10 @@ import { Modal } from '../../components/Modal';
 import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import type { AdminLocation } from '../../types/admin';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { CapacityImpactBanner } from '../../components/CapacityImpactBanner';
+import { todayInBerlin } from '../../utils/berlinTime';
+import type { AdminLocation, CapacityChangeResult } from '../../types/admin';
 
 const ALGORITHMS = ['PureRandom', 'WeightedHistory', 'RoundRobin'];
 
@@ -23,6 +26,13 @@ export function LocationsPage() {
   const [formAddress, setFormAddress] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // WP1 3.4: deactivation previews how many live bookings the location holds and
+  // reports what happened to them afterwards.
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminLocation | null>(null);
+  const [affectedCount, setAffectedCount] = useState<number | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const [impact, setImpact] = useState<CapacityChangeResult | null>(null);
 
   const load = async () => {
     try {
@@ -85,16 +95,44 @@ export function LocationsPage() {
     }
   };
 
-  const handleDeactivate = async (id: string) => {
+  const openDeactivate = (loc: AdminLocation) => {
+    setDeactivateTarget(loc);
+    setAffectedCount(null);
+    setImpact(null);
+    adminService
+      .countBookings({ locationId: loc.id, from: todayInBerlin(), status: 'Pending,Won,Confirmed,Lost' })
+      .then(setAffectedCount)
+      .catch(() => setAffectedCount(0));
+  };
+
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    setError(null);
     try {
-      await adminService.deactivateLocation(id);
+      const result = await adminService.deactivateLocation(deactivateTarget.id);
+      setImpact(result);
+      setDeactivateTarget(null);
       await load();
     } catch {
       setError('Failed to deactivate location.');
+    } finally {
+      setDeactivating(false);
     }
   };
 
   if (loading) return <LoadingSpinner />;
+
+  const deactivateMessage = deactivateTarget
+    ? [
+        t('admin.capacityImpact.deactivateLocationMessage', { location: deactivateTarget.name }),
+        affectedCount === null
+          ? t('admin.capacityImpact.checking')
+          : affectedCount === 0
+            ? t('admin.capacityImpact.none')
+            : t('admin.capacityImpact.locationAffected', { count: affectedCount }),
+      ].join(' ')
+    : '';
 
   return (
     <div>
@@ -120,6 +158,8 @@ export function LocationsPage() {
           {error}
         </div>
       )}
+
+      <CapacityImpactBanner impact={impact} onDismiss={() => setImpact(null)} />
 
       <div className="mt-7 overflow-x-auto rounded-card border border-line bg-white shadow-card">
         <table className="w-full min-w-[640px] num">
@@ -193,7 +233,7 @@ export function LocationsPage() {
                         <span className="mx-2 text-line">·</span>
                         <button
                           type="button"
-                          onClick={() => handleDeactivate(loc.id)}
+                          onClick={() => openDeactivate(loc)}
                           className="text-[12.5px] font-medium text-rose-600 hover:text-rose-700"
                         >
                           Deactivate
@@ -207,6 +247,16 @@ export function LocationsPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deactivateTarget}
+        title={t('admin.capacityImpact.deactivateLocationTitle')}
+        message={deactivateMessage}
+        confirmLabel={t('admin.capacityImpact.deactivate')}
+        onConfirm={handleDeactivate}
+        onCancel={() => setDeactivateTarget(null)}
+        isLoading={deactivating}
+      />
 
       {modalOpen && (
         <Modal title={editingId ? 'Edit location' : 'New location'} onClose={() => setModalOpen(false)}>

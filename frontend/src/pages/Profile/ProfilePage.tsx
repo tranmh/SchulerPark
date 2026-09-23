@@ -4,8 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
 import { locationService } from '../../services/locationService';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { PasswordInput } from '../../components/PasswordInput';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import type { Location, ParkingSlot } from '../../types/booking';
+import { describeApiError } from '../../utils/apiError';
+import { passwordProblemKey, validatePassword } from '../../utils/passwordRules';
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'U';
@@ -26,6 +29,14 @@ export function ProfilePage() {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Phase 20 WP2: change password (local accounts only)
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [pushTestState, setPushTestState] = useState<
     | { kind: 'idle' }
@@ -83,6 +94,35 @@ export function ProfilePage() {
       setError(t('profile.updateFailed'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    setPasswordChanged(false);
+
+    const problem = validatePassword(newPassword);
+    if (problem) {
+      setPasswordError(t(passwordProblemKey(problem)));
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError(t('auth.passwordsDoNotMatch'));
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // The service installs the fresh access token; every other session is revoked server-side.
+      await profileService.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordChanged(true);
+    } catch (err: unknown) {
+      setPasswordError(describeApiError(err, 'profile.changePassword.failed'));
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -268,6 +308,75 @@ export function ProfilePage() {
           </button>
         </div>
       </Section>
+
+      {/* Change password — local accounts only (SSO accounts have no password) */}
+      {user?.hasPassword && (
+        <Section title={t('profile.changePassword.title')} subtitle={t('profile.changePassword.subtitle')}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleChangePassword();
+            }}
+          >
+            {passwordError && (
+              <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-[13px] text-rose-800">
+                {passwordError}
+              </div>
+            )}
+            {passwordChanged && (
+              <div role="status" className="mb-4 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-800">
+                <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {t('profile.changePassword.success')}
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t('profile.changePassword.current')} htmlFor="profile-current-password">
+                <PasswordInput
+                  id="profile-current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+                />
+              </Field>
+              <div className="hidden sm:block" />
+              <Field label={t('profile.changePassword.new')} helper={t('auth.passwordHint')} htmlFor="profile-new-password">
+                <PasswordInput
+                  id="profile-new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+                />
+              </Field>
+              <Field label={t('profile.changePassword.confirm')} htmlFor="profile-confirm-password">
+                <PasswordInput
+                  id="profile-confirm-password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+                />
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="submit"
+                disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
+                className="min-h-11 w-full rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+              >
+                {changingPassword ? t('profile.changePassword.saving') : t('profile.changePassword.submit')}
+              </button>
+            </div>
+          </form>
+        </Section>
+      )}
 
       {/* Push */}
       {pushSupported && (

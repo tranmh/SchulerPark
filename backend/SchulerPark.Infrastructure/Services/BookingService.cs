@@ -1,12 +1,14 @@
 namespace SchulerPark.Infrastructure.Services;
 
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
+using Microsoft.Extensions.Options;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
 using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
+using SchulerPark.Core.Models;
+using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Data;
 
 public class BookingService : IBookingService
@@ -15,37 +17,63 @@ public class BookingService : IBookingService
     // cancel/rebook loop would grow the table without limit.
     private const int MaxBookingsCreatedPerUserPerDay = 50;
 
-    private static readonly TimeZoneInfo BerlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
     private readonly AppDbContext _db;
     private readonly IWaitlistService _waitlistService;
     private readonly IDirectAssignmentService _directAssignment;
     private readonly IEmailService _emailService;
     private readonly IPushNotificationService _pushService;
+    private readonly BookingSettings _settings;
+    private readonly TimeProvider _time;
 
     public BookingService(AppDbContext db, IWaitlistService waitlistService,
         IDirectAssignmentService directAssignment, IEmailService emailService,
-        IPushNotificationService pushService)
+        IPushNotificationService pushService, IOptions<BookingSettings> settings,
+        TimeProvider time)
     {
         _db = db;
         _waitlistService = waitlistService;
         _directAssignment = directAssignment;
         _emailService = emailService;
         _pushService = pushService;
+        _settings = settings.Value;
+        _time = time;
+    }
+
+    private DateTime UtcNow => _time.GetUtcNow().UtcDateTime;
+
+    public BookingWindow GetBookingWindow()
+    {
+        var berlinNow = DeadlineHelper.ToBerlin(UtcNow);
+        var today = DateOnly.FromDateTime(berlinNow);
+        var morningOpen = DeadlineHelper.IsSameDayBookingOpen(today, TimeSlot.Morning, berlinNow);
+        var afternoonOpen = DeadlineHelper.IsSameDayBookingOpen(today, TimeSlot.Afternoon, berlinNow);
+        return new BookingWindow(
+            today,
+            MinDate: morningOpen || afternoonOpen ? today : today.AddDays(1),
+            MaxDate: today.AddDays(_settings.MaxDaysAhead),
+            _settings.MaxDaysAhead,
+            morningOpen,
+            afternoonOpen);
     }
 
     public async Task<(Booking Booking, string? FallbackReason)> CreateBookingAsync(
         Guid userId, Guid? locationId, DateOnly date, TimeSlot timeSlot)
     {
-        // Date validation (Europe/Berlin timezone)
-        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
+        // Date validation (Europe/Berlin timezone). WP3: today is bookable until the
+        // slot ends (2.1); the horizon is Booking:MaxDaysAhead, the same number the
+        // frontend reads from /api/bookings/window (3.1).
+        var berlinNow = DeadlineHelper.ToBerlin(UtcNow);
         var today = DateOnly.FromDateTime(berlinNow);
-        if (date <= today)
-            throw new ValidationException("Cannot book for today or past dates.", "booking_date_not_in_future");
-        if (date > today.AddMonths(1))
-            throw new ValidationException("Cannot book more than 1 month in advance.", "booking_too_far_ahead");
+        if (date < today)
+            throw new ValidationException("Cannot book for past dates.", "booking_date_in_past");
+        var isSameDay = date == today;
+        if (isSameDay && !DeadlineHelper.IsSameDayBookingOpen(date, timeSlot, berlinNow))
+            throw new ValidationException("This time slot has already ended today.", "booking_same_day_closed");
+        if (date > today.AddDays(_settings.MaxDaysAhead))
+            throw new ValidationException($"Cannot book more than {_settings.MaxDaysAhead} days in advance.", "booking_too_far_ahead");
 
         var createdToday = await _db.Bookings.CountAsync(b =>
-            b.UserId == userId && b.CreatedAt >= DateTime.UtcNow.AddDays(-1));
+            b.UserId == userId && b.CreatedAt >= UtcNow.AddDays(-1));
         if (createdToday >= MaxBookingsCreatedPerUserPerDay)
             throw new ValidationException("Daily booking creation limit reached. Please try again tomorrow.", "booking_daily_limit");
 
@@ -53,12 +81,7 @@ public class BookingService : IBookingService
 
         await ValidateLocationForDateAsync(resolvedLocationId, date);
 
-        var duplicate = await _db.Bookings.AnyAsync(b =>
-            b.UserId == userId && b.LocationId == resolvedLocationId &&
-            b.Date == date && b.TimeSlot == timeSlot &&
-            b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
-        if (duplicate)
-            throw new ValidationException("You already have a booking for this date, time slot, and location.", "booking_duplicate");
+        await EnsureNoDuplicateAsync(userId, resolvedLocationId, date, timeSlot);
 
         var booking = new Booking
         {
@@ -68,11 +91,18 @@ public class BookingService : IBookingService
             Date = date,
             TimeSlot = timeSlot,
             Status = BookingStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = UtcNow
         };
-        var outcome = await _directAssignment.ApplyAsync(booking);
+
+        // Same day: the lottery is history whether or not its row exists, so always assign
+        // directly — and a full day is a hard no rather than a waitlist entry nobody can
+        // promote in time (WP4 changes this to a Waitlisted booking).
+        var outcome = await _directAssignment.ApplyAsync(booking, assumeLotteryRan: isSameDay);
+        if (isSameDay && outcome == DirectAssignmentOutcome.WaitlistedLost)
+            throw new ValidationException("No free parking slots left for today.", "no_slots_today");
+
         _db.Bookings.Add(booking);
-        outcome = await SaveWithSlotConflictRetryAsync(booking, outcome);
+        outcome = await SaveWithSlotConflictRetryAsync(booking, outcome, isSameDay);
 
         await _db.Entry(booking).Reference(b => b.Location).LoadAsync();
         await _db.Entry(booking).Reference(b => b.User).LoadAsync();
@@ -89,27 +119,27 @@ public class BookingService : IBookingService
     /// assignment against the now-committed state and retries.
     /// </summary>
     private async Task<DirectAssignmentOutcome> SaveWithSlotConflictRetryAsync(
-        Booking booking, DirectAssignmentOutcome outcome)
+        Booking booking, DirectAssignmentOutcome outcome, bool isSameDay)
     {
-        for (var attempt = 0; ; attempt++)
+        await BookingPersistence.SaveWithSlotConflictRetryAsync(_db, async () =>
         {
-            try
+            if (outcome != DirectAssignmentOutcome.AssignedConfirmed)
+                return false;
+
+            booking.ParkingSlotId = null;
+            booking.Status = BookingStatus.Pending;
+            booking.ConfirmedAt = null;
+            outcome = await _directAssignment.ApplyAsync(booking, assumeLotteryRan: isSameDay);
+
+            if (isSameDay && outcome == DirectAssignmentOutcome.WaitlistedLost)
             {
-                await _db.SaveChangesAsync();
-                return outcome;
+                // The last slot went to someone else mid-request; don't persist a dead booking.
+                _db.Entry(booking).State = EntityState.Detached;
+                throw new ValidationException("No free parking slots left for today.", "no_slots_today");
             }
-            catch (DbUpdateException ex) when (
-                attempt < 3
-                && outcome == DirectAssignmentOutcome.AssignedConfirmed
-                && ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
-                && pg.ConstraintName == "IX_Bookings_ParkingSlotId_Date_TimeSlot")
-            {
-                booking.ParkingSlotId = null;
-                booking.Status = BookingStatus.Pending;
-                booking.ConfirmedAt = null;
-                outcome = await _directAssignment.ApplyAsync(booking);
-            }
-        }
+            return true;
+        });
+        return outcome;
     }
 
     private void SendDirectAssignmentNotifications(Booking booking, DirectAssignmentOutcome outcome)
@@ -134,8 +164,7 @@ public class BookingService : IBookingService
         if (weekStartDate.DayOfWeek != DayOfWeek.Monday)
             throw new ValidationException("WeekStartDate must be a Monday.", "week_start_not_monday");
 
-        var berlinNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BerlinTz);
-        var today = DateOnly.FromDateTime(berlinNow);
+        var today = DeadlineHelper.BerlinToday(UtcNow);
 
         var created = new List<(Booking Booking, string? FallbackReason)>();
         var skipped = new List<(DateOnly Date, string Reason)>();
@@ -152,14 +181,15 @@ public class BookingService : IBookingService
         {
             var date = weekStartDate.AddDays(i);
 
+            // Week bookings stay tomorrow+: same-day slots are booked individually (2.1).
             if (date <= today)
             {
                 skipped.Add((date, "Cannot book for today or past dates."));
                 continue;
             }
-            if (date > today.AddMonths(1))
+            if (date > today.AddDays(_settings.MaxDaysAhead))
             {
-                skipped.Add((date, "Cannot book more than 1 month in advance."));
+                skipped.Add((date, $"Cannot book more than {_settings.MaxDaysAhead} days in advance."));
                 continue;
             }
 
@@ -184,6 +214,7 @@ public class BookingService : IBookingService
             try
             {
                 await ValidateLocationForDateAsync(resolvedLocationId, date);
+                await EnsureNoDuplicateAsync(userId, resolvedLocationId, date, timeSlot);
             }
             catch (ValidationException ex)
             {
@@ -196,16 +227,6 @@ public class BookingService : IBookingService
                 continue;
             }
 
-            var duplicate = await _db.Bookings.AnyAsync(b =>
-                b.UserId == userId && b.LocationId == resolvedLocationId &&
-                b.Date == date && b.TimeSlot == timeSlot &&
-                b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired);
-            if (duplicate)
-            {
-                skipped.Add((date, "You already have a booking for this date and time slot."));
-                continue;
-            }
-
             var booking = new Booking
             {
                 Id = Guid.NewGuid(),
@@ -214,12 +235,12 @@ public class BookingService : IBookingService
                 Date = date,
                 TimeSlot = timeSlot,
                 Status = BookingStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = UtcNow
             };
             var outcome = await _directAssignment.ApplyAsync(booking);
             _db.Bookings.Add(booking);
             // Per-day save so a slot conflict retry is attributable to this day.
-            outcome = await SaveWithSlotConflictRetryAsync(booking, outcome);
+            outcome = await SaveWithSlotConflictRetryAsync(booking, outcome, isSameDay: false);
             created.Add((booking, fallbackReason));
             outcomes.Add((booking, outcome));
         }
@@ -291,6 +312,7 @@ public class BookingService : IBookingService
         var freedSlotId = booking.ParkingSlotId;
         booking.Status = BookingStatus.Cancelled;
         booking.ParkingSlotId = null;
+        booking.CancelledAt = UtcNow;
         await _db.SaveChangesAsync();
 
         if (freedSlotId.HasValue)
@@ -316,14 +338,38 @@ public class BookingService : IBookingService
         if (booking.Status != BookingStatus.Won)
             throw new ValidationException("Only Won bookings can be confirmed.", "booking_not_confirmable");
 
-        if (DeadlineHelper.IsDeadlinePassed(booking.Date, booking.TimeSlot))
+        if (DeadlineHelper.IsDeadlinePassed(booking.Date, booking.TimeSlot, UtcNow))
             throw new ValidationException("Confirmation deadline has passed.", "confirmation_deadline_passed");
 
         booking.Status = BookingStatus.Confirmed;
-        booking.ConfirmedAt = DateTime.UtcNow;
+        booking.ConfirmedAt = UtcNow;
         await _db.SaveChangesAsync();
 
         return booking;
+    }
+
+    /// <summary>
+    /// WP3 2.9: one live booking per user per date and time slot, at any location. A
+    /// duplicate at the same location keeps its old code; at another location the
+    /// message names it so the user knows what to cancel.
+    /// </summary>
+    private async Task EnsureNoDuplicateAsync(Guid userId, Guid locationId, DateOnly date, TimeSlot timeSlot)
+    {
+        var existing = await _db.Bookings
+            .Where(b => b.UserId == userId && b.Date == date && b.TimeSlot == timeSlot &&
+                        b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired)
+            .Select(b => new { b.LocationId, LocationName = b.Location.Name })
+            .FirstOrDefaultAsync();
+        if (existing == null)
+            return;
+
+        if (existing.LocationId == locationId)
+            throw new ValidationException("You already have a booking for this date, time slot, and location.", "booking_duplicate");
+
+        throw new ValidationException(
+            $"You already have a booking for this date and time slot at '{existing.LocationName}'.",
+            "booking_duplicate_other_location",
+            new Dictionary<string, object?> { ["location"] = existing.LocationName });
     }
 
     private async Task<(Guid LocationId, string? FallbackReason)> ResolveLocationAsync(

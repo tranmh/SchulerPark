@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using SchulerPark.Api.Security;
 using SchulerPark.Core.Entities;
@@ -87,6 +88,11 @@ builder.Services.Configure<AzureAdSettings>(builder.Configuration.GetSection("Az
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection("Registration"));
+builder.Services.Configure<BookingSettings>(builder.Configuration.GetSection("Booking"));
+
+// Phase 20: time-dependent logic (booking window, same-day cutoff, deadlines, watchdog)
+// goes through TimeProvider so tests can pin the clock.
+builder.Services.TryAddSingleton(TimeProvider.System);
 
 // DataProtection: in production, persist keys to a mounted volume (/keys) so they
 // survive container recreation. Without this, ASP.NET stores keys in the container's
@@ -106,6 +112,7 @@ builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<AzureAdTokenValidator>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminNotifier, AdminNotifier>();
 
 // JWT authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
@@ -232,6 +239,9 @@ builder.Services.AddScoped<IDirectAssignmentService, DirectAssignmentService>();
 // Waitlist service
 builder.Services.AddScoped<IWaitlistService, WaitlistService>();
 
+// Phase 20 WP1: releases/reassigns bookings when a user, slot or location goes away
+builder.Services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
+
 // Push notification service (IPushSender is the Web Push transport seam; tests swap it)
 builder.Services.AddSingleton<IPushSender, WebPushSender>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
@@ -319,8 +329,33 @@ if (app.Environment.IsDevelopment())
     }).AllowAnonymous();
 }
 
-// Health check endpoint
-app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+// Health check endpoint. WP1 3.5: after 22:30 Berlin it also reports whether tomorrow's
+// lottery has run, so the external health check can alert on a missed run. Before that
+// (and if the DB is unreachable) `lottery` is null.
+app.MapGet("/api/health", async (AppDbContext db, TimeProvider time) =>
+{
+    object? lottery = null;
+    try
+    {
+        var utcNow = time.GetUtcNow().UtcDateTime;
+        var berlinNow = SchulerPark.Core.Helpers.DeadlineHelper.ToBerlin(utcNow);
+        if (berlinNow.TimeOfDay >= new TimeSpan(22, 30, 0))
+        {
+            var tomorrow = DateOnly.FromDateTime(berlinNow).AddDays(1);
+            var lastRunAt = await db.LotteryRuns.MaxAsync(r => (DateTime?)r.RanAt);
+            var ranForTomorrow = await db.LotteryRuns.AnyAsync(r => r.Date == tomorrow);
+            var demandForTomorrow = await db.Bookings.AnyAsync(b =>
+                b.Date == tomorrow && b.Status == SchulerPark.Core.Enums.BookingStatus.Pending);
+            lottery = new { lastRunAt, missingForTomorrow = !ranForTomorrow && demandForTomorrow };
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Health: lottery status unavailable.");
+    }
+
+    return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, lottery });
+});
 
 // Register Hangfire recurring jobs (use DI-based manager, not static API).
 // Skip in Testing — the factory swaps Hangfire out and there's no Postgres backend.
@@ -329,12 +364,27 @@ if (!app.Environment.IsEnvironment("Testing"))
     var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
     var berlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
 
-    // Lottery recurring job: 10 PM Europe/Berlin daily
+    // Lottery recurring job: 10 PM Europe/Berlin daily. Relaxed misfire handling (WP1 3.5):
+    // if the server was down at 22:00, Hangfire fires the job once when it comes back
+    // instead of skipping the night.
     jobManager.AddOrUpdate<LotteryJob>(
         "daily-lottery",
-        job => job.ExecuteAsync(),
+        job => job.ExecuteAsync(null),
         "0 22 * * *",
-        new RecurringJobOptions { TimeZone = berlinTz });
+        new RecurringJobOptions { TimeZone = berlinTz, MisfireHandling = MisfireHandlingMode.Relaxed });
+
+    // Lottery watchdog (WP1 3.5): 23:30 checks tomorrow, 05:00 checks today — runs any
+    // lottery that never happened and closes out Pending bookings whose day has passed.
+    jobManager.AddOrUpdate<LotteryWatchdogJob>(
+        "lottery-watchdog-evening",
+        job => job.ExecuteAsync(),
+        "30 23 * * *",
+        new RecurringJobOptions { TimeZone = berlinTz, MisfireHandling = MisfireHandlingMode.Relaxed });
+    jobManager.AddOrUpdate<LotteryWatchdogJob>(
+        "lottery-watchdog-morning",
+        job => job.ExecuteAsync(),
+        "0 5 * * *",
+        new RecurringJobOptions { TimeZone = berlinTz, MisfireHandling = MisfireHandlingMode.Relaxed });
 
     // Confirmation expiry job: every hour
     jobManager.AddOrUpdate<ConfirmationExpiryJob>(

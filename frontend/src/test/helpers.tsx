@@ -4,7 +4,7 @@ import type { ReactNode, ReactElement } from 'react';
 
 // Mock auth context value
 export interface MockAuthValue {
-  user: { id: string; email: string; displayName: string; carLicensePlate: string | null; role: 'User' | 'Admin'; hasAzureAd: boolean } | null;
+  user: { id: string; email: string; displayName: string; carLicensePlate: string | null; role: 'User' | 'Admin'; hasAzureAd: boolean; hasPassword: boolean } | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean;
@@ -24,6 +24,7 @@ export const mockUser = {
   carLicensePlate: 'GP-TE 1234',
   role: 'User' as const,
   hasAzureAd: false,
+  hasPassword: true,
   preferredLanguage: 'de',
 };
 

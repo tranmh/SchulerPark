@@ -1,7 +1,14 @@
 import api from './api';
-import type { Booking, CreateBookingRequest, CreateWeekBookingRequest, MyBookingsResponse, BookingFilters, WeekBookingResponse } from '../types/booking';
+import type {
+  Booking, BookingWindowResponse, CreateBookingRequest, CreateWeekBookingRequest,
+  MyBookingsResponse, BookingFilters, WeekBookingResponse,
+} from '../types/booking';
 
 export const bookingService = {
+  /** The bookable window as the server computes it (Phase 20 WP3 3.1). */
+  getWindow: () =>
+    api.get<BookingWindowResponse>('/bookings/window').then(r => r.data),
+
   create: (data: CreateBookingRequest) =>
     api.post<Booking>('/bookings', data).then(r => r.data),
 

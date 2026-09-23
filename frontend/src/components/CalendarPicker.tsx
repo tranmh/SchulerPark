@@ -1,11 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { DayAvailability } from '../types/booking';
+import { todayInBerlin } from '../utils/berlinTime';
+import { dayTone } from '../utils/availability';
 
 interface Props {
   selectedDate: string | null;
   onSelect: (date: string) => void;
   blockedDates: Set<string>;
-  availability?: Map<string, { morning: number; afternoon: number }>;
+  availability?: Map<string, DayAvailability>;
   minDate?: string;
   maxDate?: string;
   weekMode?: boolean;
@@ -47,9 +50,10 @@ export function CalendarPicker({
   weekMode,
 }: Props) {
   const { i18n, t } = useTranslation();
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  // Calendar "today" follows Europe/Berlin like the server, not the device zone.
+  const todayStr = todayInBerlin();
+  const [viewYear, setViewYear] = useState(() => parseDate(todayStr).getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => parseDate(todayStr).getMonth());
 
   const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-US';
   const weekdayLocale = i18n.language.startsWith('de')
@@ -130,16 +134,17 @@ export function CalendarPicker({
           const date = parseDate(dateStr);
           const isBlocked = blockedDates.has(dateStr);
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const isToday = dateStr === todayStr;
           const isSelected =
             weekMode && selectedDate
               ? getWeekDays(getMonday(selectedDate)).includes(dateStr)
               : selectedDate === dateStr;
-          const isPast = minDate ? dateStr < minDate : date <= today;
+          const isPast = minDate ? dateStr < minDate : dateStr < todayStr;
           const isFuture = maxDate ? dateStr > maxDate : false;
           const isDisabled = isPast || isFuture || isBlocked || (weekMode && isWeekend);
 
           const avail = availability?.get(dateStr);
-          const totalAvail = avail ? avail.morning + avail.afternoon : undefined;
+          const tone = avail ? dayTone(avail) : null;
 
           let cls = 'relative flex h-11 items-center justify-center rounded-md text-[13px] transition-colors sm:h-10';
           if (isDisabled) {
@@ -151,6 +156,7 @@ export function CalendarPicker({
           } else {
             cls += ' text-ink-700 hover:bg-line/60';
           }
+          if (isToday && !isSelected) cls += ' ring-1 ring-inset ring-brand-300 font-semibold';
 
           return (
             <button
@@ -158,17 +164,18 @@ export function CalendarPicker({
               type="button"
               disabled={isDisabled}
               onClick={() => onSelect(weekMode ? getMonday(dateStr) : dateStr)}
+              aria-label={isToday ? `${t('components.calendar.today')} ${day}` : undefined}
               className={cls}
             >
               {day}
-              {!isDisabled && totalAvail !== undefined && (
+              {!isDisabled && tone !== null && (
                 <span
                   className={`absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
                     isSelected
                       ? 'bg-white/80'
-                      : totalAvail > 10
+                      : tone === 'emerald'
                         ? 'bg-emerald-500'
-                        : totalAvail > 0
+                        : tone === 'amber'
                           ? 'bg-amber-500'
                           : 'bg-rose-500'
                   }`}
@@ -182,11 +189,11 @@ export function CalendarPicker({
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line pt-3 text-[11px] text-ink-500">
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          {t('components.calendar.plenty')}
+          {t('components.calendar.plenty')} · {t('components.calendar.demandLow')}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-          {t('components.calendar.limited')}
+          {t('components.calendar.limited')} · {t('components.calendar.demandHigh')}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />

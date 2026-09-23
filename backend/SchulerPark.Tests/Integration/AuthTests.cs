@@ -127,23 +127,254 @@ public class AuthTests
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    // ── Lockout (H3) ──
+    // ── Lockout (H3, Phase 20 WP2) ──
+
+    private async Task<HttpResponseMessage> LoginRawAsync(string email, string password) =>
+        await _client.PostAsJsonAsync("/api/auth/login", new { email, password });
+
+    private async Task FailLoginsAsync(string email, int count)
+    {
+        for (var i = 0; i < count; i++)
+            (await LoginRawAsync(email, "Nope1234!")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 
     [Fact]
-    public async Task Login_AfterFiveFailures_LocksOutEvenCorrectPassword()
+    public async Task Login_AfterFiveFailures_CorrectPassword_Returns423_WrongPassword_Returns401()
     {
         var email = NewEmail("lockout");
         await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
 
-        for (var i = 0; i < 5; i++)
+        await FailLoginsAsync(email, 5);
+        _factory.Emails.AccountMails.Should().Contain(("AccountLocked", email));
+
+        // The owner (correct password) learns about the lock…
+        var locked = await LoginRawAsync(email, AuthTestHelper.DefaultPassword);
+        locked.StatusCode.Should().Be(HttpStatusCode.Locked);
+        var body = await locked.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        body.GetProperty("code").GetString().Should().Be("account_locked");
+        body.GetProperty("retryAfterSeconds").GetInt32().Should().BeGreaterThan(0);
+
+        // …a guesser (wrong password) sees the same 401 as always, and does not extend the lock.
+        var wrong = await LoginRawAsync(email, "StillWrong1!");
+        wrong.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Users.Single(u => u.Email == email).AccessFailedCount.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Login_AfterLockoutExpires_OneWrongAttempt_DoesNotRelock()
+    {
+        var email = NewEmail("relock");
+        await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        await FailLoginsAsync(email, 5);
+
+        // Let the lock expire.
+        using (var scope = _factory.Services.CreateScope())
         {
-            await _client.PostAsJsonAsync("/api/auth/login", new { email, password = "Nope1234!" });
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.Single(u => u.Email == email);
+            user.LockoutEnd = DateTime.UtcNow.AddMinutes(-1);
+            await db.SaveChangesAsync();
         }
 
-        var response = await _client.PostAsJsonAsync("/api/auth/login", new
-        { email, password = AuthTestHelper.DefaultPassword });
+        // Previously: the counter was still 5, so this re-locked with a doubled duration.
+        await FailLoginsAsync(email, 1);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var response = await LoginRawAsync(email, AuthTestHelper.DefaultPassword);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Login_Success_ResetsFailureCounter()
+    {
+        var email = NewEmail("counter");
+        await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+
+        await FailLoginsAsync(email, 4);
+        (await LoginRawAsync(email, AuthTestHelper.DefaultPassword)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Four more failures would have locked the account had the counter not been reset.
+        await FailLoginsAsync(email, 4);
+        (await LoginRawAsync(email, AuthTestHelper.DefaultPassword)).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    // ── Password reset (Phase 20 WP2) ──
+
+    private async Task<HttpResponseMessage> AuthedAsync(HttpMethod method, string url, string token, object? body = null)
+    {
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        if (body != null) request.Content = JsonContent.Create(body);
+        return await _client.SendAsync(request);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_UnknownEmail_Returns202_AndSendsNothing()
+    {
+        var email = NewEmail("nobody");
+        var response = await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        _factory.Emails.ResetLinkFor(email).Should().BeNull();
+        _factory.Emails.AccountMails.Should().NotContain(m => m.Email == email);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_LocalUser_SendsResetMail_AndResetWorksOnce()
+    {
+        var email = NewEmail("reset");
+        var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        var oldRefreshCookie = auth.AccessToken; // marker only; the refresh cookie itself is on the client
+
+        var forgot = await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+        forgot.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var token = _factory.Emails.ResetTokenFor(email);
+        token.Should().NotBeNullOrEmpty();
+        _factory.Emails.ResetLinkFor(email).Should().Contain("/reset-password?token=");
+
+        var reset = await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "Brand-New-Pass9" });
+        reset.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // New password works, old one does not.
+        (await LoginRawAsync(email, "Brand-New-Pass9")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await LoginRawAsync(email, AuthTestHelper.DefaultPassword)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        // Every pre-reset refresh token is revoked.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.Single(u => u.Email == email);
+            db.RefreshTokens.Where(t => t.UserId == user.Id && t.CreatedAt < user.UpdatedAt)
+                .Should().OnlyContain(t => t.RevokedAt != null);
+            user.PasswordResetTokenHash.Should().BeNull();
+        }
+
+        // The token is single-use.
+        var again = await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "Another-Pass9" });
+        again.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await again.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        problem.GetProperty("code").GetString().Should().Be("reset_token_invalid");
+        _ = oldRefreshCookie;
+    }
+
+    [Fact]
+    public async Task ResetPassword_ExpiredToken_Returns400()
+    {
+        var email = NewEmail("expired");
+        await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+        var token = _factory.Emails.ResetTokenFor(email)!;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.Single(u => u.Email == email);
+            user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(-1);
+            await db.SaveChangesAsync();
+        }
+
+        var reset = await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "Brand-New-Pass9" });
+        reset.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await reset.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("code").GetString()
+            .Should().Be("reset_token_invalid");
+    }
+
+    [Fact]
+    public async Task ResetPassword_WeakPassword_Returns400WithCode()
+    {
+        var email = NewEmail("weakreset");
+        await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+        var token = _factory.Emails.ResetTokenFor(email)!;
+
+        var reset = await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "abcdefgh" });
+        reset.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await reset.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("code").GetString()
+            .Should().Be("password_too_weak");
+
+        // The token survives a rejected attempt.
+        (await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "Brand-New-Pass9" }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task ResetPassword_MarksUnverifiedUserVerified_AndClearsLockout()
+    {
+        var email = NewEmail("unverifiedreset");
+        await AuthTestHelper.RegisterAsync(_client, email);   // never verified
+        await FailLoginsAsync(email, 5);                       // and locked
+
+        await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+        var token = _factory.Emails.ResetTokenFor(email)!;
+        (await _client.PostAsJsonAsync("/api/auth/reset-password", new { token, newPassword = "Brand-New-Pass9" }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Following the reset link proved mailbox control: login now works straight away.
+        (await LoginRawAsync(email, "Brand-New-Pass9")).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_SsoOnlyAccount_SendsNotApplicableMail_NoToken()
+    {
+        var email = NewEmail("ssoonly");
+        (await _client.PostAsJsonAsync("/api/auth/azure-callback", new
+        { idToken = FakeAzureAdTokenValidator.Token($"oid-{Guid.NewGuid():N}", email) })).EnsureSuccessStatusCode();
+
+        var forgot = await _client.PostAsJsonAsync("/api/auth/forgot-password", new { email });
+        forgot.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        _factory.Emails.AccountMails.Should().Contain(("PasswordResetNotApplicable", email));
+        _factory.Emails.ResetLinkFor(email).Should().BeNull();
+    }
+
+    // ── Change password (Phase 20 WP2) ──
+
+    [Fact]
+    public async Task ChangePassword_HappyPath_RotatesSession_AndOldPasswordStopsWorking()
+    {
+        var email = NewEmail("change");
+        var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, email);
+        auth.User.HasPassword.Should().BeTrue();
+
+        var response = await AuthedAsync(HttpMethod.Post, "/api/profile/change-password", auth.AccessToken, new
+        { currentPassword = AuthTestHelper.DefaultPassword, newPassword = "Changed-Pass-77" });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var fresh = (await response.Content.ReadFromJsonAsync<AuthTestHelper.AuthResult>())!;
+        fresh.AccessToken.Should().NotBeNullOrEmpty();
+
+        (await LoginRawAsync(email, "Changed-Pass-77")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await LoginRawAsync(email, AuthTestHelper.DefaultPassword)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task ChangePassword_WrongCurrent_Returns400WithCode()
+    {
+        var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client, NewEmail("changewrong"));
+
+        var response = await AuthedAsync(HttpMethod.Post, "/api/profile/change-password", auth.AccessToken, new
+        { currentPassword = "NotMyPassword1!", newPassword = "Changed-Pass-77" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("code").GetString()
+            .Should().Be("password_incorrect");
+    }
+
+    [Fact]
+    public async Task ChangePassword_SsoOnlyAccount_Returns400PasswordNotSet()
+    {
+        var email = NewEmail("changesso");
+        var azure = await _client.PostAsJsonAsync("/api/auth/azure-callback", new
+        { idToken = FakeAzureAdTokenValidator.Token($"oid-{Guid.NewGuid():N}", email) });
+        var auth = (await azure.Content.ReadFromJsonAsync<AuthTestHelper.AuthResult>())!;
+        auth.User.HasPassword.Should().BeFalse();
+
+        var response = await AuthedAsync(HttpMethod.Post, "/api/profile/change-password", auth.AccessToken, new
+        { currentPassword = "whatever1!", newPassword = "Changed-Pass-77" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("code").GetString()
+            .Should().Be("password_not_set");
     }
 
     // ── Disabled / deleted accounts (H1) ──

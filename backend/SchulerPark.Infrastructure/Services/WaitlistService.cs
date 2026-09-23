@@ -2,7 +2,6 @@ namespace SchulerPark.Infrastructure.Services;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
@@ -45,12 +44,14 @@ public class WaitlistService : IWaitlistService
             return;
         }
 
-        // Find all Lost bookings for the same location+date+timeSlot
+        // Find all Lost bookings for the same location+date+timeSlot (WP1 3.3: never
+        // promote a booking whose owner has been disabled or deleted in the meantime)
         var lostBookings = await _db.Bookings
             .Include(b => b.User)
             .Include(b => b.Location)
             .Where(b => b.LocationId == locationId && b.Date == date
-                && b.TimeSlot == timeSlot && b.Status == BookingStatus.Lost)
+                && b.TimeSlot == timeSlot && b.Status == BookingStatus.Lost
+                && b.User.DeletedAt == null)
             .ToListAsync();
 
         if (lostBookings.Count == 0)
@@ -80,9 +81,7 @@ public class WaitlistService : IWaitlistService
         {
             await _db.SaveChangesAsync();
         }
-        catch (DbUpdateException ex) when (
-            ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
-            && pg.ConstraintName == "IX_Bookings_ParkingSlotId_Date_TimeSlot")
+        catch (DbUpdateException ex) when (BookingPersistence.IsSlotConflict(ex))
         {
             // A concurrent direct assignment grabbed the freed slot first.
             _logger.LogInformation("Waitlist skip: freed slot {SlotId} taken concurrently.", freedSlotId);

@@ -5,6 +5,7 @@ using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Exceptions;
 using SchulerPark.Core.Interfaces;
+using SchulerPark.Core.Models;
 using SchulerPark.Infrastructure.Data;
 
 public class LocationService : ILocationService
@@ -49,58 +50,74 @@ public class LocationService : ILocationService
             .ToListAsync();
     }
 
-    public async Task<List<(DateOnly Date, TimeSlot TimeSlot, int Available, int Total, int Booked)>>
-        GetAvailabilityAsync(Guid locationId, DateOnly from, DateOnly to)
+    /// <summary>
+    /// WP3 3.2: "booked" means a slot is actually held (Won/Confirmed). Pending requests
+    /// and waitlisted (Lost) bookings are reported separately so the UI can show demand
+    /// before the lottery and free slots after it.
+    /// </summary>
+    public async Task<List<SlotAvailability>> GetAvailabilityAsync(Guid locationId, DateOnly from, DateOnly to)
     {
         var locationExists = await _db.Locations.AnyAsync(l => l.Id == locationId && l.IsActive);
         if (!locationExists)
             throw new NotFoundException("Location not found or inactive.");
 
-        var activeSlotCount = await _db.ParkingSlots
-            .CountAsync(s => s.LocationId == locationId && s.IsActive);
-
         var activeSlotIds = await _db.ParkingSlots
             .Where(s => s.LocationId == locationId && s.IsActive)
             .Select(s => s.Id)
             .ToListAsync();
+        var activeSlotCount = activeSlotIds.Count;
 
         // Batch load blocked days in range
         var blockedDays = await _db.BlockedDays
             .Where(b => b.LocationId == locationId && b.Date >= from && b.Date <= to)
             .ToListAsync();
 
-        // Batch load booking counts in range (non-cancelled/expired)
-        var bookingCounts = await _db.Bookings
+        // Batch load per-status booking counts in range
+        var statusCounts = await _db.Bookings
             .Where(b => b.LocationId == locationId && b.Date >= from && b.Date <= to &&
                          b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired)
-            .GroupBy(b => new { b.Date, b.TimeSlot })
-            .Select(g => new { g.Key.Date, g.Key.TimeSlot, Count = g.Count() })
+            .GroupBy(b => new { b.Date, b.TimeSlot, b.Status })
+            .Select(g => new { g.Key.Date, g.Key.TimeSlot, g.Key.Status, Count = g.Count() })
             .ToListAsync();
 
-        var result = new List<(DateOnly, TimeSlot, int, int, int)>();
+        var lotteryRuns = (await _db.LotteryRuns
+            .Where(r => r.LocationId == locationId && r.Date >= from && r.Date <= to)
+            .Select(r => new { r.Date, r.TimeSlot })
+            .ToListAsync())
+            .Select(r => (r.Date, r.TimeSlot))
+            .ToHashSet();
+
+        int Count(DateOnly date, TimeSlot slot, params BookingStatus[] statuses) =>
+            statusCounts
+                .Where(c => c.Date == date && c.TimeSlot == slot && statuses.Contains(c.Status))
+                .Sum(c => c.Count);
+
+        var result = new List<SlotAvailability>();
         for (var date = from; date <= to; date = date.AddDays(1))
         {
+            var isLocationBlocked = blockedDays.Any(b => b.Date == date && b.ParkingSlotId == null);
+            var blockedSlotCount = blockedDays
+                .Where(b => b.Date == date && b.ParkingSlotId != null)
+                .Select(b => b.ParkingSlotId!.Value)
+                .Where(id => activeSlotIds.Contains(id))
+                .Distinct().Count();
+
             foreach (var timeSlot in Enum.GetValues<TimeSlot>())
             {
-                var isLocationBlocked = blockedDays.Any(b => b.Date == date && b.ParkingSlotId == null);
+                var lotteryRan = lotteryRuns.Contains((date, timeSlot));
+                var pending = Count(date, timeSlot, BookingStatus.Pending);
+                var waitlist = Count(date, timeSlot, BookingStatus.Lost);
+                var booked = Count(date, timeSlot, BookingStatus.Won, BookingStatus.Confirmed);
+
                 if (isLocationBlocked)
                 {
-                    result.Add((date, timeSlot, 0, activeSlotCount, 0));
+                    result.Add(new SlotAvailability(date, timeSlot, 0, 0, booked, pending, waitlist, lotteryRan));
                     continue;
                 }
 
-                var blockedSlotIds = blockedDays
-                    .Where(b => b.Date == date && b.ParkingSlotId != null)
-                    .Select(b => b.ParkingSlotId!.Value)
-                    .Where(id => activeSlotIds.Contains(id))
-                    .Distinct().Count();
-
-                var totalAvailable = activeSlotCount - blockedSlotIds;
-                var booked = bookingCounts
-                    .FirstOrDefault(b => b.Date == date && b.TimeSlot == timeSlot)?.Count ?? 0;
-
-                var available = Math.Max(0, totalAvailable - booked);
-                result.Add((date, timeSlot, available, totalAvailable, booked));
+                var total = Math.Max(0, activeSlotCount - blockedSlotCount);
+                var available = Math.Max(0, total - booked);
+                result.Add(new SlotAvailability(date, timeSlot, available, total, booked, pending, waitlist, lotteryRan));
             }
         }
         return result;

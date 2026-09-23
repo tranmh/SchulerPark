@@ -1,30 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import { getBookingWindow, formatLocalDate } from './bookingWindow';
 
-describe('getBookingWindow (Bug #21)', () => {
-  it('minDate is tomorrow in LOCAL time in the small hours (no UTC roll-back)', () => {
-    // 00:30 local on 2026-03-10 in a positive-offset tz (Europe/Berlin = UTC+1 here; the
-    // suite pins TZ=Europe/Berlin). The old toISOString() code converts to the PREVIOUS day
-    // in UTC (2026-03-09T23:30Z) and so reports minDate as *today*. Local-component math must
-    // yield tomorrow's local date: 2026-03-11.
-    const smallHours = new Date(2026, 2, 10, 0, 30, 0);
-    const { minDate } = getBookingWindow(smallHours);
+describe('getBookingWindow (Bug #21 / Phase 20 WP3)', () => {
+  it('minDate is tomorrow in BERLIN time in the small hours (no UTC roll-back)', () => {
+    // 00:30 Berlin on 2026-03-10 (23:30Z the day before). toISOString() would report the
+    // previous UTC day and so minDate as *today*; Berlin-calendar math yields 2026-03-11.
+    const smallHours = new Date('2026-03-09T23:30:00Z');
+    const { today, minDate } = getBookingWindow(smallHours);
+    expect(today).toBe('2026-03-10');
     expect(minDate).toBe('2026-03-11');
   });
 
-  it('window spans exactly 30 calendar days across a DST switch (no ms drift)', () => {
-    // Europe/Berlin springs forward on 2026-03-29. A window starting near it must still be
-    // exactly 30 days wide when measured in calendar days, not 29/31 from ms arithmetic.
-    const beforeDst = new Date(2026, 2, 20, 12, 0, 0);
-    const { minDate, maxDate } = getBookingWindow(beforeDst);
-    expect(minDate).toBe('2026-03-21');
-    expect(maxDate).toBe('2026-04-20'); // 2026-03-21 + 30 calendar days
+  it('window is exactly maxDaysAhead calendar days across a DST switch (no ms drift)', () => {
+    // Europe/Berlin springs forward on 2026-03-29.
+    const beforeDst = new Date('2026-03-20T11:00:00Z');
+    const { today, maxDate } = getBookingWindow(beforeDst);
+    expect(today).toBe('2026-03-20');
+    expect(maxDate).toBe('2026-04-20'); // 2026-03-20 + 31 calendar days
 
     const days = Math.round(
-      (new Date(maxDate + 'T00:00:00').getTime() - new Date(minDate + 'T00:00:00').getTime())
+      (new Date(maxDate + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime())
       / 86_400_000,
     );
-    expect(days).toBe(30);
+    expect(days).toBe(31);
+  });
+
+  it('uses today + maxDaysAhead, not a calendar month (month-length case)', () => {
+    const { maxDate } = getBookingWindow(new Date('2026-01-31T12:00:00Z'));
+    expect(maxDate).toBe('2026-03-03'); // AddMonths(1) would have been 2026-02-28
+  });
+
+  it('honours a custom horizon', () => {
+    const { maxDate } = getBookingWindow(new Date('2026-06-10T12:00:00Z'), 14);
+    expect(maxDate).toBe('2026-06-24');
   });
 
   it('formatLocalDate zero-pads month and day', () => {

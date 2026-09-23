@@ -16,11 +16,20 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.TimeSlot).HasConversion<string>().HasMaxLength(20);
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(b => b.CreatedAt).HasDefaultValueSql("now() at time zone 'utc'");
+        // Phase 20 WP1: cancellation audit trail
+        builder.Property(b => b.CancelReason).HasMaxLength(300);
 
         builder.HasOne(b => b.User)
             .WithMany(u => u.Bookings)
             .HasForeignKey(b => b.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // The cancelling admin is only referenced; deleting that admin later must not
+        // touch the booking, so the FK is nulled instead.
+        builder.HasOne(b => b.CancelledByUser)
+            .WithMany()
+            .HasForeignKey(b => b.CancelledByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Bug #18: Restrict (not SetNull) so a slot with live bookings can't be
         // hard-deleted into a slot-less "confirmed" booking. Decommission slots

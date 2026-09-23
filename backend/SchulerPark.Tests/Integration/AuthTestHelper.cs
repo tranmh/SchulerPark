@@ -9,7 +9,7 @@ namespace SchulerPark.Tests.Integration;
 public static class AuthTestHelper
 {
     public record AuthUserDto(Guid Id, string Email, string DisplayName, string? CarLicensePlate,
-        string Role, bool HasAzureAd, Guid? PreferredLocationId, Guid? PreferredSlotId);
+        string Role, bool HasAzureAd, Guid? PreferredLocationId, Guid? PreferredSlotId, bool HasPassword = false);
     public record AuthResult(string AccessToken, DateTime ExpiresAt, AuthUserDto User);
 
     public const string DefaultPassword = "Test1234!";
