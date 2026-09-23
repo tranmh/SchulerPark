@@ -87,6 +87,8 @@ export interface AdminBooking {
   cancelledAt: string | null;
   cancelReason: string | null;
   cancelledByUserId: string | null;
+  /** Why the system confirmed it (direct_assignment, waitlist_late_promotion, kept_*); null = the user did. */
+  autoConfirmReason: string | null;
 }
 
 export interface LotteryRun {

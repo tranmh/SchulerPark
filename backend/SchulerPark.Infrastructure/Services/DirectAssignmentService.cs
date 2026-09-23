@@ -81,6 +81,7 @@ public class DirectAssignmentService : IDirectAssignmentService
         booking.ParkingSlotId = slotId;
         booking.Status = BookingStatus.Confirmed;
         booking.ConfirmedAt = DateTime.UtcNow;
+        booking.AutoConfirmReason = "direct_assignment";
         _logger.LogInformation(
             "Direct assignment: booking {BookingId} confirmed on slot {SlotId} for {LocationId} {Date} {TimeSlot}.",
             booking.Id, slotId, booking.LocationId, booking.Date, booking.TimeSlot);

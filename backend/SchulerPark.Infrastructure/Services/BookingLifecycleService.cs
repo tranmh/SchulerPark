@@ -254,6 +254,7 @@ public class BookingLifecycleService : IBookingLifecycleService
         booking.ConfirmedAt = null;
         booking.ConfirmationDeadline = null;
         booking.ReminderSentAt = null;
+        booking.AutoConfirmReason = null;
     }
 
     private static void Cancel(Booking booking, Guid? actedBy, string reason, DateTime now)

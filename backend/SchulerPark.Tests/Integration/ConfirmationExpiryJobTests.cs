@@ -25,19 +25,30 @@ public class ConfirmationExpiryJobTests
     private async Task<Booking> SeedAsync(BookingStatus status, TimeSlot slot = TimeSlot.Morning, DateTime? deadline = null, DateOnly? date = null)
     {
         var loc = new Location { Id = Guid.NewGuid(), Name = $"L-{Guid.NewGuid():N}", Address = "A" };
+        await using var seed = _fx.NewContext();
+        seed.Locations.Add(loc);
+        await seed.SaveChangesAsync();
+        return await SeedAsync(loc.Id, status, slot, deadline, date, createdAt: null);
+    }
+
+    /// <summary>A booking at an existing location (so several can share location/date/slot).</summary>
+    private async Task<Booking> SeedAsync(Guid locationId, BookingStatus status, TimeSlot slot = TimeSlot.Morning,
+        DateTime? deadline = null, DateOnly? date = null, DateTime? createdAt = null)
+    {
         var user = new User { Id = Guid.NewGuid(), Email = $"u-{Guid.NewGuid():N}@x.de", DisplayName = "U" };
         var booking = new Booking
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
-            LocationId = loc.Id,
+            LocationId = locationId,
             Date = date ?? Day,
             TimeSlot = slot,
             Status = status,
             ConfirmationDeadline = status == BookingStatus.Won ? deadline ?? Deadline : null,
+            CreatedAt = createdAt ?? new DateTime(2027, 6, 1, 12, 0, 0, DateTimeKind.Utc),
         };
         await using var seed = _fx.NewContext();
-        seed.AddRange(loc, user);
+        seed.Users.Add(user);
         seed.Bookings.Add(booking);
         await seed.SaveChangesAsync();
         return booking;
@@ -104,23 +115,78 @@ public class ConfirmationExpiryJobTests
         var after = await ReloadAsync(booking.Id);
         Assert.Equal(BookingStatus.Confirmed, after.Status);
         Assert.Equal(Deadline.AddMinutes(1), after.ConfirmedAt!.Value.ToUniversalTime());
+        // Audit: a system confirmation, not a click; the deadline is moot (as in WaitlistService).
+        Assert.Equal("kept_nobody_waiting", after.AutoConfirmReason);
+        Assert.Null(after.ConfirmationDeadline);
         Assert.Contains(email.Sent, e => e == ("UnconfirmedKept", booking.Id));
         Assert.Contains(push.Sent, e => e == ("UnconfirmedKept", booking.Id));
         Assert.DoesNotContain(email.Sent, e => e.Type == "BookingExpired");
     }
 
     [SkippableFact]
-    public async Task PastDeadline_NobodyWaiting_ButSlotOver_StillExpires()
+    public async Task PastDeadline_ThreeWinners_OneWaitlister_OnlyTheNewestExpires()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+        var oldest = await SeedAsync(BookingStatus.Won);
+        var middle = await SeedAsync(oldest.LocationId, BookingStatus.Won, createdAt: oldest.CreatedAt.AddHours(1));
+        var newest = await SeedAsync(oldest.LocationId, BookingStatus.Won, createdAt: oldest.CreatedAt.AddHours(2));
+        await SeedWaitlisterAsync(oldest);
+
+        var (email, _) = await RunAsync(Deadline.AddMinutes(1));
+
+        // One waiter → exactly one slot changes hands, and it is the most recent booking's.
+        Assert.Equal(BookingStatus.Expired, (await ReloadAsync(newest.Id)).Status);
+        Assert.Equal(BookingStatus.Confirmed, (await ReloadAsync(middle.Id)).Status);
+        Assert.Equal(BookingStatus.Confirmed, (await ReloadAsync(oldest.Id)).Status);
+        Assert.Contains(email.Sent, e => e == ("BookingExpired", newest.Id));
+        Assert.Contains(email.Sent, e => e == ("UnconfirmedKept", middle.Id));
+        Assert.Contains(email.Sent, e => e == ("UnconfirmedKept", oldest.Id));
+        Assert.Equal(1, email.Sent.Count(e => e.Type == "BookingExpired"));
+    }
+
+    [SkippableFact]
+    public async Task PastDeadline_WaitlisterAtOtherLocation_DoesNotCount()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+        var booking = await SeedAsync(BookingStatus.Won);
+        var elsewhere = await SeedAsync(BookingStatus.Won);   // different location, same day/slot
+        await SeedWaitlisterAsync(elsewhere);
+
+        await RunAsync(Deadline.AddMinutes(1));
+
+        Assert.Equal(BookingStatus.Confirmed, (await ReloadAsync(booking.Id)).Status);
+        Assert.Equal(BookingStatus.Expired, (await ReloadAsync(elsewhere.Id)).Status);
+    }
+
+    [SkippableFact]
+    public async Task PastDeadline_SlotOver_NobodyWaiting_KeptSilently()
     {
         Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
         var booking = await SeedAsync(BookingStatus.Won);
 
-        // 12:01 Berlin: the Morning slot has ended — keeping it would confirm a booking nobody can use.
-        var (email, _) = await RunAsync(DeadlineHelper.SlotEndUtc(Day, TimeSlot.Morning).AddMinutes(1));
+        // 12:01 Berlin, first run after an outage: the morning is over, the user most likely parked.
+        var (email, push) = await RunAsync(DeadlineHelper.SlotEndUtc(Day, TimeSlot.Morning).AddMinutes(1));
 
+        var after = await ReloadAsync(booking.Id);
+        Assert.Equal(BookingStatus.Confirmed, after.Status);
+        Assert.Equal("kept_slot_ended", after.AutoConfirmReason);
+        Assert.Empty(email.Sent);
+        Assert.Empty(push.Sent);
+    }
+
+    [SkippableFact]
+    public async Task PastDeadline_SlotOver_WithWaitlister_ExpiresSilently()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+        var booking = await SeedAsync(BookingStatus.Won);
+        await SeedWaitlisterAsync(booking);
+
+        var (email, push) = await RunAsync(DeadlineHelper.SlotEndUtc(Day, TimeSlot.Morning).AddMinutes(1));
+
+        // Status is settled, but a "your spot expired" mail for a morning that is over helps nobody.
         Assert.Equal(BookingStatus.Expired, (await ReloadAsync(booking.Id)).Status);
-        Assert.Contains(email.Sent, e => e == ("BookingExpired", booking.Id));
-        Assert.DoesNotContain(email.Sent, e => e.Type == "UnconfirmedKept");
+        Assert.Empty(email.Sent);
+        Assert.Empty(push.Sent);
     }
 
     [SkippableFact]

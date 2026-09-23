@@ -18,6 +18,8 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.CreatedAt).HasDefaultValueSql("now() at time zone 'utc'");
         // Phase 20 WP1: cancellation audit trail
         builder.Property(b => b.CancelReason).HasMaxLength(300);
+        // Phase 20 WP4 follow-up: audit marker for system-side confirmations
+        builder.Property(b => b.AutoConfirmReason).HasMaxLength(40);
 
         // Phase 20 WP4: the expiry job polls Won rows by deadline every 15 minutes.
         builder.HasIndex(b => new { b.Status, b.ConfirmationDeadline })

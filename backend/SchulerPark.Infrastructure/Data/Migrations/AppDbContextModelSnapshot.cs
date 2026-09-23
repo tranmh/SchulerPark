@@ -72,6 +72,10 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("AutoConfirmReason")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<string>("CancelReason")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");

@@ -130,6 +130,7 @@ public class BookingService : IBookingService
             booking.ParkingSlotId = null;
             booking.Status = BookingStatus.Pending;
             booking.ConfirmedAt = null;
+            booking.AutoConfirmReason = null;
             outcome = await _directAssignment.ApplyAsync(booking, assumeLotteryRan: isSameDay);
             return true;
         });

@@ -22,6 +22,17 @@ public class Booking
     /// <summary>When the "please confirm" reminder went out; null until it did.</summary>
     public DateTime? ReminderSentAt { get; set; }
 
+    /// <summary>
+    /// Why a Confirmed booking was confirmed by the system rather than by its owner clicking
+    /// "confirm" — null for a genuine user confirmation. Codes: <c>direct_assignment</c>
+    /// (same-day / post-lottery booking got a free slot at once), <c>waitlist_late_promotion</c>
+    /// (promoted too close to the deadline to ask), <c>kept_nobody_waiting</c> (deadline passed
+    /// unconfirmed, but the waitlist was empty), <c>kept_slot_ended</c> (same, discovered only
+    /// after the slot was over, e.g. after an outage). Lets no-show statistics or a fairness
+    /// rule tell an auto-confirm from a real one.
+    /// </summary>
+    public string? AutoConfirmReason { get; set; }
+
     // Phase 20 (WP1): audit trail for cancellations that were not made by the booking's
     // owner through the normal cancel flow — admin cancels, capacity removal, account
     // disable/deletion. All three stay null for a plain user cancel.

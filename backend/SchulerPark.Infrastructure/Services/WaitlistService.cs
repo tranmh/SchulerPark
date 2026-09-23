@@ -86,6 +86,7 @@ public class WaitlistService : IWaitlistService
             promoted.Status = BookingStatus.Confirmed;
             promoted.ConfirmedAt = now;
             promoted.ConfirmationDeadline = null;
+            promoted.AutoConfirmReason = "waitlist_late_promotion";
         }
         else
         {
@@ -105,6 +106,7 @@ public class WaitlistService : IWaitlistService
             promoted.ParkingSlotId = null;
             promoted.ConfirmedAt = null;
             promoted.ConfirmationDeadline = null;
+            promoted.AutoConfirmReason = null;
             return;
         }
 

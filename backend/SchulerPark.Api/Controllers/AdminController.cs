@@ -364,7 +364,7 @@ public class AdminController : ControllerBase
             b.ParkingSlotId, b.ParkingSlot?.SlotNumber,
             b.Date, b.TimeSlot.ToString(), b.Status.ToString(),
             b.ConfirmedAt, b.CreatedAt,
-            b.CancelledAt, b.CancelReason, b.CancelledByUserId)).ToList();
+            b.CancelledAt, b.CancelReason, b.CancelledByUserId, b.AutoConfirmReason)).ToList();
 
         return Ok(new { bookings = dtos, totalCount, page, pageSize });
     }

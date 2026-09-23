@@ -7,4 +7,6 @@ public record AdminBookingDto(
     DateOnly Date, string TimeSlot, string Status,
     DateTime? ConfirmedAt, DateTime CreatedAt,
     // Phase 20 WP1 cancellation audit (null unless cancelled by an admin/the system)
-    DateTime? CancelledAt = null, string? CancelReason = null, Guid? CancelledByUserId = null);
+    DateTime? CancelledAt = null, string? CancelReason = null, Guid? CancelledByUserId = null,
+    // Phase 20 WP4 follow-up: why the system confirmed it (null = the user did)
+    string? AutoConfirmReason = null);
