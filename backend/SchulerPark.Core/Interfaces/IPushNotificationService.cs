@@ -20,6 +20,7 @@ public interface IPushNotificationService
     Task SendConfirmationReminderAsync(Booking booking);
     Task SendBookingExpiredAsync(Booking booking);
     Task SendWaitlistAutoConfirmedAsync(Booking booking);
+    Task SendUnconfirmedBookingKeptAsync(Booking booking);
 
     /// <summary>
     /// Sends a "push notifications are working" message to every device the user

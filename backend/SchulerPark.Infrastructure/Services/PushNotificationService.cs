@@ -148,8 +148,8 @@ public class PushNotificationService : IPushNotificationService
         {
             Title = de ? "Bitte Parkplatz bestätigen" : "Please confirm your parking spot",
             Body = de
-                ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} verfällt um {deadline:HH:mm} Uhr, wenn Sie ihn nicht bestätigen."
-                : $"Your spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} expires at {deadline:HH:mm} unless you confirm it.",
+                ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} geht um {deadline:HH:mm} Uhr an die Warteliste, wenn Sie ihn nicht bestätigen."
+                : $"Your spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} goes to the waitlist at {deadline:HH:mm} unless you confirm it.",
             Url = "/my-bookings",
             // One reminder per booking on screen: a later reminder replaces an earlier one.
             Tag = $"confirm-{booking.Id:N}"
@@ -165,6 +165,20 @@ public class PushNotificationService : IPushNotificationService
             Body = de
                 ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} wurde nicht bestätigt und ist an die Warteliste gegangen."
                 : $"Your spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} was not confirmed and has gone to the waitlist.",
+            Url = "/my-bookings",
+            Tag = $"confirm-{booking.Id:N}"
+        });
+    }
+
+    public Task SendUnconfirmedBookingKeptAsync(Booking booking)
+    {
+        var (_, de) = LanguageOf(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Ihr Parkplatz bleibt Ihnen" : "Your parking spot is still yours",
+            Body = de
+                ? $"Platz {booking.ParkingSlot?.SlotNumber} in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} wurde nicht bestätigt, aber niemand wartete darauf — er ist jetzt bestätigt."
+                : $"Slot {booking.ParkingSlot?.SlotNumber} at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} was not confirmed, but nobody was waiting — it is confirmed for you now.",
             Url = "/my-bookings",
             Tag = $"confirm-{booking.Id:N}"
         });

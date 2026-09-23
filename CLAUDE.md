@@ -120,7 +120,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 |-----|----------|---------|
 | `LotteryJob` | Daily at `Booking:LotteryTime` (default 21:00; Relaxed misfire, 3 retries) | Assign parking slots for next day (winners Won with a stored deadline, losers Waitlisted); a failing slot mails admins and fails the job |
 | `LotteryWatchdogJob` | 23:30 (tomorrow) and 05:00 (today) | Runs any lottery that never ran, sweeps stale Pending to Lost, mails admins |
-| `ConfirmationExpiryJob` | Every 15 min | Reminds once (mail + push) an hour before the stored deadline, expires unconfirmed Won (mail + push, slot to waitlist), closes Waitlisted past slot end as Lost |
+| `ConfirmationExpiryJob` | Every 15 min | Reminds once (mail + push) an hour before the stored deadline; at the deadline an unconfirmed Won expires (mail + push, slot to waitlist) only if somebody is Waitlisted for that slot and the slot has not ended, otherwise it is kept and becomes Confirmed (mail + push); closes Waitlisted past slot end as Lost |
 | `DataRetentionJob` | Weekly Sunday 2 AM | Delete data older than 1 year, hard-delete soft-deleted users |
 
 ## Booking Rules (Phase 20)

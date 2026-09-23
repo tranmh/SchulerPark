@@ -311,7 +311,26 @@ app.UseForwardedHeaders(forwardedHeadersOptions);
 // not Caddy's container IP (which would pool all users into one bucket).
 app.UseRateLimiter();
 
-app.UseStaticFiles();
+// Cache policy for the SPA (WP4 follow-up): Vite's /assets/* files carry a content hash
+// in their name and are safe to cache for a year; everything else (index.html, sw.js,
+// manifest, icons) must be revalidated on every request, otherwise a browser or the
+// office proxy keeps serving a stale app shell after a deploy — the PWA update only
+// starts once the browser sees the new sw.js.
+var spaStaticFiles = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var headers = ctx.Context.Response.GetTypedHeaders();
+        if (ctx.Context.Request.Path.StartsWithSegments("/assets"))
+            headers.CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+            {
+                Public = true, MaxAge = TimeSpan.FromDays(365), Extensions = { new("immutable", null) }
+            };
+        else
+            headers.CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+    }
+};
+app.UseStaticFiles(spaStaticFiles);
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -405,8 +424,8 @@ if (!app.Environment.IsEnvironment("Testing"))
         new RecurringJobOptions { TimeZone = berlinTz });
 }
 
-// SPA fallback: serve index.html for non-API, non-file routes
-app.MapFallbackToFile("index.html");
+// SPA fallback: serve index.html for non-API, non-file routes (same no-cache policy)
+app.MapFallbackToFile("index.html", spaStaticFiles);
 
 await app.RunAsync();
 

@@ -153,7 +153,7 @@ public class EmailService : IEmailService
               {BookingDetailsTable(booking, lang)}
               <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
               {ConfirmBefore(deadline, lang)}
-              <p>Melden Sie sich bei LouisE an und bestätigen Sie Ihre Buchung, sonst verfällt sie.</p>
+              <p>Melden Sie sich bei LouisE an und bestätigen Sie Ihre Buchung. Unbestätigte Plätze gehen nach der Frist an die Warteliste, sobald dort jemand wartet.</p>
               """
             : $"""
               <h2 style="color: #16a34a;">You Won a Parking Spot!</h2>
@@ -162,7 +162,7 @@ public class EmailService : IEmailService
               {BookingDetailsTable(booking, lang)}
               <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
               {ConfirmBefore(deadline, lang)}
-              <p>Log in to LouisE and confirm your booking, or it will expire.</p>
+              <p>Log in to LouisE and confirm your booking. After the deadline an unconfirmed slot is passed on to the waitlist if somebody is waiting.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -210,7 +210,7 @@ public class EmailService : IEmailService
               {BookingDetailsTable(booking, lang)}
               <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
               {ConfirmBefore(deadline, lang)}
-              <p>Melden Sie sich bei LouisE an und bestätigen Sie Ihre Buchung, sonst verfällt sie.</p>
+              <p>Melden Sie sich bei LouisE an und bestätigen Sie Ihre Buchung. Unbestätigte Plätze gehen nach der Frist an die Warteliste, sobald dort jemand wartet.</p>
               """
             : $"""
               <h2 style="color: #16a34a;">A Parking Spot Has Become Available!</h2>
@@ -219,7 +219,7 @@ public class EmailService : IEmailService
               {BookingDetailsTable(booking, lang)}
               <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
               {ConfirmBefore(deadline, lang)}
-              <p>Log in to LouisE and confirm your booking, or it will expire.</p>
+              <p>Log in to LouisE and confirm your booking. After the deadline an unconfirmed slot is passed on to the waitlist if somebody is waiting.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -291,14 +291,14 @@ public class EmailService : IEmailService
             ? $"""
               <h2 style="color: #d97706;">Erinnerung: Bestätigung ausstehend</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Ihre Parkplatzbuchung verfällt um <strong>{deadline:HH:mm} Uhr</strong>, weil sie noch nicht bestätigt wurde:</p>
+              <p>Ihre Parkplatzbuchung ist noch nicht bestätigt. Um <strong>{deadline:HH:mm} Uhr</strong> geht der Platz an die Warteliste, falls dort jemand wartet:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Bitte melden Sie sich jetzt bei LouisE an und bestätigen Sie Ihre Buchung.</strong></p>
               """
             : $"""
               <h2 style="color: #d97706;">Confirmation Reminder</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Your parking booking expires at <strong>{deadline:HH:mm}</strong> because it has not been confirmed:</p>
+              <p>Your parking booking is not confirmed yet. At <strong>{deadline:HH:mm}</strong> the slot is passed on to the waitlist if somebody is waiting:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Please log in to LouisE and confirm your booking now.</strong></p>
               """);
@@ -331,6 +331,34 @@ public class EmailService : IEmailService
               {BookingDetailsTable(booking, lang)}
               <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
               <p>Your booking is <strong>Confirmed</strong> — no confirmation step needed. If you won't use it, please cancel in LouisE so the next person on the waitlist gets it.</p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendUnconfirmedBookingKeptAsync(Booking booking)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var subject = de
+            ? $"Ihr Parkplatz bleibt Ihnen — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"Your Parking Spot Is Still Yours — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2 style="color: #16a34a;">Ihr Parkplatz bleibt Ihnen</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Ihr gewonnener Parkplatz wurde nicht bis zur Frist bestätigt. Da niemand auf der Warteliste stand, behalten Sie ihn trotzdem:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
+              <p>Ihre Buchung ist jetzt <strong>bestätigt</strong>. Falls Sie den Platz nicht nutzen, stornieren Sie bitte in LouisE, damit er für andere frei wird.</p>
+              """
+            : $"""
+              <h2 style="color: #16a34a;">Your Parking Spot Is Still Yours</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Your won parking spot was not confirmed before the deadline. Since nobody was on the waitlist, you keep it anyway:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
+              <p>Your booking is now <strong>Confirmed</strong>. If you won't use the spot, please cancel in LouisE so it frees up for others.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);

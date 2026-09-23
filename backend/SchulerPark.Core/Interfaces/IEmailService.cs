@@ -37,6 +37,8 @@ public interface IEmailService
     Task SendWaitlistAutoConfirmedAsync(Booking booking);
     /// <summary>The Won booking was not confirmed in time and has expired; the slot went back to the waitlist.</summary>
     Task SendBookingExpiredAsync(Booking booking);
+    /// <summary>The Won booking was not confirmed in time, but nobody was waiting, so it was kept and is now Confirmed.</summary>
+    Task SendUnconfirmedBookingKeptAsync(Booking booking);
 
     // ── Phase 20 WP2: password self-service ──
     Task SendPasswordResetAsync(string email, string displayName, string resetLink, string language);

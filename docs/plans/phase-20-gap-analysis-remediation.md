@@ -12,6 +12,10 @@ D1 resolved as auto-confirm; the Waitlisted badge is sky-blue (Pending already u
 `GET /api/bookings/my` returns `waitlistPosition`; a `Waitlisted` booking can be cancelled by its
 owner; `IX_Bookings_Status_ConfirmationDeadline` added for the 15-minute poll; the migration test
 executes the migrations' SQL constants against the Postgres fixture rather than replaying history.
+Decided 2026-09-23 (owner): an unconfirmed Won booking expires at the deadline **only if somebody is
+waitlisted** for that slot (and the slot has not ended); with an empty waitlist it is kept and becomes
+Confirmed, with its own "still yours" mail/push. Static files: `/assets/*` immutable for a year,
+shell/sw.js/manifest `no-cache` (stale PWA shell after deploy).
 Source: `GapAnalysis-UserPerspective.md` (repo root, 2026-09-23). Item numbers below (1.1 … 3.5, §4, §5)
 refer to that document. Every item was re-verified against the working tree while writing this plan;
 file references are current.

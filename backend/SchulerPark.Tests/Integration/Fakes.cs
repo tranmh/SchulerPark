@@ -95,6 +95,7 @@ public class CapturingEmailService : IEmailService
     // Phase 20 WP4
     public Task SendWaitlistAutoConfirmedAsync(Booking booking) => Record("WaitlistAutoConfirmed", booking);
     public Task SendBookingExpiredAsync(Booking booking) => Record("BookingExpired", booking);
+    public Task SendUnconfirmedBookingKeptAsync(Booking booking) => Record("UnconfirmedKept", booking);
 
     public Task SendAdminAlertAsync(string adminEmail, string adminDisplayName, string subject, IReadOnlyList<string> paragraphs, string language)
     {
@@ -149,6 +150,7 @@ public class RecordingPushService : IPushNotificationService
     public Task SendConfirmationReminderAsync(Booking booking) => Record("ConfirmationReminder", booking);
     public Task SendBookingExpiredAsync(Booking booking) => Record("BookingExpired", booking);
     public Task SendWaitlistAutoConfirmedAsync(Booking booking) => Record("WaitlistAutoConfirmed", booking);
+    public Task SendUnconfirmedBookingKeptAsync(Booking booking) => Record("UnconfirmedKept", booking);
     public Task<Core.Models.PushSendResult> SendTestAsync(Guid userId) =>
         Task.FromResult(Core.Models.PushSendResult.NoSubscriptions);
 }

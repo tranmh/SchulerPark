@@ -61,8 +61,40 @@ public class ConfirmationExpiryJobTests
         return (await check.Bookings.FindAsync(id))!;
     }
 
+    /// <summary>Another user waiting for the same location, date and slot as <paramref name="won"/>.</summary>
+    private async Task SeedWaitlisterAsync(Booking won)
+    {
+        var user = new User { Id = Guid.NewGuid(), Email = $"w-{Guid.NewGuid():N}@x.de", DisplayName = "W" };
+        await using var seed = _fx.NewContext();
+        seed.Users.Add(user);
+        seed.Bookings.Add(new Booking
+        {
+            Id = Guid.NewGuid(), UserId = user.Id, LocationId = won.LocationId,
+            Date = won.Date, TimeSlot = won.TimeSlot, Status = BookingStatus.Waitlisted
+        });
+        await seed.SaveChangesAsync();
+    }
+
     [SkippableFact]
-    public async Task PastDeadline_Expires_NotifiesUser_AndSendsNoReminder()
+    public async Task PastDeadline_WithWaitlister_Expires_NotifiesUser_AndSendsNoReminder()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+        var booking = await SeedAsync(BookingStatus.Won);
+        await SeedWaitlisterAsync(booking);
+
+        var (email, push) = await RunAsync(Deadline.AddMinutes(1));
+
+        var after = await ReloadAsync(booking.Id);
+        Assert.Equal(BookingStatus.Expired, after.Status);
+        Assert.Null(after.ParkingSlotId);
+        Assert.Contains(email.Sent, e => e == ("BookingExpired", booking.Id));
+        Assert.Contains(push.Sent, e => e == ("BookingExpired", booking.Id));
+        // The core of #44: no "please confirm" reminder for a booking being expired.
+        Assert.DoesNotContain(email.Sent, e => e.Type == "ConfirmationReminder");
+    }
+
+    [SkippableFact]
+    public async Task PastDeadline_NobodyWaiting_KeepsTheBooking_AsConfirmed()
     {
         Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
         var booking = await SeedAsync(BookingStatus.Won);
@@ -70,11 +102,25 @@ public class ConfirmationExpiryJobTests
         var (email, push) = await RunAsync(Deadline.AddMinutes(1));
 
         var after = await ReloadAsync(booking.Id);
-        Assert.Equal(BookingStatus.Expired, after.Status);
+        Assert.Equal(BookingStatus.Confirmed, after.Status);
+        Assert.Equal(Deadline.AddMinutes(1), after.ConfirmedAt!.Value.ToUniversalTime());
+        Assert.Contains(email.Sent, e => e == ("UnconfirmedKept", booking.Id));
+        Assert.Contains(push.Sent, e => e == ("UnconfirmedKept", booking.Id));
+        Assert.DoesNotContain(email.Sent, e => e.Type == "BookingExpired");
+    }
+
+    [SkippableFact]
+    public async Task PastDeadline_NobodyWaiting_ButSlotOver_StillExpires()
+    {
+        Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
+        var booking = await SeedAsync(BookingStatus.Won);
+
+        // 12:01 Berlin: the Morning slot has ended — keeping it would confirm a booking nobody can use.
+        var (email, _) = await RunAsync(DeadlineHelper.SlotEndUtc(Day, TimeSlot.Morning).AddMinutes(1));
+
+        Assert.Equal(BookingStatus.Expired, (await ReloadAsync(booking.Id)).Status);
         Assert.Contains(email.Sent, e => e == ("BookingExpired", booking.Id));
-        Assert.Contains(push.Sent, e => e == ("BookingExpired", booking.Id));
-        // The core of #44: no "please confirm" reminder for a booking being expired.
-        Assert.DoesNotContain(email.Sent, e => e.Type == "ConfirmationReminder");
+        Assert.DoesNotContain(email.Sent, e => e.Type == "UnconfirmedKept");
     }
 
     [SkippableFact]
