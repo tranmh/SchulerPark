@@ -149,7 +149,7 @@ public class DirectAssignmentServiceTests
     }
 
     [Fact]
-    public async Task ApplyAsync_AllSlotsHeld_ReturnsWaitlistedLost()
+    public async Task ApplyAsync_AllSlotsHeld_ReturnsWaitlisted()
     {
         using var db = NewDb();
         var (user, location, slots) = Seed(db, 1);
@@ -159,13 +159,13 @@ public class DirectAssignmentServiceTests
 
         var outcome = await NewService(db).ApplyAsync(booking);
 
-        outcome.Should().Be(DirectAssignmentOutcome.WaitlistedLost);
-        booking.Status.Should().Be(BookingStatus.Lost);
+        outcome.Should().Be(DirectAssignmentOutcome.Waitlisted);
+        booking.Status.Should().Be(BookingStatus.Waitlisted);
         booking.ParkingSlotId.Should().BeNull();
     }
 
     [Fact]
-    public async Task ApplyAsync_WholeLocationBlocked_ReturnsWaitlistedLost()
+    public async Task ApplyAsync_WholeLocationBlocked_ReturnsWaitlisted()
     {
         using var db = NewDb();
         var (user, location, _) = Seed(db, 2);
@@ -184,17 +184,17 @@ public class DirectAssignmentServiceTests
 
         var outcome = await NewService(db).ApplyAsync(booking);
 
-        outcome.Should().Be(DirectAssignmentOutcome.WaitlistedLost);
-        booking.Status.Should().Be(BookingStatus.Lost);
+        outcome.Should().Be(DirectAssignmentOutcome.Waitlisted);
+        booking.Status.Should().Be(BookingStatus.Waitlisted);
     }
 
     [Fact]
-    public async Task ApplyAsync_LostBookingsHoldNoSlots()
+    public async Task ApplyAsync_WaitlistedBookingsHoldNoSlots()
     {
         using var db = NewDb();
         var (user, location, slots) = Seed(db, 1);
-        var lost = OccupyingBooking(location.Id, slots[0].Id, BookingStatus.Lost, db);
-        lost.ParkingSlotId = null; // Lost bookings never carry a slot
+        var lost = OccupyingBooking(location.Id, slots[0].Id, BookingStatus.Waitlisted, db);
+        lost.ParkingSlotId = null; // Waitlisted bookings never carry a slot
         db.Bookings.Add(lost);
         db.SaveChanges();
         var booking = NewBooking(user, location);

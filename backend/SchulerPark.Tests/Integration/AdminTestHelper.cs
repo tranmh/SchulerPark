@@ -103,6 +103,11 @@ public static class AdminTestHelper
             TimeSlot = timeSlot,
             Status = status,
             ConfirmedAt = status == BookingStatus.Confirmed ? DateTime.UtcNow : null,
+            // WP4: a Won booking always carries its deadline (here the configured default,
+            // 07:00 Morning / 13:00 Afternoon Berlin — what the nightly lottery would store).
+            ConfirmationDeadline = status == BookingStatus.Won
+                ? Core.Helpers.DeadlineHelper.DefaultDeadline(date, timeSlot, new Core.Settings.BookingSettings())
+                : null,
             CreatedAt = createdAt ?? DateTime.UtcNow
         };
         db.Bookings.Add(booking);

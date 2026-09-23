@@ -1,6 +1,10 @@
 export type TimeSlot = 'Morning' | 'Afternoon';
 
-export type BookingStatus = 'Pending' | 'Won' | 'Lost' | 'Confirmed' | 'Cancelled' | 'Expired';
+/**
+ * `Waitlisted` (Phase 20 WP4) is the live "no slot yet" state — promoted automatically when a
+ * slot frees up; `Lost` is terminal: the day is over and no slot was ever found.
+ */
+export type BookingStatus = 'Pending' | 'Won' | 'Waitlisted' | 'Lost' | 'Confirmed' | 'Cancelled' | 'Expired';
 
 export interface Location {
   id: string;
@@ -36,8 +40,11 @@ export interface Booking {
   status: BookingStatus;
   confirmedAt: string | null;
   createdAt: string;
+  /** Stored when the booking became Won (WP4); null for every other status. */
   confirmationDeadline: string | null;
   fallbackReason: string | null;
+  /** Approximate 1-based queue position; only present for Waitlisted bookings (WP4 2.7). */
+  waitlistPosition?: number | null;
 }
 
 /**
@@ -70,7 +77,7 @@ export interface DayAvailability {
   afternoon: SlotDemand;
 }
 
-/** Server-side bookable window in Europe/Berlin (`GET /api/bookings/window`). */
+/** Server-side bookable window in Europe/Berlin plus the lottery/confirmation schedule (`GET /api/bookings/window`). */
 export interface BookingWindowResponse {
   today: string;
   minDate: string;
@@ -78,6 +85,12 @@ export interface BookingWindowResponse {
   maxDaysAhead: number;
   morningOpenToday: boolean;
   afternoonOpenToday: boolean;
+  /** Berlin "HH:mm" of the nightly lottery (WP4). */
+  lotteryTime: string;
+  /** Default confirmation deadline for Morning wins, Berlin "HH:mm". */
+  morningDeadline: string;
+  /** Default confirmation deadline for Afternoon wins, Berlin "HH:mm". */
+  afternoonDeadline: string;
 }
 
 export interface CreateBookingRequest {

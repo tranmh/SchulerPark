@@ -15,8 +15,9 @@ using SchulerPark.Infrastructure.Data;
 /// </summary>
 public class BookingLifecycleService : IBookingLifecycleService
 {
+    // WP4: Lost is terminal (day over), Waitlisted is the live "no slot yet" state.
     private static readonly BookingStatus[] LiveStatuses =
-        [BookingStatus.Pending, BookingStatus.Won, BookingStatus.Confirmed, BookingStatus.Lost];
+        [BookingStatus.Pending, BookingStatus.Won, BookingStatus.Confirmed, BookingStatus.Waitlisted];
 
     private readonly AppDbContext _db;
     private readonly IWaitlistService _waitlist;
@@ -150,8 +151,7 @@ public class BookingLifecycleService : IBookingLifecycleService
                 booking.ParkingSlot = null;
                 if (free.Count == 0)
                 {
-                    booking.Status = BookingStatus.Lost;
-                    booking.ConfirmedAt = null;
+                    Waitlist(booking);
                     waitlisted.Add(booking);
                     continue;
                 }
@@ -159,8 +159,7 @@ public class BookingLifecycleService : IBookingLifecycleService
                 var placement = _placer.Place([booking], free, location, gridCells, preferred);
                 if (!placement.TryGetValue(booking.Id, out var newSlotId))
                 {
-                    booking.Status = BookingStatus.Lost;
-                    booking.ConfirmedAt = null;
+                    Waitlist(booking);
                     waitlisted.Add(booking);
                     continue;
                 }
@@ -246,6 +245,15 @@ public class BookingLifecycleService : IBookingLifecycleService
 
         return (await _db.ParkingSlots.Where(s => ids.Contains(s.Id)).ToListAsync())
             .ToDictionary(s => s.Id);
+    }
+
+    // Back to the waitlist: no slot, no confirmation, no deadline to expire against.
+    private static void Waitlist(Booking booking)
+    {
+        booking.Status = BookingStatus.Waitlisted;
+        booking.ConfirmedAt = null;
+        booking.ConfirmationDeadline = null;
+        booking.ReminderSentAt = null;
     }
 
     private static void Cancel(Booking booking, Guid? actedBy, string reason, DateTime now)

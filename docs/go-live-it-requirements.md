@@ -79,7 +79,7 @@ For a sanctioned go-live, IT needs to confirm:
 - **Backup retention** — `BACKUP_RETENTION_DAYS=30` in `.env.production.example`. Confirm 30 days is sufficient for the data-protection officer.
 - **Monitoring/alerting** — none today. Minimum: a check that `https://park.schuler.de/api/health` returns 200 from corporate monitoring (Zabbix/Nagios/PRTG), alerting whoever is on-call.
 - **Log shipping** — container logs go to Docker's json-file driver only. If SIEM ingestion is required, wire `docker logs` into syslog / Loki / Splunk.
-- **Sizing / HA** — single-host today. If "all employees" means >100 concurrent at lottery hours (10 PM Europe/Berlin), validate CPU/RAM sizing. The app supports `--scale app=3` but real HA requires a second host.
+- **Sizing / HA** — single-host today. If "all employees" means >100 concurrent at lottery hours (21:00 Europe/Berlin by default), validate CPU/RAM sizing. The app supports `--scale app=3` but real HA requires a second host.
 
 ## 6. Security / Compliance
 

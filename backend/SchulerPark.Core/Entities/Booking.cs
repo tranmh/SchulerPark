@@ -14,6 +14,14 @@ public class Booking
     public DateTime? ConfirmedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    // Phase 20 (WP4): the confirmation deadline is stored when the booking becomes Won
+    // (lottery or waitlist promotion) instead of being recomputed from a fixed formula, so a
+    // late win can get a longer window (see DeadlineHelper.ComputeDeadline). Null unless Won.
+    /// <summary>UTC instant until which a Won booking can be confirmed.</summary>
+    public DateTime? ConfirmationDeadline { get; set; }
+    /// <summary>When the "please confirm" reminder went out; null until it did.</summary>
+    public DateTime? ReminderSentAt { get; set; }
+
     // Phase 20 (WP1): audit trail for cancellations that were not made by the booking's
     // owner through the normal cancel flow — admin cancels, capacity removal, account
     // disable/deletion. All three stay null for a plain user cancel.

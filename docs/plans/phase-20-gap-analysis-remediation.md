@@ -1,11 +1,17 @@
 # Phase 20 — Gap Analysis Remediation
 
 Date: 2026-09-23
-Status: WP1–WP3 implemented (2026-09-23); WP4–WP8 planned. Deviations from the text below:
+Status: WP1–WP4 implemented (2026-09-23); WP5–WP8 planned. Deviations from the text below:
 whole-location block/deactivation cancels Won/Confirmed bookings too (nobody can park there, so a
-"withdrawn, you are waitlisted" mail would mislead); `ConfirmationExpiryJob` + real `WaitlistService`
-test is deferred to WP4 because promotion is refused after the deadline by design until then; the
+"withdrawn, you are waitlisted" mail would mislead); the
 `TightenBookingUserDateSlotIndex` migration is not yet written (prod duplicate check pending).
+WP4 as built: the lottery moved to **21:00** and the Morning default deadline to **07:00** (Afternoon
+stays 13:00) — both configurable (`Booking:LotteryTime`, `Booking:ConfirmationDeadline:*`) and
+exposed via `GET /api/bookings/window` so the UI texts, mails and the Hangfire cron share one source;
+D1 resolved as auto-confirm; the Waitlisted badge is sky-blue (Pending already uses amber);
+`GET /api/bookings/my` returns `waitlistPosition`; a `Waitlisted` booking can be cancelled by its
+owner; `IX_Bookings_Status_ConfirmationDeadline` added for the 15-minute poll; the migration test
+executes the migrations' SQL constants against the Postgres fixture rather than replaying history.
 Source: `GapAnalysis-UserPerspective.md` (repo root, 2026-09-23). Item numbers below (1.1 … 3.5, §4, §5)
 refer to that document. Every item was re-verified against the working tree while writing this plan;
 file references are current.

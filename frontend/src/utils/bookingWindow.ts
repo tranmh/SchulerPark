@@ -18,6 +18,13 @@ export function formatLocalDate(d: Date): string {
 /** Default horizon when the server window has not been fetched (matches `Booking:MaxDaysAhead`). */
 export const DEFAULT_MAX_DAYS_AHEAD = 31;
 
+/** Schedule defaults used until the server window arrives (match `Booking:*` in appsettings). */
+export const DEFAULT_SCHEDULE = {
+  lotteryTime: '21:00',
+  morningDeadline: '07:00',
+  afternoonDeadline: '13:00',
+} as const;
+
 export interface BookingWindow {
   /** Berlin calendar date right now. */
   today: string;
@@ -30,6 +37,11 @@ export interface BookingWindow {
   morningOpenToday: boolean;
   /** Whether today's Afternoon slot can still be booked (before 18:00 Berlin). */
   afternoonOpenToday: boolean;
+  /** Berlin "HH:mm" of the nightly lottery (WP4). */
+  lotteryTime: string;
+  /** Default confirmation deadlines, Berlin "HH:mm" (WP4). */
+  morningDeadline: string;
+  afternoonDeadline: string;
 }
 
 /**
@@ -46,5 +58,6 @@ export function getBookingWindow(from: Date = new Date(), maxDaysAhead = DEFAULT
     maxDaysAhead,
     morningOpenToday: false,
     afternoonOpenToday: false,
+    ...DEFAULT_SCHEDULE,
   };
 }

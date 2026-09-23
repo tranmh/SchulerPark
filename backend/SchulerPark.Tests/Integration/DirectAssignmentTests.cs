@@ -177,7 +177,7 @@ public class DirectAssignmentTests
     }
 
     [Fact]
-    public async Task CreateBooking_AfterLottery_AllSlotsHeld_ReturnsLost()
+    public async Task CreateBooking_AfterLottery_AllSlotsHeld_ReturnsWaitlisted()
     {
         var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
         var occupant = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
@@ -190,7 +190,7 @@ public class DirectAssignmentTests
 
         var dto = await PostBookingAsync(auth.AccessToken, locationId, date);
 
-        dto.Status.Should().Be("Lost");
+        dto.Status.Should().Be("Waitlisted");
         dto.ParkingSlotId.Should().BeNull();
     }
 
@@ -247,7 +247,7 @@ public class DirectAssignmentTests
     }
 
     [Fact]
-    public async Task CreateBooking_AfterLottery_BlockedAndOccupied_ReturnsLost()
+    public async Task CreateBooking_AfterLottery_BlockedAndOccupied_ReturnsWaitlisted()
     {
         var auth = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
         var occupant = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
@@ -275,7 +275,7 @@ public class DirectAssignmentTests
 
         var dto = await PostBookingAsync(auth.AccessToken, locationId, date);
 
-        dto.Status.Should().Be("Lost");
+        dto.Status.Should().Be("Waitlisted");
     }
 
     [Fact]
@@ -307,14 +307,14 @@ public class DirectAssignmentTests
 
         var dto = await PostBookingAsync(auth.AccessToken, locationId, date);
 
-        dto.Status.Should().Be("Lost");
+        dto.Status.Should().Be("Waitlisted");
         var sent = _factory.Emails.Sent.Where(s => s.BookingId == dto.Id).ToList();
         sent.Should().Contain(("Waitlisted", dto.Id));
         sent.Should().NotContain(("BookingCreated", dto.Id));
     }
 
     [Fact]
-    public async Task CancelDirectlyConfirmed_PromotesLostWaitlister()
+    public async Task CancelDirectlyConfirmed_PromotesWaitlister()
     {
         var userA = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
         var userB = await AuthTestHelper.RegisterVerifiedAsync(_factory, _client);
@@ -326,7 +326,7 @@ public class DirectAssignmentTests
         bookingA.Status.Should().Be("Confirmed");
 
         var bookingB = await PostBookingAsync(userB.AccessToken, locationId, date);
-        bookingB.Status.Should().Be("Lost");
+        bookingB.Status.Should().Be("Waitlisted");
 
         var cancel = await _client.SendAsync(Authed(HttpMethod.Delete, $"/api/bookings/{bookingA.Id}", userA.AccessToken));
         cancel.StatusCode.Should().Be(HttpStatusCode.NoContent);

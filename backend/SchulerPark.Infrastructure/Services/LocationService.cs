@@ -106,7 +106,7 @@ public class LocationService : ILocationService
             {
                 var lotteryRan = lotteryRuns.Contains((date, timeSlot));
                 var pending = Count(date, timeSlot, BookingStatus.Pending);
-                var waitlist = Count(date, timeSlot, BookingStatus.Lost);
+                var waitlist = Count(date, timeSlot, BookingStatus.Waitlisted);
                 var booked = Count(date, timeSlot, BookingStatus.Won, BookingStatus.Confirmed);
 
                 if (isLocationBlocked)

@@ -37,12 +37,6 @@ file sealed class StaleFirstPlacer(Guid staleSlotId) : ISlotPlacer
     }
 }
 
-file sealed class NoopWaitlist : IWaitlistService
-{
-    public Task TryPromoteWaitlistAsync(Guid locationId, DateOnly date, TimeSlot timeSlot, Guid freedSlotId)
-        => Task.CompletedTask;
-}
-
 // Right before the waitlist promotion's UPDATE hits the DB, a competing Won booking on the
 // freed slot is committed on a separate connection — the race the 23505 handler exists for.
 file sealed class InsertCompetitorBeforeUpdateInterceptor(
@@ -142,7 +136,7 @@ public class SlotConflictRetryTests
         var placer = new StaleFirstPlacer(slotA);
         var direct = new DirectAssignmentService(db, placer, NullLogger<DirectAssignmentService>.Instance);
         var email = new CapturingEmailService();
-        var service = new BookingService(db, new NoopWaitlist(), direct, email, new RecordingPushService(),
+        var service = new BookingService(db, new NoopWaitlistService(), direct, email, new RecordingPushService(),
             Options.Create(new BookingSettings()), TimeProvider.System);
 
         var (booking, _) = await service.CreateBookingAsync(userId, locationId, date, TimeSlot.Morning);
@@ -171,7 +165,7 @@ public class SlotConflictRetryTests
             var lost = new Booking
             {
                 Id = Guid.NewGuid(), UserId = userId, LocationId = locationId,
-                Date = date, TimeSlot = TimeSlot.Morning, Status = BookingStatus.Lost
+                Date = date, TimeSlot = TimeSlot.Morning, Status = BookingStatus.Waitlisted
             };
             seed.Bookings.Add(lost);
             await seed.SaveChangesAsync();
@@ -181,14 +175,14 @@ public class SlotConflictRetryTests
         var interceptor = new InsertCompetitorBeforeUpdateInterceptor(_fx.ConnectionString, otherId, locationId, slotA, date);
         await using var db = _fx.NewContext(interceptor);
         var email = new CapturingEmailService();
-        var service = new WaitlistService(db, email, new RecordingPushService(), NullLogger<WaitlistService>.Instance);
+        var service = new WaitlistService(db, email, new RecordingPushService(), TestOptions.Booking, TimeProvider.System, NullLogger<WaitlistService>.Instance);
 
         // The guard sees a free slot, the UPDATE then hits the unique index → handled, no throw.
         await service.TryPromoteWaitlistAsync(locationId, date, TimeSlot.Morning, slotA);
 
         await using var check = _fx.NewContext();
         var lostAfter = await check.Bookings.SingleAsync(b => b.Id == lostId);
-        Assert.Equal(BookingStatus.Lost, lostAfter.Status);
+        Assert.Equal(BookingStatus.Waitlisted, lostAfter.Status);
         Assert.Null(lostAfter.ParkingSlotId);
         Assert.Equal(1, await check.Bookings.CountAsync(b => b.ParkingSlotId == slotA && b.Date == date && b.Status == BookingStatus.Won));
         Assert.DoesNotContain(email.Sent, e => e.Type == "WaitlistWon");

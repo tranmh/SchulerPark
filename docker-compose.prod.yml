@@ -33,6 +33,11 @@ services:
       Registration__SsoDomains: "${REGISTRATION_SSO_DOMAINS:-andritz.com}"
       # Phase 20: booking horizon in days (last bookable day = Berlin today + N).
       Booking__MaxDaysAhead: "${BOOKING_MAX_DAYS_AHEAD:-31}"
+      # Phase 20 WP4: lottery time and confirmation deadlines (Berlin HH:mm), minimum confirmation window.
+      Booking__LotteryTime: "${BOOKING_LOTTERY_TIME:-21:00}"
+      Booking__ConfirmationDeadline__Morning: "${BOOKING_MORNING_DEADLINE:-07:00}"
+      Booking__ConfirmationDeadline__Afternoon: "${BOOKING_AFTERNOON_DEADLINE:-13:00}"
+      Booking__MinConfirmationWindowMinutes: "${BOOKING_MIN_CONFIRMATION_WINDOW_MINUTES:-120}"
       AzureAd__TenantId: "${AZURE_AD_TENANT_ID}"
       AzureAd__ClientId: "${AZURE_AD_CLIENT_ID}"
       AzureAd__ClientSecret: "${AZURE_AD_CLIENT_SECRET}"

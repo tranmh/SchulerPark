@@ -80,7 +80,7 @@ public class LotteryObservabilityTests
 
         await using var db = _fx.NewContext();
         var service = new LotteryService(db, NullLogger<LotteryService>.Instance,
-            new CapturingEmailService(), new RecordingPushService(), new FailingForLocationPlacer(bad));
+            new CapturingEmailService(), new RecordingPushService(), new FailingForLocationPlacer(bad), TestOptions.Booking, TimeProvider.System);
 
         var summary = await service.RunAllLotteriesAsync(date);
 
@@ -110,8 +110,8 @@ public class LotteryObservabilityTests
 
         await using var db = _fx.NewContext();
         var lottery = new LotteryService(db, NullLogger<LotteryService>.Instance,
-            email, new RecordingPushService(), new FailingForLocationPlacer(bad));
-        var notifier = new AdminNotifier(db, email, AppOptions, NullLogger<AdminNotifier>.Instance);
+            email, new RecordingPushService(), new FailingForLocationPlacer(bad), TestOptions.Booking, TimeProvider.System);
+        var notifier = new AdminNotifier(db, email, AppOptions, TestOptions.Booking, NullLogger<AdminNotifier>.Instance);
         // 12:00 UTC the day before → Berlin "tomorrow" is the target date.
         var clock = new MutableTimeProvider { UtcNow = new DateTimeOffset(date.AddDays(-1).ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero) };
         var job = new LotteryJob(lottery, notifier, clock, NullLogger<LotteryJob>.Instance);
@@ -151,8 +151,8 @@ public class LotteryObservabilityTests
 
         await using var db = _fx.NewContext();
         var lottery = new LotteryService(db, NullLogger<LotteryService>.Instance,
-            email, new RecordingPushService(), new FailingForLocationPlacer(Guid.Empty));
-        var notifier = new AdminNotifier(db, email, AppOptions, NullLogger<AdminNotifier>.Instance);
+            email, new RecordingPushService(), new FailingForLocationPlacer(Guid.Empty), TestOptions.Booking, TimeProvider.System);
+        var notifier = new AdminNotifier(db, email, AppOptions, TestOptions.Booking, NullLogger<AdminNotifier>.Instance);
         var clock = new MutableTimeProvider { UtcNow = new DateTimeOffset(target.AddDays(-1).ToDateTime(new TimeOnly(21, 30)), TimeSpan.Zero) };
         var watchdog = new LotteryWatchdogJob(db, lottery, notifier, clock, NullLogger<LotteryWatchdogJob>.Instance);
 
@@ -180,10 +180,10 @@ public class LotteryObservabilityTests
 
         await using var db = _fx.NewContext();
         var lottery = new LotteryService(db, NullLogger<LotteryService>.Instance,
-            email, new RecordingPushService(), new FailingForLocationPlacer(Guid.Empty));
+            email, new RecordingPushService(), new FailingForLocationPlacer(Guid.Empty), TestOptions.Booking, TimeProvider.System);
         await lottery.RunAllLotteriesAsync(target);
 
-        var notifier = new AdminNotifier(db, email, AppOptions, NullLogger<AdminNotifier>.Instance);
+        var notifier = new AdminNotifier(db, email, AppOptions, TestOptions.Booking, NullLogger<AdminNotifier>.Instance);
         var clock = new MutableTimeProvider { UtcNow = new DateTimeOffset(target.AddDays(-1).ToDateTime(new TimeOnly(21, 30)), TimeSpan.Zero) };
         var watchdog = new LotteryWatchdogJob(db, lottery, notifier, clock, NullLogger<LotteryWatchdogJob>.Instance);
 

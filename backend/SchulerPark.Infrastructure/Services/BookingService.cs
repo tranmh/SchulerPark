@@ -53,7 +53,10 @@ public class BookingService : IBookingService
             MaxDate: today.AddDays(_settings.MaxDaysAhead),
             _settings.MaxDaysAhead,
             morningOpen,
-            afternoonOpen);
+            afternoonOpen,
+            LotteryTime: _settings.LotteryTimeOfDay.ToString("HH:mm"),
+            MorningDeadline: _settings.MorningDeadline.ToString("HH:mm"),
+            AfternoonDeadline: _settings.AfternoonDeadline.ToString("HH:mm"));
     }
 
     public async Task<(Booking Booking, string? FallbackReason)> CreateBookingAsync(
@@ -95,11 +98,9 @@ public class BookingService : IBookingService
         };
 
         // Same day: the lottery is history whether or not its row exists, so always assign
-        // directly — and a full day is a hard no rather than a waitlist entry nobody can
-        // promote in time (WP4 changes this to a Waitlisted booking).
+        // directly. A full day becomes a Waitlisted booking (WP4): a cancellation later in
+        // the day hands the slot over as Confirmed, no confirmation step needed.
         var outcome = await _directAssignment.ApplyAsync(booking, assumeLotteryRan: isSameDay);
-        if (isSameDay && outcome == DirectAssignmentOutcome.WaitlistedLost)
-            throw new ValidationException("No free parking slots left for today.", "no_slots_today");
 
         _db.Bookings.Add(booking);
         outcome = await SaveWithSlotConflictRetryAsync(booking, outcome, isSameDay);
@@ -130,13 +131,6 @@ public class BookingService : IBookingService
             booking.Status = BookingStatus.Pending;
             booking.ConfirmedAt = null;
             outcome = await _directAssignment.ApplyAsync(booking, assumeLotteryRan: isSameDay);
-
-            if (isSameDay && outcome == DirectAssignmentOutcome.WaitlistedLost)
-            {
-                // The last slot went to someone else mid-request; don't persist a dead booking.
-                _db.Entry(booking).State = EntityState.Detached;
-                throw new ValidationException("No free parking slots left for today.", "no_slots_today");
-            }
             return true;
         });
         return outcome;
@@ -150,7 +144,7 @@ public class BookingService : IBookingService
                 _ = _emailService.SendBookingDirectlyConfirmedAsync(booking);
                 _ = _pushService.SendBookingDirectlyConfirmedAsync(booking);
                 break;
-            case DirectAssignmentOutcome.WaitlistedLost:
+            case DirectAssignmentOutcome.Waitlisted:
                 _ = _emailService.SendBookingWaitlistedAsync(booking);
                 _ = _pushService.SendBookingWaitlistedAsync(booking);
                 break;
@@ -305,11 +299,14 @@ public class BookingService : IBookingService
         if (booking.UserId != userId)
             throw new ForbiddenException("You can only cancel your own bookings.");
 
+        // WP4: leaving the waitlist is a cancel too.
         if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Won
-            && booking.Status != BookingStatus.Confirmed)
-            throw new ValidationException("Only Pending, Won, or Confirmed bookings can be cancelled.", "booking_not_cancellable");
+            && booking.Status != BookingStatus.Confirmed && booking.Status != BookingStatus.Waitlisted)
+            throw new ValidationException("Only Pending, Won, Confirmed or Waitlisted bookings can be cancelled.", "booking_not_cancellable");
 
-        var freedSlotId = booking.ParkingSlotId;
+        var freedSlotId = booking.Status == BookingStatus.Won || booking.Status == BookingStatus.Confirmed
+            ? booking.ParkingSlotId
+            : null;
         booking.Status = BookingStatus.Cancelled;
         booking.ParkingSlotId = null;
         booking.CancelledAt = UtcNow;
@@ -338,7 +335,7 @@ public class BookingService : IBookingService
         if (booking.Status != BookingStatus.Won)
             throw new ValidationException("Only Won bookings can be confirmed.", "booking_not_confirmable");
 
-        if (DeadlineHelper.IsDeadlinePassed(booking.Date, booking.TimeSlot, UtcNow))
+        if (DeadlineHelper.IsDeadlinePassed(booking, UtcNow))
             throw new ValidationException("Confirmation deadline has passed.", "confirmation_deadline_passed");
 
         booking.Status = BookingStatus.Confirmed;
@@ -351,13 +348,15 @@ public class BookingService : IBookingService
     /// <summary>
     /// WP3 2.9: one live booking per user per date and time slot, at any location. A
     /// duplicate at the same location keeps its old code; at another location the
-    /// message names it so the user knows what to cancel.
+    /// message names it so the user knows what to cancel. Lost (day over) rows never
+    /// collide with a new booking, since the date is in the past by then.
     /// </summary>
     private async Task EnsureNoDuplicateAsync(Guid userId, Guid locationId, DateOnly date, TimeSlot timeSlot)
     {
         var existing = await _db.Bookings
             .Where(b => b.UserId == userId && b.Date == date && b.TimeSlot == timeSlot &&
-                        b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired)
+                        b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired
+                        && b.Status != BookingStatus.Lost)
             .Select(b => new { b.LocationId, LocationName = b.Location.Name })
             .FirstOrDefaultAsync();
         if (existing == null)

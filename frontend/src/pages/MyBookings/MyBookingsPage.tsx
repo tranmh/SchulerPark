@@ -12,11 +12,25 @@ const STATUS_OPTIONS: (BookingStatus | 'All')[] = [
   'All',
   'Pending',
   'Won',
-  'Lost',
+  'Waitlisted',
   'Confirmed',
+  'Lost',
   'Cancelled',
   'Expired',
 ];
+
+/** Statuses the owner may cancel (leaving the waitlist counts as a cancel, WP4). */
+const CANCELLABLE: BookingStatus[] = ['Pending', 'Won', 'Waitlisted', 'Confirmed'];
+
+/** Ticks once a minute so deadline countdowns and the Confirm button stay honest (WP4 2.8). */
+function useNow(intervalMs = 60_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
 
 export function MyBookingsPage() {
   const { i18n, t } = useTranslation();
@@ -31,6 +45,7 @@ export function MyBookingsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const now = useNow();
 
   const pageSize = 20;
   const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-US';
@@ -95,7 +110,7 @@ export function MyBookingsPage() {
 
   const totalPages = Math.ceil(totalCount / pageSize);
   const activeCount = useMemo(
-    () => bookings.filter((b) => b.status === 'Pending' || b.status === 'Won' || b.status === 'Confirmed').length,
+    () => bookings.filter((b) => b.status === 'Pending' || b.status === 'Won' || b.status === 'Waitlisted' || b.status === 'Confirmed').length,
     [bookings]
   );
 
@@ -191,6 +206,10 @@ export function MyBookingsPage() {
           {bookings.map((b) => {
             const { weekday, day, month } = formatDayParts(b.date);
             const isFaded = b.status === 'Cancelled' || b.status === 'Expired' || b.status === 'Lost';
+            // WP4 2.8: the Confirm button disappears the moment the deadline passes; the
+            // expiry job catches up within 15 minutes, so the pill alone tells the story.
+            const deadlineMs = b.confirmationDeadline ? new Date(b.confirmationDeadline).getTime() : null;
+            const canConfirm = b.status === 'Won' && (deadlineMs === null || deadlineMs > now);
             return (
               <div key={b.id} className={`flex flex-wrap items-center gap-3 p-4 sm:gap-4 sm:p-5 ${isFaded ? 'opacity-90' : ''}`}>
                 <div className="w-12 shrink-0 text-center sm:w-14">
@@ -209,6 +228,14 @@ export function MyBookingsPage() {
                       {b.locationName} · {t(`components.timeSlot.${b.timeSlot}`)}
                     </div>
                     <BookingStatusBadge status={b.status} />
+                    {b.status === 'Waitlisted' && b.waitlistPosition != null && (
+                      <span
+                        title={t('myBookings.waitlistPositionHint')}
+                        className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11.5px] font-medium text-sky-800 ring-1 ring-inset ring-sky-200 num"
+                      >
+                        {t('myBookings.waitlistPosition', { n: b.waitlistPosition })}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-ink-400">
                     <span>{b.timeSlot === 'Morning' ? t('components.timeSlot.morningRange') : t('components.timeSlot.afternoonRange')}</span>
@@ -222,20 +249,20 @@ export function MyBookingsPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  {b.status === 'Won' && (
-                    <>
-                      {b.confirmationDeadline && <DeadlineCountdown deadline={b.confirmationDeadline} />}
-                      <button
-                        type="button"
-                        onClick={() => handleConfirm(b.id)}
-                        disabled={confirmingId === b.id}
-                        className="min-h-10 flex-1 rounded-lg bg-emerald-600 px-3.5 py-2 text-[12.5px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:flex-none"
-                      >
-                        {confirmingId === b.id ? t('myBookings.confirming') : t('myBookings.confirmUsage')}
-                      </button>
-                    </>
+                  {b.status === 'Won' && b.confirmationDeadline && (
+                    <DeadlineCountdown deadline={b.confirmationDeadline} now={now} />
                   )}
-                  {(b.status === 'Pending' || b.status === 'Won' || b.status === 'Confirmed') && (
+                  {canConfirm && (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirm(b.id)}
+                      disabled={confirmingId === b.id}
+                      className="min-h-10 flex-1 rounded-lg bg-emerald-600 px-3.5 py-2 text-[12.5px] font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:flex-none"
+                    >
+                      {confirmingId === b.id ? t('myBookings.confirming') : t('myBookings.confirmUsage')}
+                    </button>
+                  )}
+                  {CANCELLABLE.includes(b.status) && (
                     <button
                       type="button"
                       onClick={() => setCancelTarget(b)}
@@ -299,14 +326,8 @@ export function MyBookingsPage() {
   );
 }
 
-function DeadlineCountdown({ deadline }: { deadline: string }) {
+function DeadlineCountdown({ deadline, now }: { deadline: string; now: number }) {
   const { t } = useTranslation();
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
 
   const remaining = useMemo(() => {
     const deadlineMs = new Date(deadline).getTime();

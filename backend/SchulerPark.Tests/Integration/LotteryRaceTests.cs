@@ -110,7 +110,7 @@ public class LotteryRaceTests
 
         var service = new LotteryService(
             db, NullLogger<LotteryService>.Instance,
-            new CapturingEmailService(), new RecordingPushService(), new FirstFitSlotPlacer());
+            new CapturingEmailService(), new RecordingPushService(), new FirstFitSlotPlacer(), TestOptions.Booking, TimeProvider.System);
 
         await service.RunLotteryForSlotAsync(locationId, date, TimeSlot.Morning);
 

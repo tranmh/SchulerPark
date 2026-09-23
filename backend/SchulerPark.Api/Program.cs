@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using SchulerPark.Api.Security;
 using SchulerPark.Core.Entities;
@@ -329,17 +330,18 @@ if (app.Environment.IsDevelopment())
     }).AllowAnonymous();
 }
 
-// Health check endpoint. WP1 3.5: after 22:30 Berlin it also reports whether tomorrow's
-// lottery has run, so the external health check can alert on a missed run. Before that
-// (and if the DB is unreachable) `lottery` is null.
-app.MapGet("/api/health", async (AppDbContext db, TimeProvider time) =>
+// Health check endpoint. WP1 3.5: from 30 minutes after lottery time (Berlin) it also
+// reports whether tomorrow's lottery has run, so the external health check can alert on a
+// missed run. Before that (and if the DB is unreachable) `lottery` is null.
+app.MapGet("/api/health", async (AppDbContext db, TimeProvider time, IOptions<BookingSettings> bookingSettings) =>
 {
     object? lottery = null;
     try
     {
         var utcNow = time.GetUtcNow().UtcDateTime;
         var berlinNow = SchulerPark.Core.Helpers.DeadlineHelper.ToBerlin(utcNow);
-        if (berlinNow.TimeOfDay >= new TimeSpan(22, 30, 0))
+        var reportFrom = bookingSettings.Value.LotteryTimeOfDay.ToTimeSpan().Add(TimeSpan.FromMinutes(30));
+        if (berlinNow.TimeOfDay >= reportFrom)
         {
             var tomorrow = DateOnly.FromDateTime(berlinNow).AddDays(1);
             var lastRunAt = await db.LotteryRuns.MaxAsync(r => (DateTime?)r.RanAt);
@@ -363,14 +365,15 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
     var berlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+    var lotteryTime = app.Services.GetRequiredService<IOptions<BookingSettings>>().Value.LotteryTimeOfDay;
 
-    // Lottery recurring job: 10 PM Europe/Berlin daily. Relaxed misfire handling (WP1 3.5):
-    // if the server was down at 22:00, Hangfire fires the job once when it comes back
-    // instead of skipping the night.
+    // Lottery recurring job: daily at Booking:LotteryTime Europe/Berlin (default 21:00).
+    // Relaxed misfire handling (WP1 3.5): if the server was down at that time, Hangfire
+    // fires the job once when it comes back instead of skipping the night.
     jobManager.AddOrUpdate<LotteryJob>(
         "daily-lottery",
         job => job.ExecuteAsync(null),
-        "0 22 * * *",
+        $"{lotteryTime.Minute} {lotteryTime.Hour} * * *",
         new RecurringJobOptions { TimeZone = berlinTz, MisfireHandling = MisfireHandlingMode.Relaxed });
 
     // Lottery watchdog (WP1 3.5): 23:30 checks tomorrow, 05:00 checks today — runs any
@@ -386,11 +389,12 @@ if (!app.Environment.IsEnvironment("Testing"))
         "0 5 * * *",
         new RecurringJobOptions { TimeZone = berlinTz, MisfireHandling = MisfireHandlingMode.Relaxed });
 
-    // Confirmation expiry job: every hour
+    // Confirmation expiry job: every 15 minutes (WP4 — stored deadlines are arbitrary
+    // instants, and an expiry should follow its deadline within a quarter hour).
     jobManager.AddOrUpdate<ConfirmationExpiryJob>(
         "confirmation-expiry",
         job => job.ExecuteAsync(),
-        "0 * * * *",
+        "*/15 * * * *",
         new RecurringJobOptions { TimeZone = berlinTz });
 
     // Data retention job: weekly, Sunday 2 AM

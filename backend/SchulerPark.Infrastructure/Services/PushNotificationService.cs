@@ -140,6 +140,49 @@ public class PushNotificationService : IPushNotificationService
         });
     }
 
+    public Task SendConfirmationReminderAsync(Booking booking)
+    {
+        var (_, de) = LanguageOf(booking);
+        var deadline = BerlinDeadline(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Bitte Parkplatz bestätigen" : "Please confirm your parking spot",
+            Body = de
+                ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} verfällt um {deadline:HH:mm} Uhr, wenn Sie ihn nicht bestätigen."
+                : $"Your spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} expires at {deadline:HH:mm} unless you confirm it.",
+            Url = "/my-bookings",
+            // One reminder per booking on screen: a later reminder replaces an earlier one.
+            Tag = $"confirm-{booking.Id:N}"
+        });
+    }
+
+    public Task SendBookingExpiredAsync(Booking booking)
+    {
+        var (_, de) = LanguageOf(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Buchung verfallen" : "Booking expired",
+            Body = de
+                ? $"Ihr Platz in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} wurde nicht bestätigt und ist an die Warteliste gegangen."
+                : $"Your spot at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} was not confirmed and has gone to the waitlist.",
+            Url = "/my-bookings",
+            Tag = $"confirm-{booking.Id:N}"
+        });
+    }
+
+    public Task SendWaitlistAutoConfirmedAsync(Booking booking)
+    {
+        var (_, de) = LanguageOf(booking);
+        return SendToUserAsync(booking.UserId, new PushPayload
+        {
+            Title = de ? "Ein Platz ist frei geworden — bestätigt!" : "A spot opened up — confirmed!",
+            Body = de
+                ? $"Platz {booking.ParkingSlot?.SlotNumber} in {booking.Location.Name} am {booking.Date:dd.MM.yyyy} gehört Ihnen. Keine Bestätigung nötig."
+                : $"Slot {booking.ParkingSlot?.SlotNumber} at {booking.Location.Name} on {booking.Date:dd.MM.yyyy} is yours. No confirmation needed.",
+            Url = "/my-bookings"
+        });
+    }
+
     public async Task<PushSendResult> SendTestAsync(Guid userId)
     {
         var language = await _db.Users
@@ -163,6 +206,9 @@ public class PushNotificationService : IPushNotificationService
         var lang = Localization.Normalize(booking.User?.PreferredLanguage);
         return (lang, Localization.IsGerman(lang));
     }
+
+    private static DateTime BerlinDeadline(Booking booking) =>
+        DeadlineHelper.ToBerlin(booking.ConfirmationDeadline ?? DeadlineHelper.SlotEndUtc(booking.Date, booking.TimeSlot));
 
     private async Task<PushSendResult> SendToUserAsync(Guid userId, PushPayload payload)
     {
@@ -224,5 +270,8 @@ public class PushNotificationService : IPushNotificationService
         public string Title { get; init; } = "";
         public string Body { get; init; } = "";
         public string Url { get; init; } = "/";
+        /// <summary>Notification tag (WP4): a new notification with the same tag replaces the old one.</summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public string? Tag { get; init; }
     }
 }

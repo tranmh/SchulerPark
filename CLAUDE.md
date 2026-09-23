@@ -7,7 +7,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Backend:** .NET 10, ASP.NET Core Web API, Entity Framework Core, PostgreSQL
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4
 - **Auth:** Azure AD SSO (Microsoft.Identity.Web) + local auth fallback (JWT)
-- **Scheduling:** Hangfire (lottery at 10 PM daily, expiry hourly, retention weekly — Europe/Berlin)
+- **Scheduling:** Hangfire (lottery daily at `Booking:LotteryTime`, default 21:00; confirmation expiry every 15 min; retention weekly — Europe/Berlin)
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
 - **Reverse Proxy:** Caddy 2 (stock `caddy:2-alpine`), currently `tls internal` (self-signed CA) on `louise.schuler.de` (canonical; `park.schuler.de` aliased) — Let's Encrypt DNS-01 migration is planned, see `docs/plans/phase-15-letsencrypt-dns01.md`. HTTP→HTTPS 308 redirect enforced (no plaintext site block). Security headers incl. CSP; HSTS deliberately off until a trusted cert is live.
@@ -92,7 +92,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `POST /api/auth/forgot-password` — Request a password-reset mail (always 202, no enumeration)
 - `POST /api/auth/reset-password` — Set a new password with the single-use token (1 h validity)
 - `POST /api/profile/change-password` — Change password; revokes other sessions, returns a fresh token pair
-- `GET /api/bookings/window` — Server-side bookable window in Berlin (`today`, `minDate`, `maxDate`, same-day slot flags)
+- `GET /api/bookings/window` — Server-side bookable window in Berlin (`today`, `minDate`, `maxDate`, same-day slot flags) plus the schedule the UI shows (`lotteryTime`, `morningDeadline`, `afternoonDeadline`)
 - `GET /api/locations` — List active locations
 - `POST /api/bookings` — Create booking
 - `GET /api/bookings/my` — User's bookings
@@ -118,15 +118,17 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 ## Hangfire Jobs
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `LotteryJob` | Daily 10 PM (Relaxed misfire, 3 retries) | Assign parking slots for next day; a failing slot mails admins and fails the job |
+| `LotteryJob` | Daily at `Booking:LotteryTime` (default 21:00; Relaxed misfire, 3 retries) | Assign parking slots for next day (winners Won with a stored deadline, losers Waitlisted); a failing slot mails admins and fails the job |
 | `LotteryWatchdogJob` | 23:30 (tomorrow) and 05:00 (today) | Runs any lottery that never ran, sweeps stale Pending to Lost, mails admins |
-| `ConfirmationExpiryJob` | Hourly | Expire unconfirmed Won bookings |
+| `ConfirmationExpiryJob` | Every 15 min | Reminds once (mail + push) an hour before the stored deadline, expires unconfirmed Won (mail + push, slot to waitlist), closes Waitlisted past slot end as Lost |
 | `DataRetentionJob` | Weekly Sunday 2 AM | Delete data older than 1 year, hard-delete soft-deleted users |
 
 ## Booking Rules (Phase 20)
-- Window: Berlin today … today + `Booking:MaxDaysAhead` (default 31, env `Booking__MaxDaysAhead`); the frontend reads it from `GET /api/bookings/window`. Same-day bookings are allowed until the slot ends (Morning 12:00, Afternoon 18:00 Berlin) and are always assigned directly; a full day is a 400 `no_slots_today`.
+- Window: Berlin today … today + `Booking:MaxDaysAhead` (default 31, env `Booking__MaxDaysAhead`); the frontend reads it from `GET /api/bookings/window`. Same-day bookings are allowed until the slot ends (Morning 12:00, Afternoon 18:00 Berlin) and are always assigned directly; a full day yields a `Waitlisted` booking.
 - One live booking per user per date and time slot across all locations (`booking_duplicate_other_location` carries the other location in `params.location`).
 - Availability: `bookingCount` = Won + Confirmed; `pendingCount`/`waitlistCount`/`lotteryRan` let the UI show demand before the lottery and free slots after it.
+- Statuses (WP4): `Waitlisted` = no slot yet, day still ahead, promoted automatically; `Lost` is terminal (day over). Lottery losers, full same-day bookings and withdrawn slots become Waitlisted; the expiry job turns Waitlisted into Lost at slot end. Users can cancel a Waitlisted booking.
+- Confirmation (WP4): `Booking.ConfirmationDeadline` is stored when a booking becomes Won — `DeadlineHelper.ComputeDeadline` = max(default deadline, now + `Booking:MinConfirmationWindowMinutes` (120)) capped at slot end. Defaults `Booking:ConfirmationDeadline:Morning` = 07:00, `Afternoon` = 13:00 Berlin (env `Booking__ConfirmationDeadline__Morning` etc.). `Booking:LotteryTime` (default 21:00, env `Booking__LotteryTime`) drives the Hangfire cron, the health check and every time shown to users. `WaitlistService` promotes to Won while the default deadline is more than the minimum window away, otherwise directly to Confirmed (auto-confirm mail/push); promotion works until slot end, not just until the deadline. `Booking.ReminderSentAt` makes the reminder single-shot. Push payloads may carry a `tag` so a newer notification replaces an older one.
 - `IBookingLifecycleService` is the single place that releases/reassigns bookings when a user is disabled/deleted or a slot/location is blocked/deactivated; `Booking.CancelledByUserId/CancelReason/CancelledAt` hold the audit trail.
 - Time-dependent code takes `TimeProvider` (tests pin it via `CustomWebApplicationFactory.Clock`). Migrations are hand-written (no `dotnet-ef` on the box); update `AppDbContextModelSnapshot.cs` by hand to match.
 

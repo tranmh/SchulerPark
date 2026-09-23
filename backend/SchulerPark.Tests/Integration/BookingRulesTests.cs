@@ -149,7 +149,7 @@ public class BookingRulesTests
         var date = FutureDate(10);
         await SeedLotteryRunAsync(_factory, locationId, date, TimeSlot.Afternoon);
         await SeedBookingAsync(_factory, w1.User.Id, locationId, slotIds[0], date, TimeSlot.Afternoon, BookingStatus.Won);
-        await SeedBookingAsync(_factory, w2.User.Id, locationId, null, date, TimeSlot.Afternoon, BookingStatus.Lost);
+        await SeedBookingAsync(_factory, w2.User.Id, locationId, null, date, TimeSlot.Afternoon, BookingStatus.Waitlisted);
 
         var response = await _client.SendAsync(Authed(HttpMethod.Get,
             $"/api/locations/{locationId}/availability?from={date:yyyy-MM-dd}&to={date:yyyy-MM-dd}", owner.AccessToken));
@@ -200,27 +200,56 @@ public class BookingRulesTests
     }
 
     [Fact]
-    public async Task SameDay_WhenFull_Returns400_AndPersistsNothing()
+    public async Task SameDay_WhenFull_Waitlists_AndAutoConfirmsWhenTheHolderCancels()
     {
         var first = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "full1");
         var second = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "full2");
-        var (locationId, _) = await SeedLocationAsync(_factory, 1);
+        var (locationId, slotIds) = await SeedLocationAsync(_factory, 1);
 
+        // 2026-06-11 08:00 UTC = 10:00 Berlin: Morning still open, but past the 07:00 deadline
+        // minus the 2 h window → a freed slot is handed over as Confirmed (WP4 D1).
         using (_factory.Clock.Pin(new DateTimeOffset(2026, 6, 11, 8, 0, 0, TimeSpan.Zero)))
         {
-            (await PostBookingAsync(first.AccessToken, locationId, new DateOnly(2026, 6, 11))).StatusCode.Should().Be(HttpStatusCode.Created);
+            var held = await PostBookingAsync(first.AccessToken, locationId, new DateOnly(2026, 6, 11));
+            held.StatusCode.Should().Be(HttpStatusCode.Created);
+            var heldDto = (await held.Content.ReadFromJsonAsync<BookingDto>())!;
 
             var full = await PostBookingAsync(second.AccessToken, locationId, new DateOnly(2026, 6, 11));
-            full.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            (await CodeOf(full)).Should().Be("no_slots_today");
-        }
+            full.StatusCode.Should().Be(HttpStatusCode.Created);
+            var waitlisted = (await full.Content.ReadFromJsonAsync<BookingDto>())!;
+            waitlisted.Status.Should().Be("Waitlisted");
+            waitlisted.ParkingSlotId.Should().BeNull();
+            _factory.Emails.Sent.Should().Contain(("Waitlisted", waitlisted.Id));
 
-        await WithDbAsync(_factory, async db =>
-        {
-            var rows = db.Bookings.Where(b => b.UserId == second.User.Id).ToList();
-            rows.Should().BeEmpty();
-            await Task.CompletedTask;
-        });
+            // The waitlisted user sees their (only) queue position.
+            var my = await _client.SendAsync(Authed(HttpMethod.Get, "/api/bookings/my", second.AccessToken));
+            var list = await my.Content.ReadFromJsonAsync<JsonElement>();
+            list.GetProperty("bookings")[0].GetProperty("waitlistPosition").GetInt32().Should().Be(1);
+
+            (await _client.SendAsync(Authed(HttpMethod.Delete, $"/api/bookings/{heldDto.Id}", first.AccessToken)))
+                .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+            var promoted = await GetBookingAsync(_factory, waitlisted.Id);
+            promoted.Status.Should().Be(BookingStatus.Confirmed);
+            promoted.ParkingSlotId.Should().Be(slotIds[0]);
+            promoted.ConfirmedAt.Should().Be(new DateTime(2026, 6, 11, 8, 0, 0, DateTimeKind.Utc));
+            _factory.Emails.Sent.Should().Contain(("WaitlistAutoConfirmed", waitlisted.Id));
+            _factory.Emails.Sent.Should().NotContain(("WaitlistWon", waitlisted.Id));
+        }
+    }
+
+    [Fact]
+    public async Task Waitlisted_CanBeCancelled_ByOwner()
+    {
+        var user = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "leave");
+        var (locationId, _) = await SeedLocationAsync(_factory, 1);
+        var date = FutureDate(11);
+        var id = await SeedBookingAsync(_factory, user.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted);
+
+        (await _client.SendAsync(Authed(HttpMethod.Delete, $"/api/bookings/{id}", user.AccessToken)))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await GetBookingAsync(_factory, id)).Status.Should().Be(BookingStatus.Cancelled);
     }
 
     [Fact]
@@ -254,9 +283,14 @@ public class BookingRulesTests
         var date = new DateOnly(2026, 6, 12);
         var bookingId = await SeedBookingAsync(_factory, user.User.Id, locationId, slotIds[0], date, TimeSlot.Morning, BookingStatus.Won);
 
-        // Deadline is 06:00 Berlin = 04:00 UTC on the day; 22:30 UTC the evening before is fine.
+        // Deadline is 07:00 Berlin = 05:00 UTC on the day; 22:30 UTC the evening before is fine.
         using (_factory.Clock.Pin(new DateTimeOffset(2026, 6, 11, 22, 30, 0, TimeSpan.Zero)))
         {
+            var my = await _client.SendAsync(Authed(HttpMethod.Get, "/api/bookings/my?status=Won", user.AccessToken));
+            var listed = (await my.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("bookings")[0];
+            listed.GetProperty("confirmationDeadline").GetDateTime().ToUniversalTime()
+                .Should().Be(new DateTime(2026, 6, 12, 5, 0, 0, DateTimeKind.Utc));
+
             var response = await _client.SendAsync(Authed(HttpMethod.Post, $"/api/bookings/{bookingId}/confirm", user.AccessToken));
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var dto = (await response.Content.ReadFromJsonAsync<BookingDto>())!;
@@ -274,8 +308,8 @@ public class BookingRulesTests
         var date = new DateOnly(2026, 6, 12);
         var bookingId = await SeedBookingAsync(_factory, user.User.Id, locationId, slotIds[0], date, TimeSlot.Morning, BookingStatus.Won);
 
-        // 04:01 UTC = 06:01 Berlin → one minute past the Morning deadline.
-        using (_factory.Clock.Pin(new DateTimeOffset(2026, 6, 12, 4, 1, 0, TimeSpan.Zero)))
+        // 05:01 UTC = 07:01 Berlin → one minute past the stored Morning deadline.
+        using (_factory.Clock.Pin(new DateTimeOffset(2026, 6, 12, 5, 1, 0, TimeSpan.Zero)))
         {
             var response = await _client.SendAsync(Authed(HttpMethod.Post, $"/api/bookings/{bookingId}/confirm", user.AccessToken));
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

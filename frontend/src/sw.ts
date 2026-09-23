@@ -56,6 +56,9 @@ self.addEventListener('push', (event) => {
       // white-on-transparent glyph rather than the full-colour app icon.
       badge: '/badge-96x96.png',
       data: { url: data.url || '/' },
+      // WP4: the server tags related notifications (e.g. confirmation reminder → expired)
+      // so a newer one replaces the older instead of stacking up.
+      ...(typeof data.tag === 'string' && data.tag ? { tag: data.tag } : {}),
     })
   );
 });

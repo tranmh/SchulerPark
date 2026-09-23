@@ -9,6 +9,8 @@ interface Props {
   demand?: { morning?: SlotDemand; afternoon?: SlotDemand };
   /** Slots that can no longer be booked today (Berlin wall clock past the slot end). */
   closedSlots?: TimeSlot[];
+  /** Berlin "HH:mm" of the nightly lottery, shown next to pre-lottery demand (WP4). */
+  lotteryTime?: string;
 }
 
 interface SlotDef {
@@ -41,7 +43,7 @@ const pillClass: Record<Tone, string> = {
 };
 const dotClass: Record<Tone, string> = { emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500' };
 
-export function TimeSlotSelector({ value, onChange, demand, closedSlots = [] }: Props) {
+export function TimeSlotSelector({ value, onChange, demand, closedSlots = [], lotteryTime = '21:00' }: Props) {
   const { t } = useTranslation();
   const slots: SlotDef[] = [
     { slot: 'Morning',   label: t('components.timeSlot.Morning'),   time: t('components.timeSlot.morningRange'),   demand: demand?.morning,   icon: SunIcon },
@@ -65,7 +67,7 @@ export function TimeSlotSelector({ value, onChange, demand, closedSlots = [] }: 
             pill = {
               tone: d.pending >= d.total ? 'amber' : 'emerald',
               text: t('components.timeSlot.requests', { count: d.pending, total: d.total }),
-              hint: t('components.timeSlot.lotteryPending'),
+              hint: t('components.timeSlot.lotteryPending', { time: lotteryTime }),
             };
           } else if (d.available <= 0) {
             isFull = true;

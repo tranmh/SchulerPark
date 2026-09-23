@@ -9,7 +9,7 @@ using SchulerPark.Core.Interfaces;
 using SchulerPark.Infrastructure.Data;
 
 /// <summary>
-/// Phase 20 WP1 3.5: catches a lottery that never ran (app down at 22:00, all retries
+/// Phase 20 WP1 3.5: catches a lottery that never ran (app down at lottery time, all retries
 /// exhausted). Scheduled at 23:30 (target = tomorrow) and 05:00 (target = today) Berlin.
 /// For every active location × time slot with Pending bookings but no LotteryRun row it
 /// runs that slot's lottery itself, then sweeps Pending bookings dated in the past to
@@ -39,7 +39,7 @@ public class LotteryWatchdogJob
     {
         var berlinNow = DeadlineHelper.ToBerlin(_time.GetUtcNow().UtcDateTime);
         var today = DateOnly.FromDateTime(berlinNow);
-        // Evening run (after the 22:00 lottery) checks tomorrow; the early-morning run checks today.
+        // Evening run (after the nightly lottery) checks tomorrow; the early-morning run checks today.
         var target = berlinNow.Hour >= 12 ? today.AddDays(1) : today;
         return ExecuteAsync(target);
     }

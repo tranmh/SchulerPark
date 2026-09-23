@@ -101,6 +101,14 @@ export function BookingPage() {
 
   const selectedLocation = locations.find((l) => l.id === locationId);
 
+  // WP4: the lottery time and confirmation deadlines shown in the explanatory texts come
+  // from the server (Booking:* settings), so the UI never contradicts the actual schedule.
+  const schedule = {
+    lottery: bookingWindow.lotteryTime,
+    morning: bookingWindow.morningDeadline,
+    afternoon: bookingWindow.afternoonDeadline,
+  };
+
   // Slots that are already over today (Berlin wall clock past the slot end).
   const closedToday = useMemo<TimeSlot[]>(() => {
     const closed: TimeSlot[] = [];
@@ -229,7 +237,7 @@ export function BookingPage() {
               </span>
             </div>
           )}
-          {singleResult.status === 'Lost' && (
+          {singleResult.status === 'Waitlisted' && (
             <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
               <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -267,7 +275,7 @@ export function BookingPage() {
   if (weekResult) {
     const fallbackBookings = weekResult.created.filter((b) => b.fallbackReason);
     const assignedBookings = weekResult.created.filter((b) => b.status === 'Confirmed');
-    const waitlistedBookings = weekResult.created.filter((b) => b.status === 'Lost');
+    const waitlistedBookings = weekResult.created.filter((b) => b.status === 'Waitlisted');
     return (
       <div>
         <PageHeader title={t('booking.weekResultTitle')} subtitle={t('booking.weekResultSubtitle')} />
@@ -502,7 +510,7 @@ export function BookingPage() {
                       </svg>
                     </div>
                     <div className="text-[12.5px] leading-relaxed text-brand-900">
-                      <Trans i18nKey="booking.lotteryInfo" components={{ b: <b /> }} />
+                      <Trans i18nKey="booking.lotteryInfo" values={schedule} components={{ b: <b /> }} />
                     </div>
                   </div>
                 </div>
@@ -535,6 +543,7 @@ export function BookingPage() {
               onChange={handleTimeSlotSelect}
               demand={dateAvailability}
               closedSlots={weekMode ? [] : closedForSelectedDate}
+              lotteryTime={bookingWindow.lotteryTime}
             />
           </div>
         )}
@@ -598,8 +607,8 @@ export function BookingPage() {
                 <div className="font-semibold text-ink-900 text-[13px]">{t('booking.whatHappensNext')}</div>
                 <ol className="mt-3 space-y-2.5">
                   <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">1.</span>{t('booking.next1')}</li>
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">2.</span><Trans i18nKey="booking.next2" components={{ b: <b /> }} /></li>
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">3.</span><Trans i18nKey="booking.next3" components={{ b: <b /> }} /></li>
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">2.</span><Trans i18nKey="booking.next2" values={schedule} components={{ b: <b /> }} /></li>
+                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">3.</span><Trans i18nKey="booking.next3" values={schedule} components={{ b: <b /> }} /></li>
                   <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">4.</span>{t('booking.nextDirectNote')}</li>
                 </ol>
               </aside>

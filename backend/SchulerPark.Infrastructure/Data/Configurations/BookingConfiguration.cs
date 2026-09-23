@@ -19,6 +19,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         // Phase 20 WP1: cancellation audit trail
         builder.Property(b => b.CancelReason).HasMaxLength(300);
 
+        // Phase 20 WP4: the expiry job polls Won rows by deadline every 15 minutes.
+        builder.HasIndex(b => new { b.Status, b.ConfirmationDeadline })
+            .HasDatabaseName("IX_Bookings_Status_ConfirmationDeadline");
+
         builder.HasOne(b => b.User)
             .WithMany(u => u.Bookings)
             .HasForeignKey(b => b.UserId)

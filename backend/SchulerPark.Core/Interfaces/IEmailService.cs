@@ -32,6 +32,12 @@ public interface IEmailService
     /// <summary>Operational alert to one admin (lottery failure, watchdog intervention). Paragraphs are plain text, already localized.</summary>
     Task SendAdminAlertAsync(string adminEmail, string adminDisplayName, string subject, IReadOnlyList<string> paragraphs, string language);
 
+    // ── Phase 20 WP4: confirmation model ──
+    /// <summary>A slot freed up too close to (or after) the deadline: the booking was handed over already Confirmed.</summary>
+    Task SendWaitlistAutoConfirmedAsync(Booking booking);
+    /// <summary>The Won booking was not confirmed in time and has expired; the slot went back to the waitlist.</summary>
+    Task SendBookingExpiredAsync(Booking booking);
+
     // ── Phase 20 WP2: password self-service ──
     Task SendPasswordResetAsync(string email, string displayName, string resetLink, string language);
     /// <summary>Reset requested for an SSO-only account: tells the user to sign in with Microsoft instead.</summary>

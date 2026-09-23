@@ -6,6 +6,7 @@ import { bookingService } from '../../services/bookingService';
 import { locationService } from '../../services/locationService';
 import { BookingStatusBadge } from '../../components/BookingStatusBadge';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { DEFAULT_SCHEDULE } from '../../utils/bookingWindow';
 import type { Booking, Location } from '../../types/booking';
 
 function initials(name: string) {
@@ -17,6 +18,7 @@ export function DashboardPage() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [lotteryTime, setLotteryTime] = useState<string>(DEFAULT_SCHEDULE.lotteryTime);
   const [loading, setLoading] = useState(true);
 
   const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-GB';
@@ -43,6 +45,8 @@ export function DashboardPage() {
         ]);
         setBookings(bookingRes.bookings);
         setLocations(locs);
+        // WP4: the configured lottery time; the default stands if the call fails.
+        bookingService.getWindow().then((w) => setLotteryTime(w.lotteryTime)).catch(() => {});
       } catch {
         // Silently handle — empty state will show
       } finally {
@@ -130,7 +134,7 @@ export function DashboardPage() {
             </div>
           </div>
         ) : (
-          <StatCard label={t('dashboard.statLotteryCutoff')} value="22:00" hint={t('dashboard.statLotteryHint')} />
+          <StatCard label={t('dashboard.statLotteryCutoff')} value={lotteryTime} hint={t('dashboard.statLotteryHint')} />
         )}
       </div>
 

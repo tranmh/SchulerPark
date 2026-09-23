@@ -21,13 +21,16 @@ public class AdminNotifier : IAdminNotifier
     private readonly AppDbContext _db;
     private readonly IEmailService _email;
     private readonly AppSettings _app;
+    private readonly BookingSettings _booking;
     private readonly ILogger<AdminNotifier> _logger;
 
-    public AdminNotifier(AppDbContext db, IEmailService email, IOptions<AppSettings> app, ILogger<AdminNotifier> logger)
+    public AdminNotifier(AppDbContext db, IEmailService email, IOptions<AppSettings> app,
+        IOptions<BookingSettings> booking, ILogger<AdminNotifier> logger)
     {
         _db = db;
         _email = email;
         _app = app.Value;
+        _booking = booking.Value;
         _logger = logger;
     }
 
@@ -96,9 +99,10 @@ public class AdminNotifier : IAdminNotifier
                     ? $"{sweptPending} ausstehende Buchung(en) mit einem Datum in der Vergangenheit wurden auf „Verloren“ gesetzt — diese Tage wurden nie verlost."
                     : $"{sweptPending} pending booking(s) dated in the past were set to Lost — those days were never drawn.");
             }
+            var lotteryTime = _booking.LotteryTimeOfDay.ToString("HH:mm");
             lines.Add(de
-                ? "Bitte prüfen Sie die Anwendungsprotokolle rund um 22:00 Uhr auf die Ursache."
-                : "Please check the application logs around 22:00 for the root cause.");
+                ? $"Bitte prüfen Sie die Anwendungsprotokolle rund um {lotteryTime} Uhr auf die Ursache."
+                : $"Please check the application logs around {lotteryTime} for the root cause.");
 
             await _email.SendAdminAlertAsync(admin.Email, admin.DisplayName, subject, lines, admin.Language);
         }

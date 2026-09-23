@@ -190,13 +190,13 @@
     "confirmBooking": "Confirm booking",
     "bookingWeek": "Book entire week",
     "submitting": "Booking…",
-    "lotteryInfo": "Daily lottery runs at <b>22:00</b> the day before. If you win, confirm by <b>06:00</b> (morning) or <b>13:00</b> (afternoon) on the booking day or the slot is reallocated.",
+    "lotteryInfo": "Daily lottery runs at <b>{{lottery}}</b> the day before. If you win, confirm by <b>{{morning}}</b> (morning) or <b>{{afternoon}}</b> (afternoon) on the booking day or the slot is reallocated. If you miss out you are waitlisted and get a slot automatically as soon as one frees up.",
     "tip": "Tip",
     "calendarLegend": "Dots under each date show availability — <green>green</green> for plenty, <amber>amber</amber> for limited, <rose>red</rose> for almost full. Days the site is closed are crossed out.",
     "whatHappensNext": "What happens next",
     "next1": "You're entered into the lottery for the selected day(s).",
-    "next2": "Results are published shortly after <b>22:00</b> the day before.",
-    "next3": "If you win, confirm by <b>06:00</b> (morning) or <b>13:00</b> (afternoon) on the booking day from your bookings page.",
+    "next2": "Results are published shortly after <b>{{lottery}}</b> the day before.",
+    "next3": "If you win, confirm by <b>{{morning}}</b> (morning) or <b>{{afternoon}}</b> (afternoon) on the booking day from your bookings page. Unconfirmed slots go to the waitlist.",
     "nextDirectNote": "If the lottery for a day has already run, a free spot is assigned to you immediately.",
     "loadLocationsFailed": "Failed to load locations.",
     "loadAvailabilityFailed": "Failed to load availability.",
@@ -212,7 +212,7 @@
     "directAssignedTitle": "Spot assigned immediately.",
     "directAssignedMessage": "The lottery for this day has already run and a spot was still free — slot {{slot}} was assigned to you immediately. Your booking is confirmed, no further action needed.",
     "waitlistedTitle": "You're on the waitlist.",
-    "waitlistedMessage": "All spots for this day are taken. Your booking is on the waitlist and will be assigned automatically if a spot becomes free.",
+    "waitlistedMessage": "All spots for this day are taken. Your booking is on the waitlist and is assigned automatically if a spot becomes free — shortly before the slot it is even confirmed for you directly.",
     "weekDayAssignedHeading": "Spot assigned immediately:",
     "weekDayWaitlistedHeading": "On the waitlist:",
     "goToMyBookings": "Go to my bookings",
@@ -242,7 +242,9 @@
     "hoursLeft": "{{h}}h {{m}}m left",
     "minutesLeft": "{{m}}m left",
     "deadlinePassed": "Deadline passed",
-    "slot": "Slot {{n}}"
+    "slot": "Slot {{n}}",
+    "waitlistPosition": "Position {{n}}",
+    "waitlistPositionHint": "Approximate waitlist position. The order follows past lottery results and booking time."
   },
   "profile": {
     "title": "Profile",
@@ -304,7 +306,8 @@
     "status": {
       "Pending": "Pending",
       "Won": "Won — Confirm",
-      "Lost": "Lost",
+      "Waitlisted": "Waitlisted",
+      "Lost": "No slot",
       "Confirmed": "Confirmed",
       "Cancelled": "Cancelled",
       "Expired": "Expired"
@@ -319,7 +322,7 @@
       "full": "Full",
       "requests_one": "{{count}} request for {{total}} slots",
       "requests_other": "{{count}} requests for {{total}} slots",
-      "lotteryPending": "Lottery at 22:00",
+      "lotteryPending": "Lottery at {{time}}",
       "closedToday": "This time slot has already ended today"
     },
     "calendar": {
@@ -418,7 +421,7 @@
     "booking_duplicate": "You already have a booking for this date, time slot and location.",
     "week_start_not_monday": "A week booking must start on a Monday.",
     "week_all_skipped": "No bookings could be created for this week — every day was blocked or already booked.",
-    "booking_not_cancellable": "Only pending, won or confirmed bookings can be cancelled.",
+    "booking_not_cancellable": "Only pending, won, confirmed or waitlisted bookings can be cancelled.",
     "booking_not_confirmable": "Only won bookings can be confirmed.",
     "confirmation_deadline_passed": "The confirmation deadline for this booking has passed.",
     "location_no_active_slots": "This location has no active parking slots.",
@@ -432,7 +435,6 @@
     "verification_link_invalid": "This verification link is invalid or has expired.",
     "booking_date_in_past": "Bookings are not possible for past dates.",
     "booking_same_day_closed": "This time slot has already ended today.",
-    "no_slots_today": "No parking slots are left for today.",
     "booking_duplicate_other_location": "You already have a booking for this date and time slot at {{location}}.",
     "reset_token_invalid": "This link is invalid or has expired. Please request a new one.",
     "password_too_weak": "Password is too weak: at least 8 characters and 3 of lowercase, uppercase, digit and special character; no common passwords.",

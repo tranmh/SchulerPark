@@ -5,7 +5,7 @@ import { BookingStatusBadge } from '../../components/BookingStatusBadge';
 import type { AdminLocation, AdminBooking } from '../../types/admin';
 import type { BookingStatus } from '../../types/booking';
 
-const STATUS_OPTIONS = ['All', 'Pending', 'Won', 'Lost', 'Confirmed', 'Cancelled', 'Expired'];
+const STATUS_OPTIONS = ['All', 'Pending', 'Won', 'Waitlisted', 'Lost', 'Confirmed', 'Cancelled', 'Expired'];
 
 export function BookingsPage() {
   const { t } = useTranslation();

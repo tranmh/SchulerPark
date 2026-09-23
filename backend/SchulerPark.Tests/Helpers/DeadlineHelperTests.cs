@@ -1,10 +1,15 @@
 namespace SchulerPark.Tests.Helpers;
 
 using FluentAssertions;
+using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Helpers;
+using SchulerPark.Core.Settings;
 
-/// <summary>Phase 20 WP3 2.1: same-day cutoff = slot end in Europe/Berlin, DST-safe.</summary>
+/// <summary>
+/// Phase 20 WP3 2.1: same-day cutoff = slot end in Europe/Berlin, DST-safe.
+/// Phase 20 WP4: configurable, stored confirmation deadlines with a minimum window.
+/// </summary>
 public class DeadlineHelperTests
 {
     private static readonly DateOnly Day = new(2026, 6, 10);
@@ -49,14 +54,87 @@ public class DeadlineHelperTests
         DeadlineHelper.IsSameDayBookingOpen(new DateOnly(y, m, d), TimeSlot.Morning, berlinNow).Should().Be(expected);
     }
 
+    // ── WP4: stored, configurable deadlines ──────────────────────────────────────
+
+    private static readonly BookingSettings Defaults = new();
+
     [Fact]
-    public void ConfirmationDeadline_IsSixAndOneBerlin_InUtc()
+    public void DefaultDeadline_IsSevenAndThirteenBerlin_InUtc()
     {
-        // CEST (UTC+2): 06:00 Berlin = 04:00 UTC, 13:00 Berlin = 11:00 UTC.
-        DeadlineHelper.GetConfirmationDeadline(Day, TimeSlot.Morning).Should().Be(new DateTime(2026, 6, 10, 4, 0, 0));
-        DeadlineHelper.GetConfirmationDeadline(Day, TimeSlot.Afternoon).Should().Be(new DateTime(2026, 6, 10, 11, 0, 0));
-        DeadlineHelper.IsDeadlinePassed(Day, TimeSlot.Morning, new DateTime(2026, 6, 10, 3, 59, 59)).Should().BeFalse();
-        DeadlineHelper.IsDeadlinePassed(Day, TimeSlot.Morning, new DateTime(2026, 6, 10, 4, 0, 0)).Should().BeTrue();
+        // CEST (UTC+2): 07:00 Berlin = 05:00 UTC, 13:00 Berlin = 11:00 UTC.
+        DeadlineHelper.DefaultDeadline(Day, TimeSlot.Morning, Defaults).Should().Be(new DateTime(2026, 6, 10, 5, 0, 0));
+        DeadlineHelper.DefaultDeadline(Day, TimeSlot.Afternoon, Defaults).Should().Be(new DateTime(2026, 6, 10, 11, 0, 0));
+    }
+
+    [Fact]
+    public void DefaultDeadline_FollowsConfiguration()
+    {
+        var custom = new BookingSettings { ConfirmationDeadline = new ConfirmationDeadlineSettings { Morning = "06:30", Afternoon = "12:15" } };
+        DeadlineHelper.DefaultDeadline(Day, TimeSlot.Morning, custom).Should().Be(new DateTime(2026, 6, 10, 4, 30, 0));
+        DeadlineHelper.DefaultDeadline(Day, TimeSlot.Afternoon, custom).Should().Be(new DateTime(2026, 6, 10, 10, 15, 0));
+
+        // Garbage falls back to the defaults instead of throwing at startup.
+        var broken = new BookingSettings { ConfirmationDeadline = new ConfirmationDeadlineSettings { Morning = "7 o'clock" }, LotteryTime = "" };
+        broken.MorningDeadline.Should().Be(new TimeOnly(7, 0));
+        broken.LotteryTimeOfDay.Should().Be(new TimeOnly(21, 0));
+    }
+
+    [Fact]
+    public void ComputeDeadline_LotteryWin_TheEveningBefore_GetsTheDefault()
+    {
+        // 21:00 Berlin the day before = 19:00 UTC.
+        var lotteryRun = new DateTime(2026, 6, 9, 19, 0, 0, DateTimeKind.Utc);
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Morning, lotteryRun, Defaults).Should().Be(new DateTime(2026, 6, 10, 5, 0, 0));
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Afternoon, lotteryRun, Defaults).Should().Be(new DateTime(2026, 6, 10, 11, 0, 0));
+    }
+
+    [Fact]
+    public void ComputeDeadline_LateWin_GetsAtLeastTheMinimumWindow()
+    {
+        // Promoted at 05:30 Berlin (03:30 UTC): 07:00 would leave 90 min → pushed to 07:30.
+        var promotedAt = new DateTime(2026, 6, 10, 3, 30, 0, DateTimeKind.Utc);
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Morning, promotedAt, Defaults).Should().Be(new DateTime(2026, 6, 10, 5, 30, 0));
+    }
+
+    [Fact]
+    public void ComputeDeadline_IsCappedAtSlotEnd()
+    {
+        // Promoted at 11:30 Berlin (09:30 UTC): +2 h would be 13:30, but Morning ends 12:00 (10:00 UTC).
+        var promotedAt = new DateTime(2026, 6, 10, 9, 30, 0, DateTimeKind.Utc);
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Morning, promotedAt, Defaults).Should().Be(new DateTime(2026, 6, 10, 10, 0, 0));
+    }
+
+    [Theory]
+    [InlineData(2026, 3, 29, 6, 0, 0)]    // spring-forward day: 07:00 CEST = 05:00 UTC
+    [InlineData(2026, 10, 25, 7, 0, 0)]   // fall-back day: 07:00 CET = 06:00 UTC
+    public void DefaultDeadline_FollowsBerlinWallClock_AcrossDst(int y, int m, int d, int expectedUtcHour, int expectedUtcMinute, int expectedUtcSecond)
+    {
+        var expected = new DateTime(y, m, d, expectedUtcHour, expectedUtcMinute, expectedUtcSecond);
+        // Both DST days: 07:00 Berlin. On 29 March the offset is already +2 (05:00 UTC); on 25 October it is +1 (06:00 UTC).
+        var utc = DeadlineHelper.DefaultDeadline(new DateOnly(y, m, d), TimeSlot.Morning, Defaults);
+        utc.Should().Be(y == 2026 && m == 3 ? new DateTime(2026, 3, 29, 5, 0, 0) : new DateTime(2026, 10, 25, 6, 0, 0));
+        expected.Kind.Should().Be(DateTimeKind.Unspecified);
+    }
+
+    [Fact]
+    public void IsInsideConfirmationWindow_StartsTwoHoursBeforeTheDefault()
+    {
+        // Morning default 07:00 Berlin → window opens 05:00 Berlin = 03:00 UTC.
+        DeadlineHelper.IsInsideConfirmationWindow(Day, TimeSlot.Morning, new DateTime(2026, 6, 10, 2, 59, 59), Defaults).Should().BeFalse();
+        DeadlineHelper.IsInsideConfirmationWindow(Day, TimeSlot.Morning, new DateTime(2026, 6, 10, 3, 0, 0), Defaults).Should().BeTrue();
+        DeadlineHelper.IsInsideConfirmationWindow(Day, TimeSlot.Morning, new DateTime(2026, 6, 10, 8, 0, 0), Defaults).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDeadlinePassed_ReadsTheStoredValue_AndFallsBackToSlotEnd()
+    {
+        var booking = new Booking { Date = Day, TimeSlot = TimeSlot.Morning, ConfirmationDeadline = new DateTime(2026, 6, 10, 6, 30, 0, DateTimeKind.Utc) };
+        DeadlineHelper.IsDeadlinePassed(booking, new DateTime(2026, 6, 10, 6, 29, 59)).Should().BeFalse();
+        DeadlineHelper.IsDeadlinePassed(booking, new DateTime(2026, 6, 10, 6, 30, 0)).Should().BeTrue();
+
+        var legacy = new Booking { Date = Day, TimeSlot = TimeSlot.Morning, ConfirmationDeadline = null };
+        DeadlineHelper.IsDeadlinePassed(legacy, new DateTime(2026, 6, 10, 9, 59, 0)).Should().BeFalse();   // before 12:00 Berlin
+        DeadlineHelper.IsDeadlinePassed(legacy, new DateTime(2026, 6, 10, 10, 0, 0)).Should().BeTrue();
     }
 
     [Fact]

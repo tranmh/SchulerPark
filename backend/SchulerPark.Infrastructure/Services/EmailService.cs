@@ -21,6 +21,7 @@ public class EmailService : IEmailService
         "background: #3f8c9d; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none;";
 
     private readonly SmtpSettings _smtp;
+    private readonly BookingSettings _booking;
     private readonly ILogger<EmailService> _logger;
 
     /// <summary>
@@ -49,9 +50,10 @@ public class EmailService : IEmailService
             TlsCipherSuite.TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
         });
 
-    public EmailService(IOptions<SmtpSettings> smtp, ILogger<EmailService> logger)
+    public EmailService(IOptions<SmtpSettings> smtp, IOptions<BookingSettings> booking, ILogger<EmailService> logger)
     {
         _smtp = smtp.Value;
+        _booking = booking.Value;
         _logger = logger;
     }
 
@@ -86,6 +88,7 @@ public class EmailService : IEmailService
     {
         var lang = LanguageOf(booking);
         var de = Localization.IsGerman(lang);
+        var lotteryTime = _booking.LotteryTimeOfDay.ToString("HH:mm");
         var subject = de
             ? $"Buchung eingegangen — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
             : $"Booking Received — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
@@ -95,14 +98,14 @@ public class EmailService : IEmailService
               {Greeting(booking.User.DisplayName, lang)}
               <p>Ihre Parkplatzbuchung wurde angelegt:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Ihre Buchung ist jetzt <strong>ausstehend</strong>. Die Verlosung läuft um 22 Uhr, danach werden Sie über das Ergebnis informiert.</p>
+              <p>Ihre Buchung ist jetzt <strong>ausstehend</strong>. Die Verlosung läuft am Vortag um {lotteryTime} Uhr, danach werden Sie über das Ergebnis informiert.</p>
               """
             : $"""
               <h2>Booking Received</h2>
               {Greeting(booking.User.DisplayName, lang)}
               <p>Your parking booking has been placed:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Your booking is now <strong>Pending</strong>. The lottery will run at 10 PM and you will be notified of the result.</p>
+              <p>Your booking is now <strong>Pending</strong>. The lottery runs at {lotteryTime} the day before and you will be notified of the result.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -280,6 +283,7 @@ public class EmailService : IEmailService
     {
         var lang = LanguageOf(booking);
         var de = Localization.IsGerman(lang);
+        var deadline = BerlinDeadline(booking);
         var subject = de
             ? $"Erinnerung: Parkplatz bestätigen — {booking.Location.Name}"
             : $"Reminder: Confirm Your Parking — {booking.Location.Name}";
@@ -287,16 +291,72 @@ public class EmailService : IEmailService
             ? $"""
               <h2 style="color: #d97706;">Erinnerung: Bestätigung ausstehend</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Ihre Parkplatzbuchung verfällt in Kürze, weil sie noch nicht bestätigt wurde:</p>
+              <p>Ihre Parkplatzbuchung verfällt um <strong>{deadline:HH:mm} Uhr</strong>, weil sie noch nicht bestätigt wurde:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Bitte melden Sie sich jetzt bei LouisE an und bestätigen Sie Ihre Buchung.</strong></p>
               """
             : $"""
               <h2 style="color: #d97706;">Confirmation Reminder</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Your parking booking is about to expire because it has not been confirmed:</p>
+              <p>Your parking booking expires at <strong>{deadline:HH:mm}</strong> because it has not been confirmed:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Please log in to LouisE and confirm your booking now.</strong></p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    // ---- Phase 20 WP4: confirmation model --------------------------------------------
+
+    public async Task SendWaitlistAutoConfirmedAsync(Booking booking)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var subject = de
+            ? $"Platz frei geworden und bestätigt — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"A Spot Opened Up — Confirmed — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2 style="color: #16a34a;">Ein Parkplatz ist frei geworden — er gehört Ihnen!</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Kurzfristig ist ein Platz frei geworden. Weil bis zum Zeitfenster nur noch wenig Zeit bleibt, haben wir ihn Ihnen direkt zugewiesen und bestätigt:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
+              <p>Ihre Buchung ist <strong>bestätigt</strong> — es ist keine Bestätigung mehr nötig. Falls Sie den Platz nicht nutzen, stornieren Sie bitte in LouisE, damit die nächste Person auf der Warteliste ihn bekommt.</p>
+              """
+            : $"""
+              <h2 style="color: #16a34a;">A Parking Spot Opened Up — It's Yours!</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>A spot freed up at short notice. With little time left before the slot starts, we assigned and confirmed it for you directly:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
+              <p>Your booking is <strong>Confirmed</strong> — no confirmation step needed. If you won't use it, please cancel in LouisE so the next person on the waitlist gets it.</p>
+              """);
+
+        await SendEmailAsync(booking.User.Email, subject, body);
+    }
+
+    public async Task SendBookingExpiredAsync(Booking booking)
+    {
+        var lang = LanguageOf(booking);
+        var de = Localization.IsGerman(lang);
+        var subject = de
+            ? $"Buchung verfallen — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"Booking Expired — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+        var body = BuildHtml(lang, de
+            ? $"""
+              <h2>Buchung verfallen</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Ihr gewonnener Parkplatz wurde nicht bis zur Frist bestätigt und ist deshalb verfallen:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p>Der Platz wurde an die Warteliste weitergegeben. Falls Sie an diesem Tag trotzdem parken möchten, können Sie erneut buchen — ist noch ein Platz frei, wird er Ihnen sofort zugewiesen.</p>
+              """
+            : $"""
+              <h2>Booking Expired</h2>
+              {Greeting(booking.User.DisplayName, lang)}
+              <p>Your won parking spot was not confirmed before the deadline and has expired:</p>
+              {BookingDetailsTable(booking, lang)}
+              <p>The slot has been passed on to the waitlist. If you still need to park that day you can book again — if a slot is free it is assigned to you immediately.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -569,11 +629,10 @@ public class EmailService : IEmailService
     private static string LanguageOf(Booking booking) =>
         Localization.Normalize(booking.User?.PreferredLanguage);
 
-    private static DateTime BerlinDeadline(Booking booking)
-    {
-        var deadline = DeadlineHelper.GetConfirmationDeadline(booking.Date, booking.TimeSlot);
-        return TimeZoneInfo.ConvertTimeFromUtc(deadline, TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin"));
-    }
+    // WP4: the deadline is stored on the booking when it becomes Won; a Won booking without one
+    // (should not exist after the backfill) is due at slot end.
+    private static DateTime BerlinDeadline(Booking booking) =>
+        DeadlineHelper.ToBerlin(booking.ConfirmationDeadline ?? DeadlineHelper.SlotEndUtc(booking.Date, booking.TimeSlot));
 
     // Bug #14: HTML-encode user-/admin-controlled values before interpolating into email bodies.
     internal static string Enc(string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);

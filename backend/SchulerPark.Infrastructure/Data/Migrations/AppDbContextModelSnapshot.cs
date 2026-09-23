@@ -82,6 +82,9 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                     b.Property<Guid?>("CancelledByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ConfirmationDeadline")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("ConfirmedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -98,6 +101,9 @@ namespace SchulerPark.Infrastructure.Data.Migrations
 
                     b.Property<Guid?>("ParkingSlotId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -131,6 +137,9 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Bookings_ParkingSlotId_Date_TimeSlot")
                         .HasFilter("\"ParkingSlotId\" IS NOT NULL AND \"Status\" IN ('Won', 'Confirmed')");
+
+                    b.HasIndex("Status", "ConfirmationDeadline")
+                        .HasDatabaseName("IX_Bookings_Status_ConfirmationDeadline");
 
                     b.HasIndex("UserId", "Date", "TimeSlot", "LocationId")
                         .IsUnique()

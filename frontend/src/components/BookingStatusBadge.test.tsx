@@ -6,7 +6,8 @@ describe('BookingStatusBadge', () => {
   it.each([
     ['Pending', 'Pending', 'amber'],
     ['Won', 'Won — Confirm', 'emerald'],
-    ['Lost', 'Lost', 'rose'],
+    ['Waitlisted', 'Waitlisted', 'sky'],
+    ['Lost', 'No slot', 'rose'],
     ['Confirmed', 'Confirmed', 'brand'],
     ['Cancelled', 'Cancelled', 'ink'],
     ['Expired', 'Expired', 'ink'],

@@ -76,7 +76,7 @@ export function BlockedDaysPage() {
     setAffectedCount(null);
     setImpact(null);
     adminService
-      .countBookings({ locationId: selectedLocationId, from: date, to: date, status: 'Pending,Won,Confirmed,Lost' })
+      .countBookings({ locationId: selectedLocationId, from: date, to: date, status: 'Pending,Won,Confirmed,Waitlisted' })
       .then(setAffectedCount)
       .catch(() => setAffectedCount(0));
   };

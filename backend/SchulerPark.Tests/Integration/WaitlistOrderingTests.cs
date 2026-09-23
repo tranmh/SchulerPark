@@ -29,7 +29,7 @@ public class WaitlistOrderingTests
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var service = new WaitlistService(db, _factory.Emails, new RecordingPushService(), NullLogger<WaitlistService>.Instance);
+        var service = new WaitlistService(db, _factory.Emails, new RecordingPushService(), TestOptions.Booking, _factory.Clock, NullLogger<WaitlistService>.Instance);
         await service.TryPromoteWaitlistAsync(locationId, date, TimeSlot.Morning, slotId);
     }
 
@@ -75,14 +75,14 @@ public class WaitlistOrderingTests
         });
 
         var t0 = DateTime.UtcNow.AddHours(-3);
-        var earliestId = await SeedBookingAsync(_factory, earliest.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0);
-        var heavyId = await SeedBookingAsync(_factory, heavy.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0.AddHours(1));
-        var preferrerId = await SeedBookingAsync(_factory, preferrer.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0.AddHours(2));
+        var earliestId = await SeedBookingAsync(_factory, earliest.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0);
+        var heavyId = await SeedBookingAsync(_factory, heavy.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0.AddHours(1));
+        var preferrerId = await SeedBookingAsync(_factory, preferrer.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0.AddHours(2));
 
         // 1st promotion: the preferred-slot match wins despite being the latest and lightest.
         await PromoteAsync(locationId, date, freedSlot);
         (await GetBookingAsync(_factory, preferrerId)).Status.Should().Be(BookingStatus.Won);
-        (await GetBookingAsync(_factory, heavyId)).Status.Should().Be(BookingStatus.Lost);
+        (await GetBookingAsync(_factory, heavyId)).Status.Should().Be(BookingStatus.Waitlisted);
 
         // Free the slot again: now the heavier weight beats the earlier CreatedAt.
         await WithDbAsync(_factory, async db =>
@@ -94,7 +94,7 @@ public class WaitlistOrderingTests
         });
         await PromoteAsync(locationId, date, freedSlot);
         (await GetBookingAsync(_factory, heavyId)).Status.Should().Be(BookingStatus.Won);
-        (await GetBookingAsync(_factory, earliestId)).Status.Should().Be(BookingStatus.Lost);
+        (await GetBookingAsync(_factory, earliestId)).Status.Should().Be(BookingStatus.Waitlisted);
 
         // Free once more: the last candidate standing is promoted by CreatedAt.
         await WithDbAsync(_factory, async db =>
@@ -117,13 +117,13 @@ public class WaitlistOrderingTests
         var a = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "a");
         var b = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "b");
         var t0 = DateTime.UtcNow.AddHours(-2);
-        var laterId = await SeedBookingAsync(_factory, a.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0.AddMinutes(30));
-        var earlierId = await SeedBookingAsync(_factory, b.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0);
+        var laterId = await SeedBookingAsync(_factory, a.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0.AddMinutes(30));
+        var earlierId = await SeedBookingAsync(_factory, b.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0);
 
         await PromoteAsync(locationId, date, slotIds[0]);
 
         (await GetBookingAsync(_factory, earlierId)).Status.Should().Be(BookingStatus.Won);
-        (await GetBookingAsync(_factory, laterId)).Status.Should().Be(BookingStatus.Lost);
+        (await GetBookingAsync(_factory, laterId)).Status.Should().Be(BookingStatus.Waitlisted);
     }
 
     [Fact]
@@ -135,8 +135,8 @@ public class WaitlistOrderingTests
         var gone = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "gone");
         var alive = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "alive");
         var t0 = DateTime.UtcNow.AddHours(-2);
-        var goneId = await SeedBookingAsync(_factory, gone.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0);
-        var aliveId = await SeedBookingAsync(_factory, alive.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost, t0.AddHours(1));
+        var goneId = await SeedBookingAsync(_factory, gone.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0);
+        var aliveId = await SeedBookingAsync(_factory, alive.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted, t0.AddHours(1));
         await WithDbAsync(_factory, async db =>
         {
             var u = await db.Users.FindAsync(gone.User.Id);
@@ -147,6 +147,6 @@ public class WaitlistOrderingTests
         await PromoteAsync(locationId, date, slotIds[0]);
 
         (await GetBookingAsync(_factory, aliveId)).Status.Should().Be(BookingStatus.Won);
-        (await GetBookingAsync(_factory, goneId)).Status.Should().Be(BookingStatus.Lost);
+        (await GetBookingAsync(_factory, goneId)).Status.Should().Be(BookingStatus.Waitlisted);
     }
 }

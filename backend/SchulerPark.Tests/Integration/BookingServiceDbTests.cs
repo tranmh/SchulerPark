@@ -47,12 +47,6 @@ file sealed class NotApplicableDirectAssignment : IDirectAssignmentService
         => Task.FromResult(DirectAssignmentOutcome.NotApplicable);
 }
 
-file sealed class NoopWeekWaitlist : IWaitlistService
-{
-    public Task TryPromoteWaitlistAsync(Guid locationId, DateOnly date, TimeSlot timeSlot, Guid freedSlotId)
-        => Task.CompletedTask;
-}
-
 [Collection("Postgres")]
 [Trait("Category", "Integration")]
 public class BookingServiceDbTests
@@ -90,7 +84,7 @@ public class BookingServiceDbTests
         var email = new CapturingEmailService();
         await using var db = _fx.NewContext(new FailOnNthBookingInsertInterceptor(4)); // fail on day 4
         var service = new BookingService(
-            db, new NoopWeekWaitlist(), new NotApplicableDirectAssignment(), email, new RecordingPushService(),
+            db, new NoopWaitlistService(), new NotApplicableDirectAssignment(), email, new RecordingPushService(),
             Options.Create(new BookingSettings()), TimeProvider.System);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>

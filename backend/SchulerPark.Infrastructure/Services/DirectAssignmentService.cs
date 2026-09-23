@@ -43,12 +43,12 @@ public class DirectAssignmentService : IDirectAssignmentService
         var freeSlots = unblockedSlots.Where(s => !occupied.Contains(s.Id)).ToList();
         if (freeSlots.Count == 0)
         {
-            booking.Status = BookingStatus.Lost;
+            booking.Status = BookingStatus.Waitlisted;
             booking.ParkingSlotId = null;
             _logger.LogInformation(
-                "Direct assignment: no free slot for {LocationId} {Date} {TimeSlot}; booking {BookingId} waitlisted as Lost.",
+                "Direct assignment: no free slot for {LocationId} {Date} {TimeSlot}; booking {BookingId} waitlisted.",
                 booking.LocationId, booking.Date, booking.TimeSlot, booking.Id);
-            return DirectAssignmentOutcome.WaitlistedLost;
+            return DirectAssignmentOutcome.Waitlisted;
         }
 
         booking.User ??= (await _db.Users.FindAsync(booking.UserId))!;
@@ -73,9 +73,9 @@ public class DirectAssignmentService : IDirectAssignmentService
         if (!placements.TryGetValue(booking.Id, out var slotId))
         {
             // Defensive: cannot happen with a non-empty free pool.
-            booking.Status = BookingStatus.Lost;
+            booking.Status = BookingStatus.Waitlisted;
             booking.ParkingSlotId = null;
-            return DirectAssignmentOutcome.WaitlistedLost;
+            return DirectAssignmentOutcome.Waitlisted;
         }
 
         booking.ParkingSlotId = slotId;

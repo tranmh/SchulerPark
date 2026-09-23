@@ -92,6 +92,10 @@ public class CapturingEmailService : IEmailService
     public Task SendSlotWithdrawnAsync(Booking booking) => Record("SlotWithdrawn", booking);
     public Task SendBookingCancelledByAdminAsync(Booking booking, string? reason) => Record("CancelledByAdmin", booking);
 
+    // Phase 20 WP4
+    public Task SendWaitlistAutoConfirmedAsync(Booking booking) => Record("WaitlistAutoConfirmed", booking);
+    public Task SendBookingExpiredAsync(Booking booking) => Record("BookingExpired", booking);
+
     public Task SendAdminAlertAsync(string adminEmail, string adminDisplayName, string subject, IReadOnlyList<string> paragraphs, string language)
     {
         AccountMails.Enqueue(("AdminAlert", adminEmail));
@@ -142,8 +146,27 @@ public class RecordingPushService : IPushNotificationService
     public Task SendSlotReassignedAsync(Booking booking, string oldSlotNumber) => Record("SlotReassigned", booking);
     public Task SendSlotWithdrawnAsync(Booking booking) => Record("SlotWithdrawn", booking);
     public Task SendBookingCancelledByAdminAsync(Booking booking, string? reason) => Record("CancelledByAdmin", booking);
+    public Task SendConfirmationReminderAsync(Booking booking) => Record("ConfirmationReminder", booking);
+    public Task SendBookingExpiredAsync(Booking booking) => Record("BookingExpired", booking);
+    public Task SendWaitlistAutoConfirmedAsync(Booking booking) => Record("WaitlistAutoConfirmed", booking);
     public Task<Core.Models.PushSendResult> SendTestAsync(Guid userId) =>
         Task.FromResult(Core.Models.PushSendResult.NoSubscriptions);
+}
+
+/// <summary>Waitlist stand-in for tests that construct services by hand: never promotes, no positions.</summary>
+public sealed class NoopWaitlistService : IWaitlistService
+{
+    public Task TryPromoteWaitlistAsync(Guid locationId, DateOnly date, Core.Enums.TimeSlot timeSlot, Guid freedSlotId)
+        => Task.CompletedTask;
+
+    public Task<IReadOnlyDictionary<Guid, int>> GetWaitlistPositionsAsync(IReadOnlyCollection<Booking> bookings)
+        => Task.FromResult<IReadOnlyDictionary<Guid, int>>(new Dictionary<Guid, int>());
+}
+
+/// <summary>Default <see cref="BookingSettings"/> (21:00 lottery, 07:00/13:00 deadlines, 2 h window) for hand-built services.</summary>
+public static class TestOptions
+{
+    public static IOptions<BookingSettings> Booking => Options.Create(new BookingSettings());
 }
 
 /// <summary>

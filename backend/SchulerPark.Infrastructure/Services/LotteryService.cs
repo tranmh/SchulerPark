@@ -3,11 +3,14 @@ namespace SchulerPark.Infrastructure.Services;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
+using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 using SchulerPark.Core.Models;
+using SchulerPark.Core.Settings;
 using SchulerPark.Infrastructure.Data;
 using SchulerPark.Infrastructure.Services.Strategies;
 
@@ -18,16 +21,20 @@ public class LotteryService : ILotteryService
     private readonly IEmailService _emailService;
     private readonly IPushNotificationService _pushService;
     private readonly ISlotPlacer _placer;
+    private readonly BookingSettings _settings;
+    private readonly TimeProvider _time;
 
     public LotteryService(AppDbContext db, ILogger<LotteryService> logger,
         IEmailService emailService, IPushNotificationService pushService,
-        ISlotPlacer placer)
+        ISlotPlacer placer, IOptions<BookingSettings> settings, TimeProvider time)
     {
         _db = db;
         _logger = logger;
         _emailService = emailService;
         _pushService = pushService;
         _placer = placer;
+        _settings = settings.Value;
+        _time = time;
     }
 
     public async Task<LotteryRunSummary> RunAllLotteriesAsync(DateOnly date)
@@ -191,12 +198,18 @@ public class LotteryService : ILotteryService
             .Concat(losers.Select(b => new LotteryResult(b.Id, b.UserId, false, null)))
             .ToList();
 
-        // 7. Apply results
+        // 7. Apply results. WP4: winners get their confirmation deadline stored now (the
+        // configured default — the lottery runs the evening before, so the minimum window
+        // never bites); losers wait for a slot to free up instead of being written off.
+        var now = _time.GetUtcNow().UtcDateTime;
         foreach (var result in results)
         {
             var booking = pendingBookings.First(b => b.Id == result.BookingId);
-            booking.Status = result.Won ? BookingStatus.Won : BookingStatus.Lost;
+            booking.Status = result.Won ? BookingStatus.Won : BookingStatus.Waitlisted;
             booking.ParkingSlotId = result.AssignedSlotId;
+            booking.ConfirmationDeadline = result.Won
+                ? DeadlineHelper.ComputeDeadline(date, timeSlot, now, _settings)
+                : null;
 
             _db.LotteryHistories.Add(new LotteryHistory
             {
@@ -248,17 +261,18 @@ public class LotteryService : ILotteryService
         }
     }
 
-    // Mark any still-Pending booking for this slot as Lost so nothing is stranded.
+    // Mark any still-Pending booking for this slot as Waitlisted so nothing is stranded — the
+    // draw is over, but a slot may still free up before the day.
     private async Task SweepStrandedPendingAsync(Guid locationId, DateOnly date, TimeSlot timeSlot)
     {
         var swept = await _db.Bookings
             .Where(b => b.LocationId == locationId && b.Date == date
                 && b.TimeSlot == timeSlot && b.Status == BookingStatus.Pending)
-            .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Lost));
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Waitlisted));
 
         if (swept > 0)
             _logger.LogWarning(
-                "Swept {Count} stranded Pending booking(s) to Lost for {LocationId} {Date} {TimeSlot}.",
+                "Swept {Count} stranded Pending booking(s) to Waitlisted for {LocationId} {Date} {TimeSlot}.",
                 swept, locationId, date, timeSlot);
     }
 
@@ -283,7 +297,7 @@ public class LotteryService : ILotteryService
             Date = date,
             TimeSlot = timeSlot,
             Algorithm = algorithm,
-            RanAt = DateTime.UtcNow,
+            RanAt = _time.GetUtcNow().UtcDateTime,
             TotalBookings = totalBookings,
             AvailableSlots = availableSlots
         });

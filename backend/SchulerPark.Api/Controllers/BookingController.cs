@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SchulerPark.Api.DTOs.Booking;
 using SchulerPark.Core.Enums;
-using SchulerPark.Core.Helpers;
 using SchulerPark.Core.Interfaces;
 
 [ApiController]
@@ -14,11 +13,13 @@ using SchulerPark.Core.Interfaces;
 public class BookingController : ControllerBase
 {
     private readonly IBookingService _bookingService;
+    private readonly IWaitlistService _waitlistService;
     private readonly IEmailService _emailService;
 
-    public BookingController(IBookingService bookingService, IEmailService emailService)
+    public BookingController(IBookingService bookingService, IWaitlistService waitlistService, IEmailService emailService)
     {
         _bookingService = bookingService;
+        _waitlistService = waitlistService;
         _emailService = emailService;
     }
 
@@ -27,7 +28,8 @@ public class BookingController : ControllerBase
     public ActionResult<BookingWindowDto> GetWindow()
     {
         var w = _bookingService.GetBookingWindow();
-        return Ok(new BookingWindowDto(w.Today, w.MinDate, w.MaxDate, w.MaxDaysAhead, w.MorningOpenToday, w.AfternoonOpenToday));
+        return Ok(new BookingWindowDto(w.Today, w.MinDate, w.MaxDate, w.MaxDaysAhead, w.MorningOpenToday, w.AfternoonOpenToday,
+            w.LotteryTime, w.MorningDeadline, w.AfternoonDeadline));
     }
 
     [HttpPost]
@@ -44,9 +46,9 @@ public class BookingController : ControllerBase
         var (booking, fallbackReason) = await _bookingService.CreateBookingAsync(
             GetUserId(), request.LocationId, request.Date, timeSlot);
 
-        // Directly-assigned (Confirmed) and waitlisted (Lost) bookings get their
-        // own notifications from BookingService; the "lottery at 10 PM" created
-        // email is only accurate for Pending bookings.
+        // Directly-assigned (Confirmed) and Waitlisted bookings get their own
+        // notifications from BookingService; the "lottery tonight" created email is
+        // only accurate for Pending bookings.
         if (booking.Status == BookingStatus.Pending)
             _ = _emailService.SendBookingCreatedAsync(booking);
 
@@ -106,7 +108,11 @@ public class BookingController : ControllerBase
         var (bookings, totalCount) = await _bookingService.GetUserBookingsAsync(
             GetUserId(), page, pageSize, statusFilter, from, to);
 
-        var dtos = bookings.Select(b => ToBookingDto(b)).ToList();
+        // WP4 2.7: approximate queue position for waitlisted rows.
+        var positions = await _waitlistService.GetWaitlistPositionsAsync(bookings);
+        var dtos = bookings
+            .Select(b => ToBookingDto(b) with { WaitlistPosition = positions.TryGetValue(b.Id, out var p) ? p : null })
+            .ToList();
         return Ok(new MyBookingsResponse(dtos, totalCount, page, pageSize));
     }
 
@@ -139,8 +145,7 @@ public class BookingController : ControllerBase
         b.Status.ToString(),
         b.ConfirmedAt,
         b.CreatedAt,
-        ConfirmationDeadline: b.Status == BookingStatus.Won
-            ? DeadlineHelper.GetConfirmationDeadline(b.Date, b.TimeSlot)
-            : null,
+        // WP4: the stored deadline (set when the booking became Won), never recomputed.
+        ConfirmationDeadline: b.Status == BookingStatus.Won ? b.ConfirmationDeadline : null,
         FallbackReason: fallbackReason);
 }

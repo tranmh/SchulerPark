@@ -190,13 +190,13 @@
     "confirmBooking": "Buchung bestätigen",
     "bookingWeek": "Ganze Woche buchen",
     "submitting": "Buchung läuft…",
-    "lotteryInfo": "Die tägliche Verlosung läuft am Vortag um <b>22:00 Uhr</b>. Wenn Sie gewinnen, müssen Sie am Buchungstag bis <b>06:00 Uhr</b> (Vormittag) bzw. <b>13:00 Uhr</b> (Nachmittag) bestätigen, sonst wird der Platz neu vergeben.",
+    "lotteryInfo": "Die tägliche Verlosung läuft am Vortag um <b>{{lottery}} Uhr</b>. Wenn Sie gewinnen, müssen Sie am Buchungstag bis <b>{{morning}} Uhr</b> (Vormittag) bzw. <b>{{afternoon}} Uhr</b> (Nachmittag) bestätigen, sonst wird der Platz neu vergeben. Wer leer ausgeht, steht auf der Warteliste und erhält automatisch einen Platz, sobald einer frei wird.",
     "tip": "Tipp",
     "calendarLegend": "Die Punkte unter den Tagen zeigen die Verfügbarkeit — <green>grün</green> für viele, <amber>orange</amber> für wenige, <rose>rot</rose> für fast voll. Geschlossene Tage sind durchgestrichen.",
     "whatHappensNext": "So geht es weiter",
     "next1": "Sie werden für die ausgewählten Tage in die Verlosung aufgenommen.",
-    "next2": "Die Ergebnisse werden kurz nach <b>22:00 Uhr</b> am Vortag veröffentlicht.",
-    "next3": "Wenn Sie gewinnen, bestätigen Sie am Buchungstag bis <b>06:00 Uhr</b> (Vormittag) bzw. <b>13:00 Uhr</b> (Nachmittag) auf der Buchungsseite.",
+    "next2": "Die Ergebnisse werden kurz nach <b>{{lottery}} Uhr</b> am Vortag veröffentlicht.",
+    "next3": "Wenn Sie gewinnen, bestätigen Sie am Buchungstag bis <b>{{morning}} Uhr</b> (Vormittag) bzw. <b>{{afternoon}} Uhr</b> (Nachmittag) auf der Buchungsseite. Ohne Bestätigung geht der Platz an die Warteliste.",
     "nextDirectNote": "Wenn die Verlosung für einen Tag bereits gelaufen ist, wird Ihnen ein freier Platz sofort zugewiesen.",
     "loadLocationsFailed": "Standorte konnten nicht geladen werden.",
     "loadAvailabilityFailed": "Verfügbarkeit konnte nicht geladen werden.",
@@ -212,7 +212,7 @@
     "directAssignedTitle": "Platz sofort zugewiesen.",
     "directAssignedMessage": "Die Verlosung für diesen Tag ist bereits gelaufen und es war noch ein Platz frei — Ihnen wurde sofort Platz {{slot}} zugewiesen. Ihre Buchung ist bestätigt, es ist nichts weiter zu tun.",
     "waitlistedTitle": "Sie stehen auf der Warteliste.",
-    "waitlistedMessage": "Alle Plätze für diesen Tag sind vergeben. Ihre Buchung steht auf der Warteliste und wird automatisch zugewiesen, sobald ein Platz frei wird.",
+    "waitlistedMessage": "Alle Plätze für diesen Tag sind vergeben. Ihre Buchung steht auf der Warteliste und wird automatisch zugewiesen, sobald ein Platz frei wird — kurz vor dem Zeitfenster sogar direkt bestätigt.",
     "weekDayAssignedHeading": "Platz sofort zugewiesen:",
     "weekDayWaitlistedHeading": "Auf der Warteliste:",
     "goToMyBookings": "Zu meinen Buchungen",
@@ -242,7 +242,9 @@
     "hoursLeft": "{{h}}h {{m}}m verbleibend",
     "minutesLeft": "{{m}}m verbleibend",
     "deadlinePassed": "Frist abgelaufen",
-    "slot": "Platz {{n}}"
+    "slot": "Platz {{n}}",
+    "waitlistPosition": "Position {{n}}",
+    "waitlistPositionHint": "Ungefähre Position auf der Warteliste. Die Reihenfolge richtet sich nach den bisherigen Verlosungsergebnissen und dem Buchungszeitpunkt."
   },
   "profile": {
     "title": "Profil",
@@ -304,7 +306,8 @@
     "status": {
       "Pending": "Ausstehend",
       "Won": "Gewonnen — Bestätigen",
-      "Lost": "Verloren",
+      "Waitlisted": "Warteliste",
+      "Lost": "Kein Platz",
       "Confirmed": "Bestätigt",
       "Cancelled": "Storniert",
       "Expired": "Abgelaufen"
@@ -319,7 +322,7 @@
       "full": "Voll",
       "requests_one": "{{count}} Anfrage für {{total}} Plätze",
       "requests_other": "{{count}} Anfragen für {{total}} Plätze",
-      "lotteryPending": "Verlosung um 22:00 Uhr",
+      "lotteryPending": "Verlosung um {{time}} Uhr",
       "closedToday": "Zeitfenster ist heute bereits vorbei"
     },
     "calendar": {
@@ -418,7 +421,7 @@
     "booking_duplicate": "Sie haben für diesen Tag, dieses Zeitfenster und diesen Standort bereits eine Buchung.",
     "week_start_not_monday": "Eine Wochenbuchung muss an einem Montag beginnen.",
     "week_all_skipped": "Für diese Woche konnte keine Buchung erstellt werden — alle Tage waren gesperrt oder bereits gebucht.",
-    "booking_not_cancellable": "Nur ausstehende, gewonnene oder bestätigte Buchungen können storniert werden.",
+    "booking_not_cancellable": "Nur ausstehende, gewonnene, bestätigte oder auf der Warteliste stehende Buchungen können storniert werden.",
     "booking_not_confirmable": "Nur gewonnene Buchungen können bestätigt werden.",
     "confirmation_deadline_passed": "Die Bestätigungsfrist für diese Buchung ist abgelaufen.",
     "location_no_active_slots": "Dieser Standort hat keine aktiven Parkplätze.",
@@ -432,7 +435,6 @@
     "verification_link_invalid": "Dieser Bestätigungslink ist ungültig oder abgelaufen.",
     "booking_date_in_past": "Buchungen sind für vergangene Tage nicht möglich.",
     "booking_same_day_closed": "Dieses Zeitfenster ist heute bereits vorbei.",
-    "no_slots_today": "Für heute sind keine Parkplätze mehr frei.",
     "booking_duplicate_other_location": "Sie haben für diesen Tag und dieses Zeitfenster bereits eine Buchung am Standort {{location}}.",
     "reset_token_invalid": "Dieser Link ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.",
     "password_too_weak": "Passwort ist zu schwach: mindestens 8 Zeichen und 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen; keine gängigen Passwörter.",

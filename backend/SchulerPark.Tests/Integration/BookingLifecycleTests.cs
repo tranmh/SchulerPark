@@ -39,7 +39,7 @@ public class BookingLifecycleTests
         var date = FutureDate();
 
         var wonId = await SeedBookingAsync(_factory, winner.User.Id, locationId, slotIds[0], date, TimeSlot.Morning, BookingStatus.Won);
-        var lostId = await SeedBookingAsync(_factory, waiter.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost);
+        var lostId = await SeedBookingAsync(_factory, waiter.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted);
 
         var response = await _client.SendAsync(Authed(HttpMethod.Put, $"/api/admin/users/{winner.User.Id}/disable", superAdmin.AccessToken));
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -82,7 +82,7 @@ public class BookingLifecycleTests
         var date = FutureDate();
 
         await SeedBookingAsync(_factory, victim.User.Id, locationId, slotIds[0], date, TimeSlot.Morning, BookingStatus.Confirmed);
-        var lostId = await SeedBookingAsync(_factory, waiter.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Lost);
+        var lostId = await SeedBookingAsync(_factory, waiter.User.Id, locationId, null, date, TimeSlot.Morning, BookingStatus.Waitlisted);
 
         var response = await _client.SendAsync(Authed(HttpMethod.Delete, $"/api/admin/users/{victim.User.Id}", superAdmin.AccessToken));
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -140,7 +140,7 @@ public class BookingLifecycleTests
         created.Impact.Should().Be(new ImpactDto(1, 0, 1, 0));
 
         var booking = await GetBookingAsync(_factory, bookingId);
-        booking.Status.Should().Be(BookingStatus.Lost);
+        booking.Status.Should().Be(BookingStatus.Waitlisted);
         booking.ParkingSlotId.Should().BeNull();
         _factory.Emails.Sent.Should().Contain(("SlotWithdrawn", bookingId));
     }

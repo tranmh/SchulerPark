@@ -100,7 +100,7 @@ export function LocationsPage() {
     setAffectedCount(null);
     setImpact(null);
     adminService
-      .countBookings({ locationId: loc.id, from: todayInBerlin(), status: 'Pending,Won,Confirmed,Lost' })
+      .countBookings({ locationId: loc.id, from: todayInBerlin(), status: 'Pending,Won,Confirmed,Waitlisted' })
       .then(setAffectedCount)
       .catch(() => setAffectedCount(0));
   };
