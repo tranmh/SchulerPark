@@ -246,7 +246,7 @@ public class ConfirmationExpiryJobTests
         var morning = await SeedAsync(BookingStatus.Waitlisted, TimeSlot.Morning);
         var afternoon = await SeedAsync(BookingStatus.Waitlisted, TimeSlot.Afternoon);
 
-        // 12:30 Berlin = 10:30 UTC: the Morning slot has ended, the Afternoon one is running.
+        // 12:30 Berlin = 10:30 UTC: the Morning slot has ended, the Afternoon one (13:00–19:00) has not.
         await RunAsync(DeadlineHelper.SlotEndUtc(Day, TimeSlot.Morning).AddMinutes(30));
 
         Assert.Equal(BookingStatus.Lost, (await ReloadAsync(morning.Id)).Status);

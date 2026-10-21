@@ -28,7 +28,7 @@ function getWeekFriday(mondayStr: string): string {
 export function BookingPage() {
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedLocation = searchParams.get('location');
 
@@ -171,7 +171,9 @@ export function BookingPage() {
     setStep(4);
     setError(null);
     setGridAvailability(null);
-    if (locationId && date && !weekMode) {
+    // The parking-lot layout is an admin-only view: regular users never see it, so the
+    // grid-availability request is not even made for them.
+    if (isAdmin && locationId && date && !weekMode) {
       locationService.getGridAvailability(locationId, date, ts)
         .then((ga) => {
           if (ga.gridRows > 0) setGridAvailability(ga);
@@ -575,7 +577,7 @@ export function BookingPage() {
                   </div>
                 )}
 
-                {gridAvailability && !weekMode && (
+                {isAdmin && gridAvailability && !weekMode && (
                   <div className="mt-6">
                     <div className="mb-2 flex items-baseline justify-between gap-3">
                       <h3 className="text-[12.5px] font-semibold text-ink-700">{t('booking.parkingLayout')}</h3>

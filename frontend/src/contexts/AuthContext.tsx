@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -43,7 +44,18 @@ interface AuthContextType {
   azureLoginError: unknown;
   clearAzureLoginError: () => void;
   logout: () => Promise<void>;
+  /**
+   * Re-reads the signed-in user's profile from the server (GET /api/profile) and
+   * replaces the cached `user`. Failures are swallowed — the old user stays; a
+   * 401 is already handled by the axios interceptor. No-op while signed out.
+   */
+  refreshUser: () => Promise<void>;
+  /** Replaces the cached `user` with a copy the server just returned (e.g. the PUT /api/profile response). */
+  updateUser: (user: User) => void;
 }
+
+/** Resume-triggered profile refreshes (focus / visibility / bfcache) run at most this often. */
+const USER_REFRESH_THROTTLE_MS = 30_000;
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -61,6 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
   const [azureLoginError, setAzureLoginError] = useState<unknown>(null);
+  // Mirrors `user` for callbacks that must stay referentially stable (event listeners).
+  const userRef = useRef<User | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  const lastUserRefreshAt = useRef(0);
+  const inFlightUserRefresh = useRef<Promise<void> | null>(null);
 
   // Initialize: fetch config, finish a pending Azure AD redirect, else try silent refresh
   useEffect(() => {
@@ -134,6 +153,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(response.accessToken);
     setUser(response.user);
   }, []);
+
+  const updateUser = useCallback((fresh: User) => {
+    // Ignore a late response that lands after sign-out (or after another account signed in).
+    if (userRef.current?.id !== fresh.id) return;
+    setUser(fresh);
+  }, []);
+
+  // The cached user is otherwise only ever set from auth responses. An installed
+  // PWA keeps the SPA alive for days, so without this a profile change made on
+  // another device (or in another tab) never shows up until a full reload.
+  const refreshUser = useCallback(async () => {
+    if (!userRef.current) return;
+    if (inFlightUserRefresh.current) return inFlightUserRefresh.current;
+    lastUserRefreshAt.current = Date.now();
+    inFlightUserRefresh.current = profileService
+      .getProfile()
+      .then(updateUser)
+      .catch((err) => console.warn('Could not refresh the profile', err))
+      .finally(() => {
+        inFlightUserRefresh.current = null;
+      });
+    return inFlightUserRefresh.current;
+  }, [updateUser]);
+
+  // Resume hooks: tab/app regains focus, becomes visible again, or is restored
+  // from the back/forward cache. Throttled so a flurry of focus/visibility
+  // events (every alt-tab) doesn't hammer the API.
+  useEffect(() => {
+    const onResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastUserRefreshAt.current < USER_REFRESH_THROTTLE_MS) return;
+      void refreshUser();
+    };
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('pageshow', onResume);
+    return () => {
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('pageshow', onResume);
+    };
+  }, [refreshUser]);
 
   const register = useCallback(
     async (email: string, displayName: string, password: string) => {
@@ -220,6 +281,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       azureLoginError,
       clearAzureLoginError,
       logout,
+      refreshUser,
+      updateUser,
     }),
     [
       user,
@@ -231,6 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       azureLoginError,
       clearAzureLoginError,
       logout,
+      refreshUser,
+      updateUser,
     ]
   );
 

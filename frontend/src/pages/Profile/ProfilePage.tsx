@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
@@ -16,7 +16,7 @@ function initials(name: string) {
 
 export function ProfilePage() {
   const { t } = useTranslation();
-  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, refreshUser, updateUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [carLicensePlate, setCarLicensePlate] = useState(user?.carLicensePlate ?? '');
   const [preferredLocationId, setPreferredLocationId] = useState<string | null>(user?.preferredLocationId ?? null);
@@ -54,8 +54,23 @@ export function ProfilePage() {
     sendTest: sendTestPush,
   } = usePushNotifications();
 
+  // True once the user has edited a field and until that edit is saved. The
+  // cached context user can change underneath the form (the mount-time fetch
+  // below, a resume refresh, the language sync) — those must not clobber
+  // in-progress edits, so the form only follows `user` while it is pristine.
+  const dirtyRef = useRef(false);
+  const touch = () => {
+    dirtyRef.current = true;
+  };
+
+  // The context user may be a stale copy (set at login/app start); re-read the
+  // profile from the server so the form starts from what is actually stored.
   useEffect(() => {
-    if (user) {
+    void refreshUser();
+  }, [refreshUser]);
+
+  useEffect(() => {
+    if (user && !dirtyRef.current) {
       setDisplayName(user.displayName);
       setCarLicensePlate(user.carLicensePlate ?? '');
       setPreferredLocationId(user.preferredLocationId ?? null);
@@ -83,12 +98,17 @@ export function ProfilePage() {
     setSaved(false);
     setError(null);
     try {
-      await profileService.updateProfile({
+      const updated = await profileService.updateProfile({
         displayName,
         carLicensePlate: carLicensePlate || null,
         preferredLocationId,
         preferredSlotId: preferredLocationId ? preferredSlotId : null,
       });
+      // Push the server's copy into the auth context so the identity card,
+      // dashboard, booking page etc. show the new values immediately; the
+      // pristine form then follows `user` (server-normalised values included).
+      dirtyRef.current = false;
+      updateUser(updated);
       setSaved(true);
     } catch {
       setError(t('profile.updateFailed'));
@@ -239,7 +259,10 @@ export function ProfilePage() {
             <input
               id="profile-display-name"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => {
+                touch();
+                setDisplayName(e.target.value);
+              }}
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
           </Field>
@@ -247,7 +270,10 @@ export function ProfilePage() {
             <input
               id="profile-car-license"
               value={carLicensePlate}
-              onChange={(e) => setCarLicensePlate(e.target.value)}
+              onChange={(e) => {
+                touch();
+                setCarLicensePlate(e.target.value);
+              }}
               placeholder="GP-AB 1234"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 placeholder:text-ink-300 num"
             />
@@ -263,6 +289,7 @@ export function ProfilePage() {
               value={preferredLocationId ?? ''}
               onChange={(e) => {
                 const next = e.target.value || null;
+                touch();
                 setPreferredLocationId(next);
                 setPreferredSlotId(null);
               }}
@@ -284,7 +311,10 @@ export function ProfilePage() {
             <select
               id="preferredSlot"
               value={preferredSlotId ?? ''}
-              onChange={(e) => setPreferredSlotId(e.target.value || null)}
+              onChange={(e) => {
+                touch();
+                setPreferredSlotId(e.target.value || null);
+              }}
               disabled={!preferredLocationId || slots.length === 0}
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900 disabled:bg-surface-sunken disabled:text-ink-400"
             >

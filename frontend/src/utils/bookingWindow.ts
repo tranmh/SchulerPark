@@ -35,7 +35,7 @@ export interface BookingWindow {
   maxDaysAhead: number;
   /** Whether today's Morning slot can still be booked (before 12:00 Berlin). */
   morningOpenToday: boolean;
-  /** Whether today's Afternoon slot can still be booked (before 18:00 Berlin). */
+  /** Whether today's Afternoon slot can still be booked (before 19:00 Berlin). */
   afternoonOpenToday: boolean;
   /** Berlin "HH:mm" of the nightly lottery (WP4). */
   lotteryTime: string;

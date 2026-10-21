@@ -187,7 +187,7 @@ public class BookingRulesTests
         var user = await CreateUserWithRoleAsync(_factory, _client, UserRole.User, "sameday2");
         var (locationId, _) = await SeedLocationAsync(_factory, 1);
 
-        // 2026-06-10 11:00 UTC = 13:00 Berlin → Morning closed, Afternoon (ends 18:00) open.
+        // 2026-06-10 11:00 UTC = 13:00 Berlin → Morning closed, Afternoon (ends 19:00) open.
         using (_factory.Clock.Pin(new DateTimeOffset(2026, 6, 10, 11, 0, 0, TimeSpan.Zero)))
         {
             var morning = await PostBookingAsync(user.AccessToken, locationId, new DateOnly(2026, 6, 10), "Morning");

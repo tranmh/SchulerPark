@@ -124,7 +124,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 | `DataRetentionJob` | Weekly Sunday 2 AM | Delete data older than 1 year, hard-delete soft-deleted users |
 
 ## Booking Rules (Phase 20)
-- Window: Berlin today … today + `Booking:MaxDaysAhead` (default 31, env `Booking__MaxDaysAhead`); the frontend reads it from `GET /api/bookings/window`. Same-day bookings are allowed until the slot ends (Morning 12:00, Afternoon 18:00 Berlin) and are always assigned directly; a full day yields a `Waitlisted` booking.
+- Window: Berlin today … today + `Booking:MaxDaysAhead` (default 31, env `Booking__MaxDaysAhead`); the frontend reads it from `GET /api/bookings/window`. Same-day bookings are allowed until the slot ends (Morning 06:00–12:00, Afternoon 13:00–19:00 Berlin) and are always assigned directly; a full day yields a `Waitlisted` booking.
 - One live booking per user per date and time slot across all locations (`booking_duplicate_other_location` carries the other location in `params.location`).
 - Availability: `bookingCount` = Won + Confirmed; `pendingCount`/`waitlistCount`/`lotteryRan` let the UI show demand before the lottery and free slots after it.
 - Statuses (WP4): `Waitlisted` = no slot yet, day still ahead, promoted automatically; `Lost` is terminal (day over). Lottery losers, full same-day bookings and withdrawn slots become Waitlisted; the expiry job turns Waitlisted into Lost at slot end. Users can cancel a Waitlisted booking.

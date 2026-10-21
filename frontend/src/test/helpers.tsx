@@ -15,6 +15,8 @@ export interface MockAuthValue {
   azureLoginError: unknown;
   clearAzureLoginError: ReturnType<typeof vi.fn>;
   logout: ReturnType<typeof vi.fn>;
+  refreshUser: ReturnType<typeof vi.fn>;
+  updateUser: ReturnType<typeof vi.fn>;
 }
 
 export const mockUser = {
@@ -49,6 +51,8 @@ export function createMockAuth(overrides: Partial<MockAuthValue> = {}): MockAuth
     azureLoginError: null,
     clearAzureLoginError: vi.fn(),
     logout: vi.fn(),
+    refreshUser: vi.fn().mockResolvedValue(undefined),
+    updateUser: vi.fn(),
     ...overrides,
   };
 }

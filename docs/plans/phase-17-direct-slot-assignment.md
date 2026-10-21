@@ -121,12 +121,12 @@ New `backend/SchulerPark.Tests/Services/DirectAssignmentServiceTests.cs` (unit, 
 
 Allow booking a free slot for **today** (today's lottery always ran yesterday → always the direct-assignment path).
 
-- **Cutoff rule:** bookable until the slot's **end** in Berlin — Morning until 12:00, Afternoon until 18:00 (matches the ranges already shown in the UI i18n). Constants + pure `IsSameDayBookingOpen(date, slot, berlinNow)` added to `DeadlineHelper.cs` (existing deadline methods untouched).
+- **Cutoff rule:** bookable until the slot's **end** in Berlin — Morning until 12:00, Afternoon until 19:00 (since the Afternoon slot moved to 13:00–19:00; matches the ranges shown in the UI i18n). Constants + pure `IsSameDayBookingOpen(date, slot, berlinNow)` added to `DeadlineHelper.cs` (existing deadline methods untouched).
 - **Validation:** `BookingService.CreateBookingAsync` `date <= today` → `date < today`; add same-day cutoff check. Week bookings stay tomorrow+ (today skipped as now).
 - **Full case for today: reject** ("No free parking slots left for today") instead of creating `Lost` — waitlist promotion refuses past the confirmation deadline (Morning 05:00 / Afternoon 12:00), so a same-day Lost booking would be dead on arrival.
 - **Testability:** inject .NET `TimeProvider` into `BookingService` only (register `TimeProvider.System` in Program.cs; `FakeTimeProvider` from `Microsoft.Extensions.Time.Testing` in tests). Cutoff logic itself is a pure helper unit-tested with explicit times (incl. DST dates).
 - **Frontend:** new `utils/berlinTime.ts` (Intl-based Berlin now — also fixes existing UTC/local minDate quirk at `BookingPage.tsx:114-117`); minDate = today (single mode); pass `from=today` to availability fetch (backend already permits it; default is tomorrow); grey out time slots past cutoff in `TimeSlotSelector.tsx`; ~3 i18n keys en+de.
-- **Tests:** unit (cutoff boundaries 11:59/12:00, 17:59/18:00, DST); integration with `FakeTimeProvider` (today-with-free-slot → Confirmed; after-cutoff → 400; today-full → 400 + no Lost row; week-containing-today skips today; availability from=today).
+- **Tests:** unit (cutoff boundaries 11:59/12:00, 18:59/19:00, DST); integration with `FakeTimeProvider` (today-with-free-slot → Confirmed; after-cutoff → 400; today-full → 400 + no Lost row; week-containing-today skips today; availability from=today).
 - **Incremental cost:** ~11 files, ~300 lines, ~1 dev-day incl. tests. No migration, no new endpoints, no job changes. Cleanly severable from Part A.
 
 ---

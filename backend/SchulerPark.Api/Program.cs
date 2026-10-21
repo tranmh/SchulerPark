@@ -311,6 +311,24 @@ app.UseForwardedHeaders(forwardedHeadersOptions);
 // not Caddy's container IP (which would pool all users into one bucket).
 app.UseRateLimiter();
 
+// API responses are per-user and change at any time (profile, bookings, auth): forbid
+// every cache in the chain (browser, installed PWA, office proxy) from storing them.
+// Static files below set their own policy; this only touches /api/*.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.OnStarting(() =>
+        {
+            var headers = context.Response.Headers;
+            headers.CacheControl = "no-store";
+            headers.Pragma = "no-cache";
+            return Task.CompletedTask;
+        });
+    }
+    await next();
+});
+
 // Cache policy for the SPA (WP4 follow-up): Vite's /assets/* files carry a content hash
 // in their name and are safe to cache for a year; everything else (index.html, sw.js,
 // manifest, icons) must be revalidated on every request, otherwise a browser or the

@@ -10,7 +10,7 @@ namespace SchulerPark.Core.Models;
 /// <param name="MaxDate">Latest bookable day: today + <see cref="MaxDaysAhead"/>.</param>
 /// <param name="MaxDaysAhead">Configured horizon (<c>Booking:MaxDaysAhead</c>).</param>
 /// <param name="MorningOpenToday">Whether today's Morning slot can still be booked (before 12:00 Berlin).</param>
-/// <param name="AfternoonOpenToday">Whether today's Afternoon slot can still be booked (before 18:00 Berlin).</param>
+/// <param name="AfternoonOpenToday">Whether today's Afternoon slot can still be booked (before 19:00 Berlin).</param>
 /// <param name="LotteryTime">Berlin "HH:mm" at which the nightly lottery runs (<c>Booking:LotteryTime</c>).</param>
 /// <param name="MorningDeadline">Default confirmation deadline for Morning wins, Berlin "HH:mm".</param>
 /// <param name="AfternoonDeadline">Default confirmation deadline for Afternoon wins, Berlin "HH:mm".</param>

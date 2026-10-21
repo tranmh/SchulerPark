@@ -8,13 +8,13 @@ public static class DeadlineHelper
 {
     public static readonly TimeZoneInfo BerlinTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
 
-    /// <summary>Wall-clock start of each time slot in Europe/Berlin (matches the UI ranges).</summary>
+    /// <summary>Wall-clock start of each time slot in Europe/Berlin (Morning 06:00, Afternoon 13:00; matches the UI ranges).</summary>
     public static TimeOnly SlotStart(TimeSlot slot) =>
-        slot == TimeSlot.Morning ? new TimeOnly(6, 0) : new TimeOnly(12, 0);
+        slot == TimeSlot.Morning ? new TimeOnly(6, 0) : new TimeOnly(13, 0);
 
-    /// <summary>Wall-clock end of each time slot in Europe/Berlin (matches the UI ranges).</summary>
+    /// <summary>Wall-clock end of each time slot in Europe/Berlin (Morning 12:00, Afternoon 19:00; matches the UI ranges).</summary>
     public static TimeOnly SlotEnd(TimeSlot slot) =>
-        slot == TimeSlot.Morning ? new TimeOnly(12, 0) : new TimeOnly(18, 0);
+        slot == TimeSlot.Morning ? new TimeOnly(12, 0) : new TimeOnly(19, 0);
 
     /// <summary>The slot's end on <paramref name="date"/> as a UTC instant.</summary>
     public static DateTime SlotEndUtc(DateOnly date, TimeSlot slot) => BerlinToUtc(date, SlotEnd(slot));
@@ -78,7 +78,7 @@ public static class DeadlineHelper
     /// <summary>
     /// Same-day booking cutoff (Phase 17 Part B / Phase 20 WP3 2.1): a slot on <paramref name="date"/>
     /// can still be booked while the Berlin wall clock is before the slot's end (Morning until
-    /// 12:00, Afternoon until 18:00). Future dates are always open, past dates never.
+    /// 12:00, Afternoon until 19:00). Future dates are always open, past dates never.
     /// </summary>
     public static bool IsSameDayBookingOpen(DateOnly date, TimeSlot timeSlot, DateTime berlinNow)
     {

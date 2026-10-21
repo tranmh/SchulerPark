@@ -25,10 +25,11 @@ public class DeadlineHelperTests
     }
 
     [Theory]
-    [InlineData(17, 59, true)]
-    [InlineData(18, 0, false)]
+    [InlineData(12, 30, true)]    // before the 13:00 start: still bookable
+    [InlineData(18, 59, true)]
+    [InlineData(19, 0, false)]
     [InlineData(23, 30, false)]
-    public void Afternoon_IsOpenUntilSix(int hour, int minute, bool expected)
+    public void Afternoon_IsOpenUntilSeven(int hour, int minute, bool expected)
     {
         var berlinNow = Day.ToDateTime(new TimeOnly(hour, minute));
         DeadlineHelper.IsSameDayBookingOpen(Day, TimeSlot.Afternoon, berlinNow).Should().Be(expected);
@@ -102,6 +103,22 @@ public class DeadlineHelperTests
         // Promoted at 11:30 Berlin (09:30 UTC): +2 h would be 13:30, but Morning ends 12:00 (10:00 UTC).
         var promotedAt = new DateTime(2026, 6, 10, 9, 30, 0, DateTimeKind.Utc);
         DeadlineHelper.ComputeDeadline(Day, TimeSlot.Morning, promotedAt, Defaults).Should().Be(new DateTime(2026, 6, 10, 10, 0, 0));
+
+        // Afternoon (13:00–19:00): promoted at 17:30 Berlin (15:30 UTC): +2 h would be 19:30, capped at 19:00 (17:00 UTC).
+        var promotedLate = new DateTime(2026, 6, 10, 15, 30, 0, DateTimeKind.Utc);
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Afternoon, promotedLate, Defaults).Should().Be(new DateTime(2026, 6, 10, 17, 0, 0));
+    }
+
+    [Fact]
+    public void Afternoon_DefaultDeadlineEqualsSlotStart_PromotionsAfterElevenConfirmDirectly()
+    {
+        // The Afternoon default deadline (13:00 Berlin) coincides with the slot start (13:00).
+        // A promotion at 14:00 Berlin (12:00 UTC) still gets the full minimum window (until 16:00 Berlin = 14:00 UTC) ...
+        DeadlineHelper.ComputeDeadline(Day, TimeSlot.Afternoon, new DateTime(2026, 6, 10, 12, 0, 0, DateTimeKind.Utc), Defaults)
+            .Should().Be(new DateTime(2026, 6, 10, 14, 0, 0));
+        // ... and from 11:00 Berlin (09:00 UTC) on, i.e. two hours before the default, promotions skip Won and confirm outright.
+        DeadlineHelper.IsInsideConfirmationWindow(Day, TimeSlot.Afternoon, new DateTime(2026, 6, 10, 8, 59, 59), Defaults).Should().BeFalse();
+        DeadlineHelper.IsInsideConfirmationWindow(Day, TimeSlot.Afternoon, new DateTime(2026, 6, 10, 9, 0, 0), Defaults).Should().BeTrue();
     }
 
     [Theory]
