@@ -541,7 +541,7 @@ export function BookingPage() {
         {step === 4 && (
           <div>
             <h2 className="mb-4 text-[15px] font-semibold text-ink-700">{t('booking.reviewTitle')}</h2>
-            <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+            <div className="max-w-2xl">
               <div className="rounded-card border border-line bg-white p-4 shadow-card sm:p-6">
                 <SummaryRow label={t('booking.labelLocation')} value={selectedLocation?.name ?? '—'} />
                 <SummaryRow
@@ -564,6 +564,14 @@ export function BookingPage() {
                   </div>
                 )}
 
+                {/* Plain sentences, one per line: no list markup so it stays readable on narrow screens. */}
+                <div data-testid="what-happens-next" className="mt-5 rounded-lg bg-surface-warm px-4 py-3 text-[13px] leading-relaxed text-ink-600">
+                  <p className="font-semibold text-ink-900">{t('booking.whatHappensNext')}</p>
+                  <p className="mt-1.5"><Trans i18nKey="booking.nextLottery" values={schedule} components={{ b: <b /> }} /></p>
+                  <p className="mt-1.5"><Trans i18nKey="booking.nextWin" values={schedule} components={{ b: <b /> }} /></p>
+                  <p className="mt-1.5">{t('booking.nextLose')}</p>
+                </div>
+
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
@@ -582,15 +590,6 @@ export function BookingPage() {
                   </button>
                 </div>
               </div>
-              <aside className="rounded-card border border-line bg-surface-warm p-5 text-[12.5px] leading-relaxed text-ink-500">
-                <div className="font-semibold text-ink-900 text-[13px]">{t('booking.whatHappensNext')}</div>
-                <ol className="mt-3 space-y-2.5">
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">1.</span>{t('booking.next1')}</li>
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">2.</span><Trans i18nKey="booking.next2" values={schedule} components={{ b: <b /> }} /></li>
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">3.</span><Trans i18nKey="booking.next3" values={schedule} components={{ b: <b /> }} /></li>
-                  <li className="flex gap-2.5"><span className="num font-semibold text-brand-600">4.</span>{t('booking.nextDirectNote')}</li>
-                </ol>
-              </aside>
             </div>
           </div>
         )}

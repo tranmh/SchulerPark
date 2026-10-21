@@ -97,15 +97,18 @@ describe('BookingPage review step', () => {
     expect(screen.queryByText(/parking layout|parkplatz-layout/i)).not.toBeInTheDocument();
   });
 
-  it('shows the short "what happens next" steps', async () => {
+  it('explains what happens next in plain sentences inside the review card, without a list', async () => {
     mockAuth = createMockAuth({ isAuthenticated: true, user: mockUser, isAdmin: false });
 
     await goToReviewStep();
 
-    const steps = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
-    expect(steps).toHaveLength(4);
-    expect(steps[1]).toContain('21:00');
-    expect(steps[2]).toContain('07:00');
-    expect(steps[2]).toContain('13:00');
+    const note = screen.getByTestId('what-happens-next');
+    const text = note.textContent ?? '';
+    expect(text).toContain('21:00');
+    expect(text).toContain('07:00');
+    expect(text).toContain('13:00');
+    expect(note.querySelector('ol, ul, li')).toBeNull();
+    // The note sits in the same card as the summary, right above the submit button.
+    expect(note.closest('div.rounded-card')).toBe(screen.getByText('Goeppingen').closest('div.rounded-card'));
   });
 });
