@@ -27,7 +27,9 @@ export function BlockedDaysPage() {
 
   useEffect(() => {
     adminService.getLocations()
-      .then((locs) => {
+      .then((all) => {
+        // Only active locations can be blocked; deactivated ones are managed under Locations.
+        const locs = all.filter((l) => l.isActive);
         setLocations(locs);
         if (locs.length > 0) setSelectedLocationId(locs[0].id);
       })

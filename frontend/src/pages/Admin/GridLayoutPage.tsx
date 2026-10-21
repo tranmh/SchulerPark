@@ -38,7 +38,8 @@ export function GridLayoutPage() {
 
   useEffect(() => {
     adminService.getLocations()
-      .then(setLocations)
+      // Only active locations have an editable layout; deactivated ones are managed under Locations.
+      .then((all) => setLocations(all.filter((l) => l.isActive)))
       .catch(() => setError('Failed to load locations.'))
       .finally(() => setLoading(false));
   }, []);

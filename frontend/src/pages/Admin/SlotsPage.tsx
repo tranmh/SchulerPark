@@ -32,7 +32,9 @@ export function SlotsPage() {
 
   useEffect(() => {
     adminService.getLocations()
-      .then((locs) => {
+      .then((all) => {
+        // Slots of a deactivated location are not editable here; it only shows up under Locations.
+        const locs = all.filter((l) => l.isActive);
         setLocations(locs);
         if (locs.length > 0) setSelectedLocationId(locs[0].id);
       })
