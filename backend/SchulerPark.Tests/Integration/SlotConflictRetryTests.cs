@@ -99,7 +99,7 @@ public class SlotConflictRetryTests
         var userId = Guid.NewGuid();
         var otherId = Guid.NewGuid();
         await using var seed = _fx.NewContext();
-        seed.Add(new Location { Id = locationId, Name = $"L-{locationId:N}", Address = "A" });
+        seed.Add(new Location { Id = locationId, Name = $"L-{locationId:N}" });
         seed.Add(new ParkingSlot { Id = slotA, LocationId = locationId, SlotNumber = "A" });
         seed.Add(new ParkingSlot { Id = slotB, LocationId = locationId, SlotNumber = "B" });
         seed.Users.Add(new User { Id = userId, Email = $"u-{userId:N}@x.de", DisplayName = "U" });

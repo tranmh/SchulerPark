@@ -9,7 +9,6 @@ export type BookingStatus = 'Pending' | 'Won' | 'Waitlisted' | 'Lost' | 'Confirm
 export interface Location {
   id: string;
   name: string;
-  address: string;
   totalSlots: number;
 }
 

@@ -59,7 +59,7 @@ public class DbIntegrityTests
         // client-side relationship fixup). This is what actually tests #18.
         await using (var seed = _fx.NewContext())
         {
-            var location = new Location { Id = Guid.NewGuid(), Name = "GP", Address = "A" };
+            var location = new Location { Id = Guid.NewGuid(), Name = "GP" };
             var slot = new ParkingSlot { Id = slotId, LocationId = location.Id, SlotNumber = "S1" };
             var user = new User { Id = Guid.NewGuid(), Email = $"u-{Guid.NewGuid():N}@x.de", DisplayName = "U" };
             seed.AddRange(location, slot, user);
@@ -99,7 +99,7 @@ public class DbIntegrityTests
         // DATABASE FK rule governs the outcome (mirrors the slot test above).
         await using (var seed = _fx.NewContext())
         {
-            var location = new Location { Id = locationId, Name = $"L-{locationId:N}", Address = "A" };
+            var location = new Location { Id = locationId, Name = $"L-{locationId:N}" };
             var user = new User { Id = Guid.NewGuid(), Email = $"u-{Guid.NewGuid():N}@x.de", DisplayName = "U" };
             seed.AddRange(location, user);
             await seed.SaveChangesAsync();
@@ -132,7 +132,7 @@ public class DbIntegrityTests
         Skip.IfNot(_fx.DockerAvailable, _fx.SkipReason);
         await using var db = _fx.NewContext();
 
-        var location = new Location { Id = Guid.NewGuid(), Name = "EF", Address = "A" };
+        var location = new Location { Id = Guid.NewGuid(), Name = "EF" };
         var admin = new User { Id = Guid.NewGuid(), Email = $"a-{Guid.NewGuid():N}@x.de", DisplayName = "Admin" };
         db.AddRange(location, admin);
         await db.SaveChangesAsync();
@@ -171,7 +171,7 @@ public class DbIntegrityTests
         var bookingId = Guid.NewGuid();
         await using (var seed = _fx.NewContext())
         {
-            var location = new Location { Id = Guid.NewGuid(), Name = "C", Address = "A" };
+            var location = new Location { Id = Guid.NewGuid(), Name = "C" };
             var user = new User { Id = Guid.NewGuid(), Email = $"c-{Guid.NewGuid():N}@x.de", DisplayName = "C" };
             seed.AddRange(location, user);
             await seed.SaveChangesAsync();

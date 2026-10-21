@@ -24,7 +24,7 @@ public class ConfirmationExpiryJobTests
 
     private async Task<Booking> SeedAsync(BookingStatus status, TimeSlot slot = TimeSlot.Morning, DateTime? deadline = null, DateOnly? date = null)
     {
-        var loc = new Location { Id = Guid.NewGuid(), Name = $"L-{Guid.NewGuid():N}", Address = "A" };
+        var loc = new Location { Id = Guid.NewGuid(), Name = $"L-{Guid.NewGuid():N}" };
         await using var seed = _fx.NewContext();
         seed.Locations.Add(loc);
         await seed.SaveChangesAsync();

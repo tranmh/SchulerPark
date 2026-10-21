@@ -36,7 +36,7 @@ public class LocationController : ControllerBase
     {
         var locations = await _locationService.GetActiveLocationsAsync();
         var dtos = locations.Select(l => new LocationDto(
-            l.Id, l.Name, l.Address, l.ParkingSlots.Count)).ToList();
+            l.Id, l.Name, l.ParkingSlots.Count)).ToList();
         return Ok(dtos);
     }
 

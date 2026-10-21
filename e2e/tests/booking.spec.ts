@@ -52,7 +52,7 @@ test.describe('Booking Flow', () => {
     await page.goto('/booking');
 
     // Step 1: Select location — use exact name match because admin tests can
-    // leave behind locations whose addresses contain "Goeppingen".
+    // leave behind locations whose names contain "Goeppingen".
     await page.getByRole('button', { name: /^G Goeppingen/ }).click();
 
     // Step 2: Date picker should appear

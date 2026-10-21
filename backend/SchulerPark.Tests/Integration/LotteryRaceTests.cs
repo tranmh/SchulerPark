@@ -85,7 +85,7 @@ public class LotteryRaceTests
 
         await using (var seed = _fx.NewContext())
         {
-            seed.Add(new Location { Id = locationId, Name = "L", Address = "A" });
+            seed.Add(new Location { Id = locationId, Name = "L" });
             seed.Add(new ParkingSlot { Id = Guid.NewGuid(), LocationId = locationId, SlotNumber = "S1" });
             seed.Users.Add(new User { Id = userA, Email = $"a-{userA:N}@x.de", DisplayName = "A" });
             seed.Users.Add(new User { Id = userB, Email = $"b-{userB:N}@x.de", DisplayName = "B" });

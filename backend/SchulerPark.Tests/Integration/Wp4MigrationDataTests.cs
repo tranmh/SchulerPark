@@ -20,7 +20,7 @@ public class Wp4MigrationDataTests
 
     private async Task<Guid> SeedAsync(BookingStatus status, DateOnly date, TimeSlot slot, DateTime? deadline = null)
     {
-        var loc = new Location { Id = Guid.NewGuid(), Name = $"L-{Guid.NewGuid():N}", Address = "A" };
+        var loc = new Location { Id = Guid.NewGuid(), Name = $"L-{Guid.NewGuid():N}" };
         var user = new User { Id = Guid.NewGuid(), Email = $"u-{Guid.NewGuid():N}@x.de", DisplayName = "U" };
         var booking = new Booking
         {

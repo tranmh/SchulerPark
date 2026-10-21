@@ -152,42 +152,36 @@ public static class SeedData
             {
                 Id = GoeppingenId,
                 Name = "Goeppingen",
-                Address = "Schuler Pressen GmbH, Bahnhofstraße 41, 73033 Göppingen",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             },
             new Location
             {
                 Id = ErfurtId,
                 Name = "Erfurt",
-                Address = "Schuler Pressen GmbH, Erfurt Office",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             },
             new Location
             {
                 Id = HessdorfId,
                 Name = "Hessdorf",
-                Address = "Schuler Pressen GmbH, Hessdorf Office",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             },
             new Location
             {
                 Id = GemmingenId,
                 Name = "Gemmingen",
-                Address = "Schuler Pressen GmbH, Gemmingen Office",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             },
             new Location
             {
                 Id = WeingartenId,
                 Name = "Weingarten",
-                Address = "Schuler Pressen GmbH, Schillerstraße, 88250 Weingarten",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             },
             new Location
             {
                 Id = NetphenId,
                 Name = "Netphen",
-                Address = "Schuler Pressen GmbH, Netphen Office",
                 DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
             }
         };
@@ -201,22 +195,23 @@ public static class SeedData
 
     private static async Task SeedParkingSlots(AppDbContext context)
     {
-        var slotCounts = new Dictionary<Guid, int>
+        // Slot numbers per location, matching the physical numbering on site.
+        var slotNumbers = new Dictionary<Guid, IEnumerable<int>>
         {
-            { GoeppingenId, 20 },
-            { ErfurtId, 15 },
-            { HessdorfId, 10 },
-            { GemmingenId, 12 },
-            { WeingartenId, 18 },
-            { NetphenId, 8 }
+            { GoeppingenId, Enumerable.Range(97, 14).Concat(Enumerable.Range(122, 14)) }, // 97-110, 122-135
+            { ErfurtId, Enumerable.Range(1, 10) },
+            { HessdorfId, Enumerable.Range(1, 6) },
+            { GemmingenId, Enumerable.Range(1, 12) },
+            { WeingartenId, Enumerable.Range(1, 18) },
+            { NetphenId, Enumerable.Range(1, 4) }
         };
 
-        foreach (var (locationId, count) in slotCounts)
+        foreach (var (locationId, numbers) in slotNumbers)
         {
             if (await context.ParkingSlots.AnyAsync(ps => ps.LocationId == locationId))
                 continue;
 
-            for (var i = 1; i <= count; i++)
+            foreach (var i in numbers)
             {
                 context.ParkingSlots.Add(new ParkingSlot
                 {
@@ -237,11 +232,11 @@ public static class SeedData
     {
         var assignments = new (Guid UserId, Guid LocationId, string SlotNumber)[]
         {
-            (TestUser1Id,                                            GoeppingenId, "P001"), // Anna
+            (TestUser1Id,                                            GoeppingenId, "P097"), // Anna
             (TestUser2Id,                                            ErfurtId,     "P001"), // Max
             (TestUser3Id,                                            WeingartenId, "P001"), // Lisa
-            (Guid.Parse("a0000000-0000-0000-0000-000000000005"),     GoeppingenId, "P005"), // Felix
-            (Guid.Parse("a0000000-0000-0000-0000-000000000006"),     GoeppingenId, "P006"), // Sophie
+            (Guid.Parse("a0000000-0000-0000-0000-000000000005"),     GoeppingenId, "P101"), // Felix
+            (Guid.Parse("a0000000-0000-0000-0000-000000000006"),     GoeppingenId, "P102"), // Sophie
             (Guid.Parse("a0000000-0000-0000-0000-000000000007"),     ErfurtId,     "P005"), // Jonas
             (Guid.Parse("a0000000-0000-0000-0000-000000000009"),     HessdorfId,   "P001"), // Leon
             (Guid.Parse("a0000000-0000-0000-0000-00000000000b"),     GemmingenId,  "P001"), // Paul
@@ -459,11 +454,11 @@ public static class SeedData
     //
     //      0    1    2    3    4    5    6    7    8    9   10   11
     // 0: [OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS]  building
-    // 1: [   ][P01][P02][ RD][P03][P04][ RD][P05][P06][ RD][P07][   ]
-    // 2: [   ][P08][P09][ RD][P10][P11][ RD][P12][P13][ RD][P14][   ]
+    // 1: [   ][ 97][ 98][ RD][ 99][100][ RD][101][102][ RD][103][   ]
+    // 2: [   ][104][105][ RD][106][107][ RD][108][109][ RD][110][   ]
     // 3: [   ][   ][   ][ RD][   ][   ][ RD][   ][   ][ RD][   ][   ]  lane
-    // 4: [   ][P15][P16][ RD][P17][P18][ RD][P19][P20][   ][   ][   ]
-    // 5: [   ][   ][   ][ RD][   ][   ][ RD][   ][   ][   ][   ][   ]  lane
+    // 4: [   ][122][123][ RD][124][125][ RD][126][127][ RD][128][   ]
+    // 5: [   ][129][130][ RD][131][132][ RD][133][134][ RD][135][   ]
     // 6: [   ][   ][   ][ RD][ RD][ RD][ RD][   ][   ][   ][   ][   ]  exit road
     // 7: [   ][   ][   ][   ][   ][ENT][   ][   ][   ][   ][   ][   ]  entrance
     private static async Task SeedGoeppingenGrid(AppDbContext context)
@@ -479,12 +474,13 @@ public static class SeedData
             .OrderBy(s => s.SlotNumber)
             .ToListAsync();
 
-        // Slot positions (row, col) for P001..P020
+        // Slot positions (row, col) for P097..P110 and P122..P135
         var positions = new (int Row, int Col)[]
         {
-            (1, 1), (1, 2), (1, 4), (1, 5), (1, 7), (1, 8), (1, 10),     // P001-P007
-            (2, 1), (2, 2), (2, 4), (2, 5), (2, 7), (2, 8), (2, 10),     // P008-P014
-            (4, 1), (4, 2), (4, 4), (4, 5), (4, 7), (4, 8),              // P015-P020
+            (1, 1), (1, 2), (1, 4), (1, 5), (1, 7), (1, 8), (1, 10),     // P097-P103
+            (2, 1), (2, 2), (2, 4), (2, 5), (2, 7), (2, 8), (2, 10),     // P104-P110
+            (4, 1), (4, 2), (4, 4), (4, 5), (4, 7), (4, 8), (4, 10),     // P122-P128
+            (5, 1), (5, 2), (5, 4), (5, 5), (5, 7), (5, 8), (5, 10),     // P129-P135
         };
 
         for (var i = 0; i < Math.Min(slots.Count, positions.Length); i++)
@@ -529,7 +525,7 @@ public static class SeedData
     // 2: [   ][P07][P08][P09][   ][ RD][P10][   ][   ][   ]  upper zone
     // 3: [ RD][ RD][ RD][ RD][ RD][ RD][ RD][ RD][ RD][ RD]  main road
     // 4: [   ][   ][   ][   ][   ][   ][   ][OBS][OBS][OBS]
-    // 5: [   ][P11][P12][P13][ RD][P14][P15][   ][   ][   ]  lower zone
+    // 5: [   ][   ][   ][   ][ RD][   ][   ][   ][   ][   ]  lower zone
     // 6: [   ][   ][   ][   ][ RD][   ][   ][   ][   ][   ]
     // 7: [   ][   ][   ][ENT][ RD][   ][   ][   ][   ][   ]  entrance
     private static async Task SeedErfurtGrid(AppDbContext context)
@@ -549,7 +545,6 @@ public static class SeedData
         {
             (1, 1), (1, 2), (1, 3), (1, 4), (1, 6), (1, 7),     // P001-P006
             (2, 1), (2, 2), (2, 3), (2, 6),                       // P007-P010
-            (5, 1), (5, 2), (5, 3), (5, 5), (5, 6),               // P011-P015
         };
 
         for (var i = 0; i < Math.Min(slots.Count, positions.Length); i++)
@@ -592,8 +587,8 @@ public static class SeedData
     // 0: [   ][P01][P02][   ][   ][P03][P04][   ]
     // 1: [   ][P05][   ][OBS][OBS][   ][P06][   ]
     // 2: [   ][   ][   ][OBS][OBS][   ][   ][   ]
-    // 3: [   ][P07][   ][OBS][OBS][   ][P08][   ]
-    // 4: [   ][P09][P10][   ][   ][   ][   ][   ]
+    // 3: [   ][   ][   ][OBS][OBS][   ][   ][   ]
+    // 4: [   ][   ][   ][   ][   ][   ][   ][   ]
     // 5: [ RD][ RD][ RD][ RD][ RD][ RD][ENT][   ]  road + entrance
     private static async Task SeedHessdorfGrid(AppDbContext context)
     {
@@ -612,8 +607,6 @@ public static class SeedData
         {
             (0, 1), (0, 2), (0, 5), (0, 6),   // P001-P004
             (1, 1), (1, 6),                     // P005-P006
-            (3, 1), (3, 6),                     // P007-P008
-            (4, 1), (4, 2),                     // P009-P010
         };
 
         for (var i = 0; i < Math.Min(slots.Count, positions.Length); i++)
@@ -790,13 +783,13 @@ public static class SeedData
 
     // Netphen: 6 rows × 8 columns
     // Smaller office location — compact rectangular lot with building
-    // on the right, two rows of parking on the left, road at bottom.
+    // on the right, one row of parking on the left, road at bottom.
     //
     //      0    1    2    3    4    5    6    7
     // 0: [LBL][   ][   ][   ][   ][OBS][OBS][OBS]  office
     // 1: [P01][P02][P03][P04][ RD][OBS][OBS][OBS]
     // 2: [   ][   ][   ][   ][ RD][OBS][OBS][OBS]  lane
-    // 3: [P05][P06][P07][P08][ RD][   ][   ][   ]
+    // 3: [   ][   ][   ][   ][ RD][   ][   ][   ]
     // 4: [ RD][ RD][ RD][ RD][ RD][   ][   ][   ]  road
     // 5: [   ][ENT][   ][   ][   ][   ][   ][   ]  entrance
     private static async Task SeedNetphenGrid(AppDbContext context)
@@ -812,11 +805,10 @@ public static class SeedData
             .OrderBy(s => s.SlotNumber)
             .ToListAsync();
 
-        // 8 slots in 2 rows of 4
+        // 4 slots in a single row
         var positions = new (int Row, int Col)[]
         {
             (1, 0), (1, 1), (1, 2), (1, 3),   // P001-P004
-            (3, 0), (3, 1), (3, 2), (3, 3),   // P005-P008
         };
 
         for (var i = 0; i < Math.Min(slots.Count, positions.Length); i++)

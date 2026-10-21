@@ -243,7 +243,6 @@ export function DashboardPage() {
                   </span>
                 </div>
                 <div className="mt-4 font-semibold text-ink-900">{loc.name}</div>
-                <div className="mt-0.5 truncate text-[12.5px] text-ink-400">{loc.address}</div>
                 <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
                   <div className="text-[12px] text-ink-400 num">
                     {t('components.location.slots', { count: loc.totalSlots })}

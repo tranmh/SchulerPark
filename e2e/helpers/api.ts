@@ -28,12 +28,12 @@ export class AdminApi {
   listLocations() {
     return this.request.get('/api/admin/locations', { headers: this.headers() }).then(r => r.json());
   }
-  createLocation(name: string, address: string) {
+  createLocation(name: string) {
     return this.request
-      .post('/api/admin/locations', { headers: this.headers(), data: { name, address } })
+      .post('/api/admin/locations', { headers: this.headers(), data: { name } })
       .then(r => r.json());
   }
-  updateLocation(id: string, body: { name?: string; address?: string; isActive?: boolean }) {
+  updateLocation(id: string, body: { name?: string; isActive?: boolean }) {
     return this.request.put(`/api/admin/locations/${id}`, { headers: this.headers(), data: body });
   }
   deactivateLocation(id: string) {

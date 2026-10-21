@@ -11,7 +11,7 @@ test.describe('Admin → Lottery Trigger (API + UI verification)', () => {
   test.beforeAll(async () => {
     baseURL = process.env.BASE_URL || 'http://localhost:8080';
     api = await AdminApi.create(baseURL);
-    const loc = await api.createLocation(uniqueName('Lottery-Loc'), 'Lottery Test');
+    const loc = await api.createLocation(uniqueName('Lottery-Loc'));
     testLocationId = loc.id;
     // Add slots so the lottery has something to assign.
     for (let i = 1; i <= 3; i++) {

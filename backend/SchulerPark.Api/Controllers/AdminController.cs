@@ -42,7 +42,7 @@ public class AdminController : ControllerBase
             .ToListAsync();
 
         var dtos = locations.Select(l => new AdminLocationDto(
-            l.Id, l.Name, l.Address, l.IsActive,
+            l.Id, l.Name, l.IsActive,
             l.DefaultAlgorithm.ToString(),
             l.ParkingSlots.Count,
             l.ParkingSlots.Count(s => s.IsActive))).ToList();
@@ -57,16 +57,11 @@ public class AdminController : ControllerBase
             throw new ValidationException("Location name is required.");
         if (request.Name.Length > 100)
             throw new ValidationException("Location name must not exceed 100 characters.");
-        if (string.IsNullOrWhiteSpace(request.Address))
-            throw new ValidationException("Address is required.");
-        if (request.Address.Length > 300)
-            throw new ValidationException("Address must not exceed 300 characters.");
 
         var location = new Location
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Address = request.Address,
             IsActive = true,
             DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
         };
@@ -74,7 +69,7 @@ public class AdminController : ControllerBase
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetLocations), new AdminLocationDto(
-            location.Id, location.Name, location.Address, location.IsActive,
+            location.Id, location.Name, location.IsActive,
             location.DefaultAlgorithm.ToString(), 0, 0));
     }
 
@@ -88,7 +83,6 @@ public class AdminController : ControllerBase
 
         var deactivating = location.IsActive && !request.IsActive;
         location.Name = request.Name;
-        location.Address = request.Address;
         location.IsActive = request.IsActive;
         await _db.SaveChangesAsync();
 
@@ -98,7 +92,7 @@ public class AdminController : ControllerBase
                 BookingReleaseReason.LocationDeactivated, GetUserId(), null);
 
         return Ok(new AdminLocationDto(
-            location.Id, location.Name, location.Address, location.IsActive,
+            location.Id, location.Name, location.IsActive,
             location.DefaultAlgorithm.ToString(),
             location.ParkingSlots.Count,
             location.ParkingSlots.Count(s => s.IsActive)));

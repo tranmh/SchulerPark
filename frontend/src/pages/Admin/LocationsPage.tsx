@@ -23,7 +23,6 @@ export function LocationsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
-  const [formAddress, setFormAddress] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,7 +50,6 @@ export function LocationsPage() {
   const openCreate = () => {
     setEditingId(null);
     setFormName('');
-    setFormAddress('');
     setFormIsActive(true);
     setModalOpen(true);
   };
@@ -59,7 +57,6 @@ export function LocationsPage() {
   const openEdit = (loc: AdminLocation) => {
     setEditingId(loc.id);
     setFormName(loc.name);
-    setFormAddress(loc.address);
     setFormIsActive(loc.isActive);
     setModalOpen(true);
   };
@@ -71,11 +68,10 @@ export function LocationsPage() {
       if (editingId) {
         await adminService.updateLocation(editingId, {
           name: formName,
-          address: formAddress,
           isActive: formIsActive,
         });
       } else {
-        await adminService.createLocation({ name: formName, address: formAddress });
+        await adminService.createLocation({ name: formName });
       }
       setModalOpen(false);
       await load();
@@ -166,7 +162,6 @@ export function LocationsPage() {
           <thead className="bg-surface-warm">
             <tr>
               <Th>Name</Th>
-              <Th>Address</Th>
               <Th>Status</Th>
               <Th>Slots</Th>
               <Th>Lottery algorithm</Th>
@@ -176,7 +171,7 @@ export function LocationsPage() {
           <tbody className="divide-y divide-line">
             {locations.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-ink-400">
+                <td colSpan={5} className="px-4 py-10 text-center text-[13px] text-ink-400">
                   No locations yet. Create your first one above.
                 </td>
               </tr>
@@ -195,7 +190,6 @@ export function LocationsPage() {
                       <span className={loc.isActive ? '' : 'text-ink-500'}>{loc.name}</span>
                     </div>
                   </Td>
-                  <Td className="text-ink-400">{loc.address}</Td>
                   <Td>
                     {loc.isActive ? (
                       <Pill tone="active">Active</Pill>
@@ -269,14 +263,6 @@ export function LocationsPage() {
                 className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
               />
             </FormField>
-            <FormField label="Address" htmlFor="location-address">
-              <input
-                id="location-address"
-                value={formAddress}
-                onChange={(e) => setFormAddress(e.target.value)}
-                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
-              />
-            </FormField>
             {editingId && (
               <label className="flex items-center gap-2 text-[13px] text-ink-700">
                 <input
@@ -300,7 +286,7 @@ export function LocationsPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || !formName || !formAddress}
+              disabled={saving || !formName}
               className="rounded-lg bg-brand-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm hover:bg-brand-600 disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Save'}

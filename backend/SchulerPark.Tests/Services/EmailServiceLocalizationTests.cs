@@ -11,7 +11,7 @@ public class EmailServiceLocalizationTests
 {
     private static Booking MorningBooking() => new()
     {
-        Location = new Location { Name = "Göppingen", Address = "" },
+        Location = new Location { Name = "Göppingen" },
         Date = new DateOnly(2026, 10, 5),
         TimeSlot = TimeSlot.Morning,
     };

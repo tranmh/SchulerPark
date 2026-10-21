@@ -192,11 +192,6 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
                     b.Property<string>("DefaultAlgorithm")
                         .IsRequired()
                         .HasMaxLength(30)

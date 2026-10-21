@@ -58,7 +58,7 @@ public class DataRetentionAtomicityTests
 
         await using (var seed = _fx.NewContext())
         {
-            var location = new Location { Id = Guid.NewGuid(), Name = "R", Address = "A" };
+            var location = new Location { Id = Guid.NewGuid(), Name = "R" };
             seed.Add(location);
             foreach (var uid in new[] { user1, user2 })
             {

@@ -9,7 +9,7 @@ test.describe('Admin → Blocked Days', () => {
 
   test.beforeAll(async () => {
     api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
-    const loc = await api.createLocation(uniqueName('BlockedDays-Loc'), 'Blocked Days Test');
+    const loc = await api.createLocation(uniqueName('BlockedDays-Loc'));
     testLocationId = loc.id;
   });
 

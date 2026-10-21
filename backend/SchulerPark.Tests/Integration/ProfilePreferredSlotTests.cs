@@ -36,7 +36,6 @@ public class ProfilePreferredSlotTests
         {
             Id = Guid.NewGuid(),
             Name = $"Loc-{Guid.NewGuid():N}",
-            Address = "Somewhere",
             IsActive = true,
             DefaultAlgorithm = SchulerPark.Core.Enums.LotteryAlgorithm.PureRandom
         };

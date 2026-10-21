@@ -38,7 +38,6 @@ public class DirectAssignmentServiceTests
         {
             Id = Guid.NewGuid(),
             Name = $"Loc-{Guid.NewGuid():N}",
-            Address = "Somewhere",
             IsActive = true,
             DefaultAlgorithm = LotteryAlgorithm.PureRandom
         };

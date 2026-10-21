@@ -6,7 +6,6 @@ public class Location
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public LotteryAlgorithm DefaultAlgorithm { get; set; } = LotteryAlgorithm.WeightedHistory;
     public int? GridRows { get; set; }

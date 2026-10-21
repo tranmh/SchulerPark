@@ -36,7 +36,7 @@ test.describe('Admin Features', () => {
     await page.getByRole('link', { name: 'Locations', exact: true }).click();
     await expect(page).toHaveURL('/admin/locations');
 
-    // Should see seeded locations (use first() to avoid strict mode on name+address cells)
+    // Should see seeded locations (first(): admin tests may leave similarly named locations)
     await expect(page.getByText('Goeppingen').first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Erfurt').first()).toBeVisible();
     await expect(page.getByText('Hessdorf').first()).toBeVisible();

@@ -13,7 +13,6 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.Id).HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(l => l.Name).IsRequired().HasMaxLength(100);
-        builder.Property(l => l.Address).IsRequired().HasMaxLength(300);
         builder.Property(l => l.IsActive).HasDefaultValue(true);
         builder.Property(l => l.DefaultAlgorithm).HasConversion<string>().HasMaxLength(30);
 

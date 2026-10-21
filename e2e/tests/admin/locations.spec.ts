@@ -32,16 +32,13 @@ test.describe('Admin → Locations CRUD', () => {
     await page.goto('/admin/locations');
 
     const name = uniqueName('Loc');
-    const address = `${name} Strasse 1`;
 
     await page.getByRole('button', { name: /new location/i }).click();
     await page.locator('#location-name').fill(name);
-    await page.locator('#location-address').fill(address);
     await page.getByRole('button', { name: 'Save' }).click();
 
     const row = page.getByRole('row').filter({ hasText: name });
     await expect(row).toBeVisible({ timeout: 10_000 });
-    await expect(row.getByText(address)).toBeVisible();
 
     const locs = await api.listLocations();
     const fresh = locs.find((l: { name: string }) => l.name === name);
@@ -49,9 +46,9 @@ test.describe('Admin → Locations CRUD', () => {
     created.push(fresh.id);
   });
 
-  test('edit a location name and address', async ({ page }) => {
+  test('edit a location name', async ({ page }) => {
     const original = uniqueName('Loc-Edit');
-    const loc = await api.createLocation(original, 'Original Address');
+    const loc = await api.createLocation(original);
     created.push(loc.id);
 
     await loginAsAdmin(page);
@@ -62,19 +59,16 @@ test.describe('Admin → Locations CRUD', () => {
     await row.getByRole('button', { name: 'Edit' }).click();
 
     const renamed = `${original}-renamed`;
-    const newAddress = `${renamed} address`;
     await page.locator('#location-name').fill(renamed);
-    await page.locator('#location-address').fill(newAddress);
     await page.getByRole('button', { name: 'Save' }).click();
 
     const renamedRow = page.getByRole('row').filter({ hasText: renamed });
     await expect(renamedRow).toBeVisible({ timeout: 10_000 });
-    await expect(renamedRow.getByText(newAddress)).toBeVisible();
   });
 
   test('change algorithm via the row dropdown', async ({ page }) => {
     const name = uniqueName('Loc-Algo');
-    const loc = await api.createLocation(name, 'Algo Strasse 1');
+    const loc = await api.createLocation(name);
     created.push(loc.id);
 
     await loginAsAdmin(page);
@@ -98,7 +92,7 @@ test.describe('Admin → Locations CRUD', () => {
 
   test('deactivate a location', async ({ page }) => {
     const name = uniqueName('Loc-Deact');
-    const loc = await api.createLocation(name, 'Deactivate Strasse 1');
+    const loc = await api.createLocation(name);
     created.push(loc.id);
 
     await loginAsAdmin(page);
@@ -113,7 +107,7 @@ test.describe('Admin → Locations CRUD', () => {
     await expect(updatedRow.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
   });
 
-  test('save button is disabled when name or address is empty', async ({ page }) => {
+  test('save button is disabled when name is empty', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin/locations');
 
@@ -121,9 +115,6 @@ test.describe('Admin → Locations CRUD', () => {
     await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 
     await page.locator('#location-name').fill('Only Name');
-    await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
-
-    await page.locator('#location-address').fill('Some Address');
     await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
 
     await page.getByRole('button', { name: 'Cancel' }).click();

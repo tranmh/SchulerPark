@@ -50,8 +50,8 @@ public class LotteryObservabilityTests
         var bad = Guid.NewGuid();
         var adminId = Guid.NewGuid();
         await using var seed = _fx.NewContext();
-        seed.Add(new Location { Id = good, Name = $"Good-{good:N}", Address = "A" });
-        seed.Add(new Location { Id = bad, Name = $"Bad-{bad:N}", Address = "A" });
+        seed.Add(new Location { Id = good, Name = $"Good-{good:N}" });
+        seed.Add(new Location { Id = bad, Name = $"Bad-{bad:N}" });
         seed.Add(new ParkingSlot { Id = Guid.NewGuid(), LocationId = good, SlotNumber = "G1" });
         seed.Add(new ParkingSlot { Id = Guid.NewGuid(), LocationId = bad, SlotNumber = "B1" });
         seed.Users.Add(new User { Id = adminId, Email = $"admin-{adminId:N}@x.de", DisplayName = "Admin", Role = UserRole.Admin, PreferredLanguage = "en" });

@@ -11,7 +11,7 @@ test.describe('Admin → Slots CRUD', () => {
   test.beforeAll(async () => {
     api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
     // All slot tests scope to a fresh isolated location.
-    const loc = await api.createLocation(uniqueName('Slots-Loc'), 'Slots Test Strasse');
+    const loc = await api.createLocation(uniqueName('Slots-Loc'));
     testLocationId = loc.id;
   });
 

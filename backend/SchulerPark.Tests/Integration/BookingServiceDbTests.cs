@@ -75,7 +75,7 @@ public class BookingServiceDbTests
 
         await using (var seed = _fx.NewContext())
         {
-            seed.Add(new Location { Id = locationId, Name = $"L-{locationId:N}", Address = "A" });
+            seed.Add(new Location { Id = locationId, Name = $"L-{locationId:N}" });
             seed.Add(new ParkingSlot { Id = Guid.NewGuid(), LocationId = locationId, SlotNumber = "S1" });
             seed.Users.Add(new User { Id = userId, Email = $"u-{userId:N}@x.de", DisplayName = "U" });
             await seed.SaveChangesAsync();

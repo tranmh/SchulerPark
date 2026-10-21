@@ -48,7 +48,6 @@ public static class AdminTestHelper
         {
             Id = Guid.NewGuid(),
             Name = name ?? $"Loc-{Guid.NewGuid():N}",
-            Address = "Somewhere",
             IsActive = true,
             DefaultAlgorithm = LotteryAlgorithm.PureRandom
         };

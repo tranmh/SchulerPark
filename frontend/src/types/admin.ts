@@ -1,7 +1,6 @@
 export interface AdminLocation {
   id: string;
   name: string;
-  address: string;
   isActive: boolean;
   defaultAlgorithm: string;
   totalSlots: number;
@@ -10,12 +9,10 @@ export interface AdminLocation {
 
 export interface CreateLocationRequest {
   name: string;
-  address: string;
 }
 
 export interface UpdateLocationRequest {
   name: string;
-  address: string;
   isActive: boolean;
 }
 

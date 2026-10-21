@@ -504,7 +504,6 @@ public class AuthTests
             {
                 Id = Guid.NewGuid(),
                 Name = $"RangeLoc-{Guid.NewGuid():N}",
-                Address = "X",
                 IsActive = true
             };
             db.Locations.Add(location);

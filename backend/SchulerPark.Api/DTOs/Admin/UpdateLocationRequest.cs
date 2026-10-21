@@ -1,3 +1,3 @@
 namespace SchulerPark.Api.DTOs.Admin;
 
-public record UpdateLocationRequest(string Name, string Address, bool IsActive);
+public record UpdateLocationRequest(string Name, bool IsActive);

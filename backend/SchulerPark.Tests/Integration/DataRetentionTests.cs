@@ -40,7 +40,7 @@ public class DataRetentionTests
         var bookingId = Guid.NewGuid();
         await using (var seed = _fx.NewContext())
         {
-            var loc = new Location { Id = Guid.NewGuid(), Name = "R17", Address = "A" };
+            var loc = new Location { Id = Guid.NewGuid(), Name = "R17" };
             var user = new User { Id = Guid.NewGuid(), Email = $"{Guid.NewGuid():N}@x.de", DisplayName = "U" };
             seed.AddRange(loc, user);
             seed.Bookings.Add(new Booking

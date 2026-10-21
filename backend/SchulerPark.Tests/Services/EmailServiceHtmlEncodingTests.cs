@@ -22,7 +22,7 @@ public class EmailServiceHtmlEncodingTests
     {
         var booking = new Booking
         {
-            Location = new Location { Name = "<img src=x onerror=alert(1)>", Address = "" },
+            Location = new Location { Name = "<img src=x onerror=alert(1)>" },
             Date = new DateOnly(2026, 1, 1),
             TimeSlot = TimeSlot.Morning,
         };

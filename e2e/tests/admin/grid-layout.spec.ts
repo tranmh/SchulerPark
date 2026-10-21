@@ -9,7 +9,7 @@ test.describe('Admin → Grid Layout', () => {
 
   test.beforeAll(async () => {
     api = await AdminApi.create(process.env.BASE_URL || 'http://localhost:8080');
-    const loc = await api.createLocation(uniqueName('Grid-Loc'), 'Grid Test');
+    const loc = await api.createLocation(uniqueName('Grid-Loc'));
     testLocationId = loc.id;
   });
 
