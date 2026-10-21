@@ -72,7 +72,6 @@ Add a comment if you can → **Report problem**. All admins get an email with th
 - **Can't sign in?** Check the verification email, or use **Forgot?**. Locked accounts unlock after a short wait.
 - **No lottery result?** Check **My Bookings** (and your spam folder).
 - **Push not working?** Profile → **Send test notification**; disable and re-enable if needed.
-- **Privacy questions:** datenschutz@schuler.de
 
 ---
 
