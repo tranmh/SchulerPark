@@ -373,7 +373,7 @@
     "title": "Privacy Notice",
     "subtitle": "Privacy notice pursuant to DSGVO/GDPR",
     "section1": "1. Data Controller",
-    "section1Body": "Schuler Group, responsible for the LouisE parking booking system. For data protection inquiries, contact: <strong>datenschutz@schuler.de</strong>",
+    "section1Body": "Schuler Group, responsible for the LouisE parking booking system.",
     "section2": "2. What Data We Collect",
     "section2_1": "<strong>Account data:</strong> Email address, display name, car license plate (optional)",
     "section2_2": "<strong>Authentication data:</strong> Password hash (local accounts), Azure AD object ID (SSO accounts)",
@@ -395,7 +395,7 @@
     "section6": "6. Data Sharing",
     "section6Body": "Your personal data is not shared with third parties. If you use Azure AD SSO, authentication is handled via Microsoft's identity platform. No booking data is transmitted externally.",
     "section7": "7. Contact",
-    "section7Body": "For questions about data protection or to exercise your rights, contact:<br /><strong>Data Protection Officer</strong><br />Email: datenschutz@schuler.de"
+    "section7Body": "For questions about data protection or to exercise your rights, please contact the Schuler Group <strong>Data Protection Officer</strong>."
   },
   "approvals": {
     "title": "User Approvals",

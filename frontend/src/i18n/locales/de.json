@@ -373,7 +373,7 @@
     "title": "Datenschutzerklärung",
     "subtitle": "Datenschutzerklärung gemäß DSGVO",
     "section1": "1. Verantwortliche Stelle",
-    "section1Body": "Schuler Group, verantwortlich für das LouisE-Parkbuchungssystem. Bei Datenschutzanfragen wenden Sie sich bitte an: <strong>datenschutz@schuler.de</strong>",
+    "section1Body": "Schuler Group, verantwortlich für das LouisE-Parkbuchungssystem.",
     "section2": "2. Welche Daten wir erheben",
     "section2_1": "<strong>Kontodaten:</strong> E-Mail-Adresse, Anzeigename, Kfz-Kennzeichen (optional)",
     "section2_2": "<strong>Authentifizierungsdaten:</strong> Passwort-Hash (lokale Konten), Azure AD-Objekt-ID (SSO-Konten)",
@@ -395,7 +395,7 @@
     "section6": "6. Weitergabe von Daten",
     "section6Body": "Ihre personenbezogenen Daten werden nicht an Dritte weitergegeben. Wenn Sie Azure AD SSO nutzen, erfolgt die Authentifizierung über die Microsoft-Identitätsplattform. Es werden keine Buchungsdaten extern übertragen.",
     "section7": "7. Kontakt",
-    "section7Body": "Für Fragen zum Datenschutz oder zur Wahrnehmung Ihrer Rechte wenden Sie sich bitte an:<br /><strong>Datenschutzbeauftragter</strong><br />E-Mail: datenschutz@schuler.de"
+    "section7Body": "Für Fragen zum Datenschutz oder zur Wahrnehmung Ihrer Rechte wenden Sie sich bitte an den <strong>Datenschutzbeauftragten</strong> der Schuler Group."
   },
   "approvals": {
     "title": "Benutzer-Freigaben",
