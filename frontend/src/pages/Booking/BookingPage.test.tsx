@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithRouter, createMockAuth, mockUser, mockAdmin } from '../../test/helpers';
 import type { MockAuthValue } from '../../test/helpers';
 import { BookingPage } from './BookingPage';
@@ -64,8 +64,8 @@ async function goToReviewStep() {
   await screen.findByText('Goeppingen');
 }
 
-/** The parking-lot layout on the review step is an admin-only view. */
-describe('BookingPage parking layout visibility', () => {
+/** The parking-lot layout is an admin tool (Admin > Grid layout); the booking flow never shows it. */
+describe('BookingPage review step', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(bookingService.getWindow).mockResolvedValue({
@@ -84,8 +84,11 @@ describe('BookingPage parking layout visibility', () => {
     vi.mocked(locationService.getGridAvailability).mockResolvedValue(grid);
   });
 
-  it('does not fetch or render the grid for a regular user', async () => {
-    mockAuth = createMockAuth({ isAuthenticated: true, user: mockUser, isAdmin: false });
+  it.each([
+    ['a regular user', () => createMockAuth({ isAuthenticated: true, user: mockUser, isAdmin: false })],
+    ['an admin', () => createMockAuth({ isAuthenticated: true, user: mockAdmin, isAdmin: true })],
+  ])('never fetches or renders the parking layout for %s', async (_who, auth) => {
+    mockAuth = auth();
 
     await goToReviewStep();
 
@@ -94,13 +97,15 @@ describe('BookingPage parking layout visibility', () => {
     expect(screen.queryByText(/parking layout|parkplatz-layout/i)).not.toBeInTheDocument();
   });
 
-  it('fetches and renders the grid for an admin', async () => {
-    mockAuth = createMockAuth({ isAuthenticated: true, user: mockAdmin, isAdmin: true });
+  it('shows the short "what happens next" steps', async () => {
+    mockAuth = createMockAuth({ isAuthenticated: true, user: mockUser, isAdmin: false });
 
     await goToReviewStep();
 
-    await waitFor(() => expect(locationService.getGridAvailability).toHaveBeenCalledWith('loc1', '2026-06-10', 'Morning'));
-    expect(await screen.findByTestId('parking-grid-view')).toBeInTheDocument();
-    expect(screen.getByText(/parking layout|parkplatz-layout/i)).toBeInTheDocument();
+    const steps = screen.getAllByRole('listitem').map((li) => li.textContent ?? '');
+    expect(steps).toHaveLength(4);
+    expect(steps[1]).toContain('21:00');
+    expect(steps[2]).toContain('07:00');
+    expect(steps[2]).toContain('13:00');
   });
 });

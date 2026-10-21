@@ -7,10 +7,8 @@ import { locationService } from '../../services/locationService';
 import { LocationSelector } from '../../components/LocationSelector';
 import { CalendarPicker } from '../../components/CalendarPicker';
 import { TimeSlotSelector } from '../../components/TimeSlotSelector';
-import { ParkingGridView } from '../../components/grid/ParkingGridView';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { Location, Availability, Booking, TimeSlot, SkippedDay, DayAvailability } from '../../types/booking';
-import type { GridAvailability } from '../../types/grid';
 import { getBookingWindow, type BookingWindow } from '../../utils/bookingWindow';
 import { describeApiError } from '../../utils/apiError';
 import { EMPTY_DEMAND, slotUnavailable, toDemand } from '../../utils/availability';
@@ -28,7 +26,7 @@ function getWeekFriday(mondayStr: string): string {
 export function BookingPage() {
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedLocation = searchParams.get('location');
 
@@ -54,7 +52,6 @@ export function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [gridAvailability, setGridAvailability] = useState<GridAvailability | null>(null);
 
   const [weekResult, setWeekResult] = useState<{
     created: Booking[];
@@ -170,16 +167,6 @@ export function BookingPage() {
     setTimeSlot(ts);
     setStep(4);
     setError(null);
-    setGridAvailability(null);
-    // The parking-lot layout is an admin-only view: regular users never see it, so the
-    // grid-availability request is not even made for them.
-    if (isAdmin && locationId && date && !weekMode) {
-      locationService.getGridAvailability(locationId, date, ts)
-        .then((ga) => {
-          if (ga.gridRows > 0) setGridAvailability(ga);
-        })
-        .catch(() => {});
-    }
   };
 
   const handleSubmit = async () => {
@@ -574,16 +561,6 @@ export function BookingPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     {t('booking.weekInfo')}
-                  </div>
-                )}
-
-                {isAdmin && gridAvailability && !weekMode && (
-                  <div className="mt-6">
-                    <div className="mb-2 flex items-baseline justify-between gap-3">
-                      <h3 className="text-[12.5px] font-semibold text-ink-700">{t('booking.parkingLayout')}</h3>
-                      <span className="text-[11px] text-ink-400 sm:hidden">{t('common.scrollHint')}</span>
-                    </div>
-                    <ParkingGridView availability={gridAvailability} />
                   </div>
                 )}
 
