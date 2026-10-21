@@ -108,6 +108,85 @@ public class AdminNotifier : IAdminNotifier
         }
     }
 
+    public async Task FeedbackReceivedAsync(FeedbackReport report)
+    {
+        var admins = await ActiveAdminsAsync();
+        if (admins.Count == 0)
+        {
+            _logger.LogWarning("Feedback ({Category}) from {Email} but no active admin to notify.",
+                report.Category, report.ReporterEmail);
+            return;
+        }
+
+        foreach (var admin in admins)
+        {
+            var de = Localization.IsGerman(admin.Language);
+            var lines = new List<string>();
+            string subject;
+
+            if (report.Category == FeedbackCategory.General)
+            {
+                subject = de
+                    ? $"Feedback von {report.ReporterName} — LouisE"
+                    : $"Feedback from {report.ReporterName} — LouisE";
+                lines.Add(de ? "Ein Benutzer hat Feedback gesendet:" : "A user sent feedback:");
+                lines.Add($"„{report.Comment}“");
+            }
+            else
+            {
+                subject = de
+                    ? $"Parkplatz-Problem: {report.SlotNumber} ({report.LocationName}) — LouisE"
+                    : $"Parking spot problem: {report.SlotNumber} ({report.LocationName}) — LouisE";
+                lines.Add(de
+                    ? $"Achtung: Parkplatz {report.SlotNumber} in {report.LocationName} wurde als fehlerhaft gemeldet."
+                    : $"Attention: parking spot {report.SlotNumber} in {report.LocationName} was reported as faulty.");
+                lines.Add("Problem: " + CategoryLabel(report.Category, de));
+                if (report.Date is { } date && report.TimeSlot is { } slot)
+                    lines.Add((de ? "Buchung: " : "Booking: ") +
+                              $"{date:dd.MM.yyyy}, {Localization.TimeSlotLabel(slot, admin.Language)}");
+                if (!string.IsNullOrWhiteSpace(report.PlateText))
+                    lines.Add((de ? "Blockierendes Fahrzeug: " : "Blocking vehicle: ") + PlateLabel(report, de));
+                if (!string.IsNullOrWhiteSpace(report.Comment))
+                    lines.Add((de ? "Kommentar: " : "Comment: ") + $"„{report.Comment}“");
+            }
+
+            lines.Add((de ? "Melder: " : "Reported by: ") + $"{report.ReporterName} ({report.ReporterEmail})");
+
+            await _email.SendAdminAlertAsync(admin.Email, admin.DisplayName, subject, lines, admin.Language);
+        }
+    }
+
+    private static string CategoryLabel(FeedbackCategory category, bool de) => (category, de) switch
+    {
+        (FeedbackCategory.SlotOccupied, true) => "Parkplatz ist belegt",
+        (FeedbackCategory.SlotUnusable, true) => "Parkplatz ist unbenutzbar",
+        (FeedbackCategory.SlotNotFound, true) => "Parkplatz ist nicht auffindbar",
+        (FeedbackCategory.ChargerFault, true) => "Störung E-Ladesäule",
+        (FeedbackCategory.SlotOccupied, false) => "Spot is occupied",
+        (FeedbackCategory.SlotUnusable, false) => "Spot is unusable",
+        (FeedbackCategory.SlotNotFound, false) => "Spot cannot be found",
+        (FeedbackCategory.ChargerFault, false) => "EV charger fault",
+        _ => de ? "Allgemein" : "General",
+    };
+
+    private static string PlateLabel(FeedbackReport report, bool de)
+    {
+        var country = report.PlateCountry switch
+        {
+            "DE" => "D",
+            "AT" => "A",
+            "LU" => "L",
+            _ => de ? "Land unbekannt" : "country unknown",
+        };
+        var type = report.PlateType switch
+        {
+            "Historic" => de ? ", historisch (H)" : ", historic (H)",
+            "Electric" => de ? ", elektro (E)" : ", electric (E)",
+            _ => "",
+        };
+        return $"{report.PlateText} ({country}{type})";
+    }
+
     private string BaseUrl => _app.BaseUrl.TrimEnd('/');
 
     private sealed record AdminRecipient(string Email, string DisplayName, string Language);

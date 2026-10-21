@@ -53,7 +53,8 @@
     "roleAdmin": "Admin",
     "approvals": "User Approvals",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "feedback": "Feedback"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -412,6 +413,46 @@
     "decisionFailed": "Failed to save the decision.",
     "rejectConfirm": "Reject the registration of {{email}}? The address will not be able to sign in."
   },
+  "feedback": {
+    "reportButton": "Report problem",
+    "title": "Parking spot problem",
+    "subtitle": "Spot {{slot}} · {{location}}",
+    "categories": {
+      "SlotOccupied": "Spot is occupied",
+      "SlotUnusable": "Spot is unusable",
+      "SlotNotFound": "Spot cannot be found",
+      "ChargerFault": "EV charger fault"
+    },
+    "changeCategory": "Choose a different problem",
+    "occupiedHint": "We're sorry! Please tell us which vehicle is blocking the spot.",
+    "plateCountry": "Select the plate’s country",
+    "plateType": "Select the plate type",
+    "plateTypes": {
+      "Standard": "Standard",
+      "Historic": "Historic",
+      "Electric": "Electric"
+    },
+    "countries": {
+      "DE": "Germany",
+      "AT": "Austria",
+      "LU": "Luxembourg",
+      "OTHER": "Other country"
+    },
+    "plateDistrict": "District code",
+    "plateLetters": "Letters",
+    "plateDigits": "Digits",
+    "plateFree": "Licence plate",
+    "commentHint": "If you can, please add a comment with details about the problem.",
+    "comment": "Comment",
+    "submit": "Report problem",
+    "sending": "Sending…",
+    "sent": "Thank you! Your report was sent to the administrators.",
+    "failed": "The report could not be sent. Please try again.",
+    "generalTitle": "Feedback",
+    "generalSubtitle": "Praise, criticism or an idea? Your message goes to the administrators.",
+    "generalComment": "Message",
+    "generalSubmit": "Send feedback"
+  },
   "apiErrors": {
     "booking_date_not_in_future": "Bookings are only possible for future dates, not for today or the past.",
     "booking_too_far_ahead": "Bookings cannot be made that far in advance.",
@@ -438,6 +479,12 @@
     "password_too_weak": "Password is too weak: at least 8 characters and 3 of lowercase, uppercase, digit and special character; no common passwords.",
     "password_incorrect": "The current password is incorrect.",
     "password_not_set": "This account signs in with Microsoft and has no password of its own.",
-    "account_locked": "Your account is temporarily locked after too many failed attempts."
+    "account_locked": "Your account is temporarily locked after too many failed attempts.",
+    "feedback_comment_required": "Please write a message.",
+    "feedback_booking_not_assigned": "This booking has no assigned spot.",
+    "feedback_booking_not_today": "Problems can only be reported for today's booking.",
+    "feedback_too_long": "The text is too long.",
+    "feedback_invalid_category": "Unknown kind of report.",
+    "feedback_rate_limited": "You've sent several reports just now. Please try again in a few minutes."
   }
 }

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithRouter } from '../../test/helpers';
 import { MyBookingsPage } from './MyBookingsPage';
 import type { Booking } from '../../types/booking';
+import { todayInBerlin } from '../../utils/berlinTime';
 
 vi.mock('../../services/bookingService', () => ({
   bookingService: {
@@ -10,6 +11,10 @@ vi.mock('../../services/bookingService', () => ({
     cancel: vi.fn(),
     confirm: vi.fn(),
   },
+}));
+
+vi.mock('../../services/feedbackService', () => ({
+  feedbackService: { submit: vi.fn() },
 }));
 
 import { bookingService } from '../../services/bookingService';
@@ -85,5 +90,22 @@ describe('MyBookingsPage', () => {
     await waitFor(() => expect(bookingService.getMyBookings).toHaveBeenCalled());
     expect(await screen.findByText('No slot', { selector: 'span' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
+  it('offers "Report problem" only on today\'s assigned booking', async () => {
+    const today = todayInBerlin();
+    mockList([
+      { ...base, id: 't1', date: today, status: 'Confirmed' },
+      { ...base, id: 'f1', date: '2099-01-05' },
+      { ...base, id: 'p1', date: today, status: 'Pending', parkingSlotId: null, parkingSlotNumber: null },
+    ]);
+
+    renderWithRouter(<MyBookingsPage />);
+
+    const buttons = await screen.findAllByRole('button', { name: 'Report problem' });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Parking spot problem');
+    expect(screen.getByRole('button', { name: 'Spot is occupied' })).toBeInTheDocument();
   });
 });

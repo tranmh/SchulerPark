@@ -5,8 +5,10 @@ import { bookingService } from '../../services/bookingService';
 import { BookingStatusBadge } from '../../components/BookingStatusBadge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { SlotProblemModal } from '../../components/feedback/SlotProblemModal';
 import type { Booking, BookingStatus } from '../../types/booking';
 import { describeApiError } from '../../utils/apiError';
+import { todayInBerlin } from '../../utils/berlinTime';
 
 const STATUS_OPTIONS: (BookingStatus | 'All')[] = [
   'All',
@@ -45,7 +47,9 @@ export function MyBookingsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [problemTarget, setProblemTarget] = useState<Booking | null>(null);
   const now = useNow();
+  const today = todayInBerlin(new Date(now));
 
   const pageSize = 20;
   const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-US';
@@ -210,6 +214,8 @@ export function MyBookingsPage() {
             // expiry job catches up within 15 minutes, so the pill alone tells the story.
             const deadlineMs = b.confirmationDeadline ? new Date(b.confirmationDeadline).getTime() : null;
             const canConfirm = b.status === 'Won' && (deadlineMs === null || deadlineMs > now);
+            const canReportProblem =
+              (b.status === 'Won' || b.status === 'Confirmed') && !!b.parkingSlotNumber && b.date === today;
             return (
               <div key={b.id} className={`flex flex-wrap items-center gap-3 p-4 sm:gap-4 sm:p-5 ${isFaded ? 'opacity-90' : ''}`}>
                 <div className="w-12 shrink-0 text-center sm:w-14">
@@ -262,6 +268,15 @@ export function MyBookingsPage() {
                       {confirmingId === b.id ? t('myBookings.confirming') : t('myBookings.confirmUsage')}
                     </button>
                   )}
+                  {canReportProblem && (
+                    <button
+                      type="button"
+                      onClick={() => setProblemTarget(b)}
+                      className="min-h-10 flex-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] font-medium text-amber-800 hover:bg-amber-100 sm:min-h-0 sm:flex-none"
+                    >
+                      {t('feedback.reportButton')}
+                    </button>
+                  )}
                   {CANCELLABLE.includes(b.status) && (
                     <button
                       type="button"
@@ -302,6 +317,8 @@ export function MyBookingsPage() {
           </button>
         </div>
       )}
+
+      {problemTarget && <SlotProblemModal booking={problemTarget} onClose={() => setProblemTarget(null)} />}
 
       {/* Cancel confirmation dialog */}
       <ConfirmDialog

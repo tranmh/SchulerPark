@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { LanguageToggle } from './LanguageToggle';
+import { FeedbackModal } from './feedback/FeedbackModal';
 import type { ReactNode } from 'react';
 
 /** Matches Tailwind's `lg` breakpoint: the sidebar is static from here up. */
@@ -32,6 +33,7 @@ export function AppLayout({ children }: Props) {
   // Mobile drawer state. On desktop (lg+) the aside is always visible and
   // `open` is irrelevant; the hamburger that toggles it is hidden there.
   const [open, setOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const closeMenu = () => setOpen(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
@@ -252,7 +254,7 @@ export function AppLayout({ children }: Props) {
               </span>
             ) : null}
           </div>
-          <div className="mt-1 grid grid-cols-2 gap-1.5 px-2">
+          <div className="mt-1 grid grid-cols-3 gap-1.5 px-2">
             <NavLink
               to="/profile"
               onClick={closeMenu}
@@ -268,6 +270,16 @@ export function AppLayout({ children }: Props) {
             </NavLink>
             <button
               type="button"
+              onClick={() => {
+                closeMenu();
+                setFeedbackOpen(true);
+              }}
+              className="rounded-md bg-white/[0.04] py-2.5 text-[12px] font-medium text-ink-200 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {t('nav.feedback')}
+            </button>
+            <button
+              type="button"
               onClick={logout}
               className="rounded-md bg-white/[0.04] py-2.5 text-[12px] font-medium text-ink-200 transition-colors hover:bg-white/10 hover:text-white"
             >
@@ -276,6 +288,8 @@ export function AppLayout({ children }: Props) {
           </div>
         </div>
       </aside>
+
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
 
       {/* Main content */}
       <main className="min-h-0 min-w-0 flex-1 overflow-auto scroll-thin">

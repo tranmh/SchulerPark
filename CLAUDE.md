@@ -105,6 +105,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `GET /api/push/vapid-public-key` — VAPID public key for push subscriptions
 - `POST /api/push/subscribe` — Subscribe to push notifications
 - `DELETE /api/push/subscribe` — Unsubscribe from push notifications
+- `POST /api/feedback` — Slot problem (today's Won/Confirmed booking; optional blocking plate) or general feedback; mailed to all admins, nothing stored; 5 per user per 10 min
 - `POST /api/push/test` — Push a test notification to the caller's devices (manual end-to-end check; 404 no subscription, 502 nothing delivered)
 - `GET /api/admin/*` — Admin CRUD endpoints (admin)
 

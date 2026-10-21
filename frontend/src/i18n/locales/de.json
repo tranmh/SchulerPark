@@ -53,7 +53,8 @@
     "roleAdmin": "Admin",
     "approvals": "Benutzer-Freigaben",
     "openMenu": "Menü öffnen",
-    "closeMenu": "Menü schließen"
+    "closeMenu": "Menü schließen",
+    "feedback": "Feedback"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -412,6 +413,46 @@
     "decisionFailed": "Die Entscheidung konnte nicht gespeichert werden.",
     "rejectConfirm": "Registrierung von {{email}} ablehnen? Die Adresse kann sich dann nicht anmelden."
   },
+  "feedback": {
+    "reportButton": "Problem melden",
+    "title": "Parkplatz Problem",
+    "subtitle": "Platz {{slot}} · {{location}}",
+    "categories": {
+      "SlotOccupied": "Parkplatz ist belegt",
+      "SlotUnusable": "Parkplatz ist unbenutzbar",
+      "SlotNotFound": "Parkplatz ist nicht auffindbar",
+      "ChargerFault": "Störung E-Ladesäulen"
+    },
+    "changeCategory": "Anderes Problem wählen",
+    "occupiedHint": "Es tut uns leid! Bitte teile uns mit, welches Fahrzeug den Parkplatz blockiert.",
+    "plateCountry": "Land des Kennzeichens auswählen",
+    "plateType": "Kennzeichentyp auswählen",
+    "plateTypes": {
+      "Standard": "Standard",
+      "Historic": "Historisch",
+      "Electric": "Elektro"
+    },
+    "countries": {
+      "DE": "Deutschland",
+      "AT": "Österreich",
+      "LU": "Luxemburg",
+      "OTHER": "Anderes Land"
+    },
+    "plateDistrict": "Unterscheidungszeichen (Ort)",
+    "plateLetters": "Buchstaben",
+    "plateDigits": "Ziffern",
+    "plateFree": "Kennzeichen",
+    "commentHint": "Bitte füge, falls möglich, einen Kommentar mit Details zum Problem hinzu.",
+    "comment": "Kommentar",
+    "submit": "Problem melden",
+    "sending": "Wird gesendet …",
+    "sent": "Danke! Deine Meldung wurde an die Administratoren geschickt.",
+    "failed": "Die Meldung konnte nicht gesendet werden. Bitte versuche es erneut.",
+    "generalTitle": "Feedback",
+    "generalSubtitle": "Lob, Kritik oder eine Idee? Deine Nachricht geht an die Administratoren.",
+    "generalComment": "Nachricht",
+    "generalSubmit": "Feedback senden"
+  },
   "apiErrors": {
     "booking_date_not_in_future": "Buchungen sind nur für zukünftige Tage möglich, nicht für heute oder die Vergangenheit.",
     "booking_too_far_ahead": "Buchungen sind so weit im Voraus nicht möglich.",
@@ -438,6 +479,12 @@
     "password_too_weak": "Passwort ist zu schwach: mindestens 8 Zeichen und 3 von Kleinbuchstabe, Großbuchstabe, Ziffer und Sonderzeichen; keine gängigen Passwörter.",
     "password_incorrect": "Das aktuelle Passwort ist nicht korrekt.",
     "password_not_set": "Dieses Konto meldet sich mit Microsoft an und hat kein eigenes Passwort.",
-    "account_locked": "Ihr Konto ist nach zu vielen Fehlversuchen vorübergehend gesperrt."
+    "account_locked": "Ihr Konto ist nach zu vielen Fehlversuchen vorübergehend gesperrt.",
+    "feedback_comment_required": "Bitte schreibe eine Nachricht.",
+    "feedback_booking_not_assigned": "Für diese Buchung ist kein Parkplatz zugeteilt.",
+    "feedback_booking_not_today": "Probleme können nur für die heutige Buchung gemeldet werden.",
+    "feedback_too_long": "Der Text ist zu lang.",
+    "feedback_invalid_category": "Unbekannte Art der Meldung.",
+    "feedback_rate_limited": "Du hast gerade viele Meldungen gesendet. Bitte versuche es in ein paar Minuten erneut."
   }
 }

@@ -17,4 +17,7 @@ public interface IAdminNotifier
 
     /// <summary>The watchdog had to run missing lotteries and/or sweep stale Pending bookings.</summary>
     Task LotteryWatchdogInterventionAsync(DateOnly targetDate, IReadOnlyList<string> healedSlots, int sweptPending);
+
+    /// <summary>A user reported a problem with their slot or sent general feedback.</summary>
+    Task FeedbackReceivedAsync(FeedbackReport report);
 }

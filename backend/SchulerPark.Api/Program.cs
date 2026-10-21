@@ -114,6 +114,7 @@ builder.Services.AddSingleton<AzureAdTokenValidator>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminNotifier, AdminNotifier>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 // JWT authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
