@@ -427,7 +427,7 @@ public static class SeedData
 
     /// <summary>
     /// Seed grid layouts based on real Schuler parking lot floor plans.
-    /// Göppingen: large lot with parking columns, central road, charging area.
+    /// Göppingen: one lane with a row of spots on each side, charging stations at the top.
     /// Erfurt: two parking zones (upper/lower) with building on right.
     /// Hessdorf: building in center, parking around edges.
     /// Gemmingen: buildings (Bau) on right, parking on left.
@@ -448,71 +448,47 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    // Göppingen: 8 rows × 12 columns
-    // Based on the detailed parking lot plan — parking columns separated by driving
-    // lanes, building along the top, entrance at bottom center.
+    // Göppingen: 15 rows × 3 columns
+    // Site plan: one driving lane with a row of spots on each side, charging
+    // stations (Ladesäulen) at the top end. Numbers rise towards the charging end.
     //
-    //      0    1    2    3    4    5    6    7    8    9   10   11
-    // 0: [OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS][OBS]  building
-    // 1: [   ][ 97][ 98][ RD][ 99][100][ RD][101][102][ RD][103][   ]
-    // 2: [   ][104][105][ RD][106][107][ RD][108][109][ RD][110][   ]
-    // 3: [   ][   ][   ][ RD][   ][   ][ RD][   ][   ][ RD][   ][   ]  lane
-    // 4: [   ][122][123][ RD][124][125][ RD][126][127][ RD][128][   ]
-    // 5: [   ][129][130][ RD][131][132][ RD][133][134][ RD][135][   ]
-    // 6: [   ][   ][   ][ RD][ RD][ RD][ RD][   ][   ][   ][   ][   ]  exit road
-    // 7: [   ][   ][   ][   ][   ][ENT][   ][   ][   ][   ][   ][   ]  entrance
+    //      0    1    2
+    // 0:  [   ][LBL][   ]  Ladesäulen
+    // 1:  [110][ RD][135]
+    // 2:  [109][ RD][134]
+    //  …
+    // 14: [ 97][ RD][122]
     private static async Task SeedGoeppingenGrid(AppDbContext context)
     {
         var location = await context.Locations.FindAsync(GoeppingenId);
         if (location == null) return;
 
-        location.GridRows = 8;
-        location.GridColumns = 12;
+        location.GridRows = 15;
+        location.GridColumns = 3;
 
         var slots = await context.ParkingSlots
             .Where(s => s.LocationId == GoeppingenId)
-            .OrderBy(s => s.SlotNumber)
             .ToListAsync();
 
-        // Slot positions (row, col) for P097..P110 and P122..P135
-        var positions = new (int Row, int Col)[]
+        // Row r holds P(111-r) on the left and P(136-r) on the right.
+        foreach (var slot in slots)
         {
-            (1, 1), (1, 2), (1, 4), (1, 5), (1, 7), (1, 8), (1, 10),     // P097-P103
-            (2, 1), (2, 2), (2, 4), (2, 5), (2, 7), (2, 8), (2, 10),     // P104-P110
-            (4, 1), (4, 2), (4, 4), (4, 5), (4, 7), (4, 8), (4, 10),     // P122-P128
-            (5, 1), (5, 2), (5, 4), (5, 5), (5, 7), (5, 8), (5, 10),     // P129-P135
-        };
-
-        for (var i = 0; i < Math.Min(slots.Count, positions.Length); i++)
-        {
-            slots[i].GridRow = positions[i].Row;
-            slots[i].GridColumn = positions[i].Col;
+            if (!int.TryParse(slot.SlotNumber.AsSpan(1), out var no)) continue;
+            if (no is >= 97 and <= 110)
+            {
+                slot.GridRow = 111 - no;
+                slot.GridColumn = 0;
+            }
+            else if (no is >= 122 and <= 135)
+            {
+                slot.GridRow = 136 - no;
+                slot.GridColumn = 2;
+            }
         }
 
-        // Building (obstacle) along top row
-        for (var c = 0; c < 12; c++)
-            AddCell(context, GoeppingenId, 0, c, GridCellType.Obstacle);
-
-        // Vertical roads (columns 3, 6, 9) rows 1-6
-        foreach (var col in new[] { 3, 6, 9 })
-        {
-            for (var r = 1; r <= 5; r++)
-                AddCell(context, GoeppingenId, r, col, GridCellType.Road);
-        }
-
-        // Horizontal exit road (row 6, cols 3-6)
-        AddCell(context, GoeppingenId, 6, 3, GridCellType.Road);
-        AddCell(context, GoeppingenId, 6, 4, GridCellType.Road);
-        AddCell(context, GoeppingenId, 6, 5, GridCellType.Road);
-        AddCell(context, GoeppingenId, 6, 6, GridCellType.Road);
-
-        // Entrance
-        AddCell(context, GoeppingenId, 7, 5, GridCellType.Entrance);
-
-        // Labels
-        AddCell(context, GoeppingenId, 3, 1, GridCellType.Label, "A");
-        AddCell(context, GoeppingenId, 3, 5, GridCellType.Label, "B");
-        AddCell(context, GoeppingenId, 3, 8, GridCellType.Label, "C");
+        AddCell(context, GoeppingenId, 0, 1, GridCellType.Label, "Ladesäulen");
+        for (var r = 1; r <= 14; r++)
+            AddCell(context, GoeppingenId, r, 1, GridCellType.Road);
     }
 
     // Erfurt: 8 rows × 10 columns
