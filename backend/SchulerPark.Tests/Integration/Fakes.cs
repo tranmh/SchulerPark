@@ -218,6 +218,93 @@ public class FakeAzureAdTokenValidator : AzureAdTokenValidator
 }
 
 /// <summary>
+/// Deterministic builders for the main domain types. Ids come from a counter, so
+/// two runs build identical graphs; callers tweak the result with a configure action.
+/// </summary>
+public static class TestData
+{
+    private static int _seq;
+
+    /// <summary>A deterministic, unique Guid (000...0001, 000...0002, ...).</summary>
+    public static Guid NextId() => new($"00000000-0000-0000-0000-{Interlocked.Increment(ref _seq):D12}");
+
+    public static User User(Action<User>? configure = null)
+    {
+        var id = NextId();
+        var user = new User
+        {
+            Id = id,
+            Email = $"user-{id:N}@test.local",
+            DisplayName = "Test User",
+            EmailVerified = true,
+            Role = Core.Enums.UserRole.User,
+            ApprovalStatus = Core.Enums.ApprovalStatus.Approved,
+        };
+        configure?.Invoke(user);
+        return user;
+    }
+
+    public static Location Location(Action<Location>? configure = null)
+    {
+        var id = NextId();
+        var location = new Location { Id = id, Name = $"Location {id:N}", IsActive = true };
+        configure?.Invoke(location);
+        return location;
+    }
+
+    public static ParkingSlot Slot(Location location, string slotNumber, Action<ParkingSlot>? configure = null)
+    {
+        var slot = new ParkingSlot
+        {
+            Id = NextId(),
+            LocationId = location.Id,
+            Location = location,
+            SlotNumber = slotNumber,
+            IsActive = true,
+        };
+        location.ParkingSlots.Add(slot);
+        configure?.Invoke(slot);
+        return slot;
+    }
+
+    /// <summary>A location with <paramref name="slotCount"/> active slots numbered "1".."n".</summary>
+    public static Location LocationWithSlots(int slotCount, Action<Location>? configure = null)
+    {
+        var location = Location(configure);
+        for (var i = 1; i <= slotCount; i++)
+            Slot(location, i.ToString());
+        return location;
+    }
+
+    public static Booking Booking(User user, Location location, DateOnly date,
+        Core.Enums.TimeSlot timeSlot = Core.Enums.TimeSlot.Morning, Action<Booking>? configure = null)
+    {
+        var booking = new Booking
+        {
+            Id = NextId(),
+            UserId = user.Id,
+            LocationId = location.Id,
+            Date = date,
+            TimeSlot = timeSlot,
+            Status = Core.Enums.BookingStatus.Pending,
+            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        configure?.Invoke(booking);
+        return booking;
+    }
+}
+
+/// <summary>A <see cref="TimeProvider"/> pinned to one instant, advanced only explicitly.</summary>
+public sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+{
+    private DateTimeOffset _utcNow = utcNow;
+
+    public override DateTimeOffset GetUtcNow() => _utcNow;
+
+    public void Advance(TimeSpan by) => _utcNow = _utcNow.Add(by);
+}
+
+/// <summary>
 /// Phase 20: the app's <see cref="TimeProvider"/> in tests. Passes the system clock
 /// through until a test pins <see cref="UtcNow"/>; tests reset it in a finally block
 /// (the Integration collection runs sequentially, so no two tests overlap).
