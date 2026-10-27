@@ -15,5 +15,9 @@ public record SubscribePushRequest(
     {
         if (!Uri.TryCreate(Endpoint, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
             yield return new ValidationResult("Endpoint must be an absolute https URL.", [nameof(Endpoint)]);
+        else if (uri.IsLoopback
+                 || (System.Net.IPAddress.TryParse(uri.DnsSafeHost, out var ip)
+                     && SchulerPark.Api.Security.ClientNetwork.IsPrivateOrLocal(ip)))
+            yield return new ValidationResult("Endpoint must not point to a local or private network address.", [nameof(Endpoint)]);
     }
 }
