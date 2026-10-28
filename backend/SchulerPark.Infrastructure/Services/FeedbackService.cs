@@ -59,7 +59,7 @@ public class FeedbackService : IFeedbackService
                 throw new ValidationException("Feedback needs a comment.", "feedback_comment_required");
 
             await _notifier.FeedbackReceivedAsync(new FeedbackReport(
-                FeedbackCategory.General, user.DisplayName, user.Email, null,
+                FeedbackCategory.General, user.DisplayName, user.Email,
                 null, null, null, null, null, null, null, comment));
             return;
         }
@@ -93,7 +93,7 @@ public class FeedbackService : IFeedbackService
         }
 
         await _notifier.FeedbackReceivedAsync(new FeedbackReport(
-            submission.Category, user.DisplayName, user.Email, user.CarLicensePlate,
+            submission.Category, user.DisplayName, user.Email,
             booking.Location.Name, booking.ParkingSlot.SlotNumber, booking.Date, booking.TimeSlot,
             plateCountry, plateType, plateText, comment));
     }

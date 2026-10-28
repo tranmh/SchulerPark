@@ -266,7 +266,7 @@ export function ProfilePage() {
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
           </Field>
-          <Field label={t('profile.labelCarPlate')} helper={t('profile.carPlateHelper')} htmlFor="profile-car-license">
+          <Field label={t('profile.labelCarPlate')} htmlFor="profile-car-license">
             <input
               id="profile-car-license"
               value={carLicensePlate}

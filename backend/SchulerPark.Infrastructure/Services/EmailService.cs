@@ -98,14 +98,14 @@ public class EmailService : IEmailService
               {Greeting(booking.User.DisplayName, lang)}
               <p>Ihre Parkplatzbuchung wurde angelegt:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Ihre Buchung ist jetzt <strong>ausstehend</strong>. Die Platzvergabe läuft am Vortag um {lotteryTime} Uhr, danach werden Sie über das Ergebnis informiert.</p>
+              <p>Ihre Buchung ist jetzt <strong>ausstehend</strong>. Die Verlosung läuft am Vortag um {lotteryTime} Uhr, danach werden Sie über das Ergebnis informiert.</p>
               """
             : $"""
               <h2>Booking Received</h2>
               {Greeting(booking.User.DisplayName, lang)}
               <p>Your parking booking has been placed:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Your booking is now <strong>Pending</strong>. Slots are allocated at {lotteryTime} the day before and you will be notified of the result.</p>
+              <p>Your booking is now <strong>Pending</strong>. The lottery runs at {lotteryTime} the day before and you will be notified of the result.</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -143,11 +143,11 @@ public class EmailService : IEmailService
         var de = Localization.IsGerman(lang);
         var deadline = BerlinDeadline(booking);
         var subject = de
-            ? $"Parkplatz zugeteilt — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
-            : $"Parking Spot Assigned — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+            ? $"Gewonnen! — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"You Won! — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml(lang, de
             ? $"""
-              <h2 style="color: #16a34a;">Ihnen wurde ein Parkplatz zugeteilt</h2>
+              <h2 style="color: #16a34a;">Sie haben einen Parkplatz gewonnen!</h2>
               {Greeting(booking.User.DisplayName, lang)}
               <p>Gute Nachrichten: Ihnen wurde ein Parkplatz zugewiesen:</p>
               {BookingDetailsTable(booking, lang)}
@@ -156,7 +156,7 @@ public class EmailService : IEmailService
               <p>Melden Sie sich bei LouisE an und bestätigen Sie Ihre Buchung. Unbestätigte Plätze gehen nach der Frist an die Warteliste, sobald dort jemand wartet.</p>
               """
             : $"""
-              <h2 style="color: #16a34a;">You Have Been Assigned a Parking Spot</h2>
+              <h2 style="color: #16a34a;">You Won a Parking Spot!</h2>
               {Greeting(booking.User.DisplayName, lang)}
               <p>Great news! You have been assigned a parking spot:</p>
               {BookingDetailsTable(booking, lang)}
@@ -173,22 +173,22 @@ public class EmailService : IEmailService
         var lang = LanguageOf(booking);
         var de = Localization.IsGerman(lang);
         var subject = de
-            ? $"Ergebnis der Platzvergabe — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
-            : $"Allocation Result — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
+            ? $"Verlosungsergebnis — {booking.Location.Name} am {booking.Date:dd.MM.yyyy}"
+            : $"Lottery Result — {booking.Location.Name} on {booking.Date:dd.MM.yyyy}";
         var body = BuildHtml(lang, de
             ? $"""
-              <h2>Ergebnis der Platzvergabe</h2>
+              <h2>Verlosungsergebnis</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Leider konnte Ihnen bei der Platzvergabe dieses Mal kein Parkplatz zugeteilt werden:</p>
+              <p>Leider wurden Sie bei der Parkplatzverlosung dieses Mal nicht ausgewählt:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Die Nachfrage war größer als die Anzahl freier Plätze. Sie stehen auf der Warteliste und rücken automatisch nach, sobald ein Platz frei wird.</p>
+              <p>Die Nachfrage war größer als die Anzahl freier Plätze. Viel Glück beim nächsten Mal!</p>
               """
             : $"""
-              <h2>Allocation Result</h2>
+              <h2>Lottery Result</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Unfortunately, no parking spot could be allocated to you this time:</p>
+              <p>Unfortunately, you were not selected in the parking lottery this time:</p>
               {BookingDetailsTable(booking, lang)}
-              <p>Demand exceeded the available spots. You are on the waitlist and move up automatically if a spot frees up.</p>
+              <p>Demand exceeded available spots. Better luck next time!</p>
               """);
 
         await SendEmailAsync(booking.User.Email, subject, body);
@@ -236,7 +236,7 @@ public class EmailService : IEmailService
             ? $"""
               <h2 style="color: #16a34a;">Ihr Parkplatz ist bestätigt!</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Die Platzvergabe für diesen Tag ist bereits gelaufen und es war noch ein Platz frei — er wurde Ihnen direkt zugewiesen:</p>
+              <p>Die Verlosung für diesen Tag ist bereits gelaufen und es war noch ein Platz frei — er wurde Ihnen direkt zugewiesen:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
               <p>Ihre Buchung ist <strong>bestätigt</strong> — es ist nichts weiter zu tun.</p>
@@ -244,7 +244,7 @@ public class EmailService : IEmailService
             : $"""
               <h2 style="color: #16a34a;">Your Parking Spot Is Confirmed!</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>The draw for this day has already run and a spot was still free, so it has been assigned to you directly:</p>
+              <p>The lottery for this day has already run and a spot was still free, so it has been assigned to you directly:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
               <p>Your booking is <strong>Confirmed</strong> — no further action needed.</p>
@@ -347,7 +347,7 @@ public class EmailService : IEmailService
             ? $"""
               <h2 style="color: #16a34a;">Ihr Parkplatz bleibt Ihnen</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Ihr zugeteilter Parkplatz wurde nicht bis zur Frist bestätigt. Da niemand auf der Warteliste stand, behalten Sie ihn trotzdem:</p>
+              <p>Ihr gewonnener Parkplatz wurde nicht bis zur Frist bestätigt. Da niemand auf der Warteliste stand, behalten Sie ihn trotzdem:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Zugewiesener Platz:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "wird noch bekannt gegeben")}</p>
               <p>Ihre Buchung ist jetzt <strong>bestätigt</strong>. Falls Sie den Platz nicht nutzen, stornieren Sie bitte in LouisE, damit er für andere frei wird.</p>
@@ -355,7 +355,7 @@ public class EmailService : IEmailService
             : $"""
               <h2 style="color: #16a34a;">Your Parking Spot Is Still Yours</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Your assigned parking spot was not confirmed before the deadline. Since nobody was on the waitlist, you keep it anyway:</p>
+              <p>Your won parking spot was not confirmed before the deadline. Since nobody was on the waitlist, you keep it anyway:</p>
               {BookingDetailsTable(booking, lang)}
               <p><strong>Assigned Slot:</strong> {Enc(booking.ParkingSlot?.SlotNumber ?? "TBD")}</p>
               <p>Your booking is now <strong>Confirmed</strong>. If you won't use the spot, please cancel in LouisE so it frees up for others.</p>
@@ -375,14 +375,14 @@ public class EmailService : IEmailService
             ? $"""
               <h2>Buchung verfallen</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Ihr zugeteilter Parkplatz wurde nicht bis zur Frist bestätigt und ist deshalb verfallen:</p>
+              <p>Ihr gewonnener Parkplatz wurde nicht bis zur Frist bestätigt und ist deshalb verfallen:</p>
               {BookingDetailsTable(booking, lang)}
               <p>Der Platz wurde an die Warteliste weitergegeben. Falls Sie an diesem Tag trotzdem parken möchten, können Sie erneut buchen — ist noch ein Platz frei, wird er Ihnen sofort zugewiesen.</p>
               """
             : $"""
               <h2>Booking Expired</h2>
               {Greeting(booking.User.DisplayName, lang)}
-              <p>Your assigned parking spot was not confirmed before the deadline and has expired:</p>
+              <p>Your won parking spot was not confirmed before the deadline and has expired:</p>
               {BookingDetailsTable(booking, lang)}
               <p>The slot has been passed on to the waitlist. If you still need to park that day you can book again — if a slot is free it is assigned to you immediately.</p>
               """);

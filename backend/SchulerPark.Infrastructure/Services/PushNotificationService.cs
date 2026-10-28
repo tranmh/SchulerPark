@@ -40,7 +40,7 @@ public class PushNotificationService : IPushNotificationService
         var (lang, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = de ? "Parkplatz zugeteilt" : "Parking Spot Assigned",
+            Title = de ? "Parkplatz gewonnen!" : "You Won a Parking Spot!",
             Body = de
                 ? $"{booking.Location.Name} am {booking.Date:dd.MM.yyyy} — {Localization.TimeSlotLabel(booking.TimeSlot, lang)}. Bitte bestätigen."
                 : $"{booking.Location.Name} on {booking.Date:dd.MM.yyyy} — {Localization.TimeSlotLabel(booking.TimeSlot, lang)}. Please confirm.",
@@ -53,10 +53,10 @@ public class PushNotificationService : IPushNotificationService
         var (_, de) = LanguageOf(booking);
         return SendToUserAsync(booking.UserId, new PushPayload
         {
-            Title = de ? "Ergebnis der Platzvergabe" : "Allocation Result",
+            Title = de ? "Verlosungsergebnis" : "Lottery Result",
             Body = de
-                ? $"Leider kein Platz für {booking.Location.Name} am {booking.Date:dd.MM.yyyy}. Sie stehen auf der Warteliste."
-                : $"Unfortunately no spot for {booking.Location.Name} on {booking.Date:dd.MM.yyyy}. You are on the waitlist.",
+                ? $"Leider wurden Sie für {booking.Location.Name} am {booking.Date:dd.MM.yyyy} nicht ausgewählt."
+                : $"Unfortunately you were not selected for {booking.Location.Name} on {booking.Date:dd.MM.yyyy}.",
             Url = "/my-bookings"
         });
     }
