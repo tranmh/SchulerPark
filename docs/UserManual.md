@@ -27,10 +27,10 @@ Tip: tick **Book entire week** to book Mon–Fri in one go.
 
 | You booked… | Result |
 |-------------|--------|
-| Before 21:00 the evening before | **Pending** → a fair lottery at 21:00 decides |
-| After the lottery, or for today | **Confirmed** right away if a slot is free, otherwise **Waitlisted** |
+| Before 21:00 the evening before | **Pending** → at 21:00 slots are allocated by a fair draw (if more people booked than slots exist) |
+| After the draw, or for today | **Confirmed** right away if a slot is free, otherwise **Waitlisted** |
 
-- **Won** the lottery? **Confirm** in **My Bookings** by **07:00** (Morning) or **13:00** (Afternoon). You get a reminder.
+- **Got a slot?** **Confirm** it in **My Bookings** by **07:00** (Morning) or **13:00** (Afternoon). You get a reminder.
 - Not confirmed in time? If someone is waiting, you lose the slot. If nobody is waiting, you keep it.
 - **Waitlisted?** Nothing to do — you get a slot automatically if one frees up.
 
@@ -41,8 +41,8 @@ Don't need a slot anymore? **Please cancel** — a colleague gets it.
 
 | Status | Meaning |
 |--------|---------|
-| Pending | Waiting for the lottery |
-| Won — Confirm | You got a slot — confirm it |
+| Pending | Waiting for the slot allocation at 21:00 |
+| Slot assigned — Confirm | You got a slot — confirm it |
 | Confirmed | The slot is yours |
 | Waitlisted | Waiting for a free slot |
 | No slot / Expired / Cancelled | Booking is over |
@@ -61,7 +61,7 @@ Add a comment if you can → **Report problem**. All admins get an email with th
 ## 5. Good to know
 
 - **One booking per date and time slot** across all locations.
-- **Profile:** set your preferred location, slot and licence plate.
+- **Profile:** set your preferred location, slot and licence plate. The plate is optional: it only helps admins identify your car when you report a slot problem. It opens no barrier and is not needed to enter the car park.
 - **Push notifications:** Profile → **Enable push notifications** (per device).
 - **Install as app:** browser menu → **Install app** / iPhone: Share → **Add to Home Screen**.
 - **Your data:** Profile → **Download my data** or **Delete my account**.
@@ -70,7 +70,7 @@ Add a comment if you can → **Report problem**. All admins get an email with th
 ## 6. Problems?
 
 - **Can't sign in?** Check the verification email, or use **Forgot?**. Locked accounts unlock after a short wait.
-- **No lottery result?** Check **My Bookings** (and your spam folder).
+- **No allocation result?** Check **My Bookings** (and your spam folder).
 - **Push not working?** Profile → **Send test notification**; disable and re-enable if needed.
 
 ---
@@ -79,10 +79,10 @@ Add a comment if you can → **Report problem**. All admins get an email with th
 
 The **Admin** menu lets you manage **Locations**, **Parking Slots**, the **Grid Layout**, **Blocked Days**, **All Bookings**, **Lottery History** and **User Approvals**. Super Admins also manage **Users** (roles, disable, delete).
 
-- **Emails you receive:** lottery failures, users awaiting approval, **slot problem reports** and **user feedback**. Each problem report names the slot, location, booking, problem, any licence plate and comment, and the reporter (contact them by their address in the mail; replying goes to the system sender).
+- **Emails you receive:** lottery failures, users awaiting approval, **slot problem reports** and **user feedback**. Each problem report names the slot, location, booking, problem, any licence plate and comment, the reporter and their own plate from the profile (contact them by their address in the mail; replying goes to the system sender).
 - **Grid Layout** is admin-only; users don't see the parking map. Göppingen follows the site plan: one lane, P110–P097 on the left, P135–P122 on the right, charging stations (Ladesäulen) at the top.
 - **Deactivated locations** appear only under **Locations**; Parking Slots, Grid Layout and Blocked Days list active locations only.
 
 ---
 
-*Last updated: 2026-10-21 (afternoon slot 13:00–19:00, problem reports, feedback)*
+*Last updated: 2026-10-28 (wording: slot allocation instead of lottery/won, licence plate purpose)*

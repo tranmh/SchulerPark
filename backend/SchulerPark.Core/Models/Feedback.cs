@@ -19,6 +19,7 @@ public record FeedbackReport(
     FeedbackCategory Category,
     string ReporterName,
     string ReporterEmail,
+    string? ReporterPlate,
     string? LocationName,
     string? SlotNumber,
     DateOnly? Date,

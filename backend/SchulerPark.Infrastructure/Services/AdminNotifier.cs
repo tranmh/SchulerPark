@@ -151,6 +151,8 @@ public class AdminNotifier : IAdminNotifier
             }
 
             lines.Add((de ? "Melder: " : "Reported by: ") + $"{report.ReporterName} ({report.ReporterEmail})");
+            if (report.Category != FeedbackCategory.General && !string.IsNullOrWhiteSpace(report.ReporterPlate))
+                lines.Add((de ? "Kennzeichen des Melders: " : "Reporter's plate: ") + report.ReporterPlate.Trim());
 
             await _email.SendAdminAlertAsync(admin.Email, admin.DisplayName, subject, lines, admin.Language);
         }

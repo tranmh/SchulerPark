@@ -5,7 +5,7 @@ import { BookingStatusBadge } from './BookingStatusBadge';
 describe('BookingStatusBadge', () => {
   it.each([
     ['Pending', 'Pending', 'amber'],
-    ['Won', 'Won — Confirm', 'emerald'],
+    ['Won', 'Slot assigned — Confirm', 'emerald'],
     ['Waitlisted', 'Waitlisted', 'sky'],
     ['Lost', 'No slot', 'rose'],
     ['Confirmed', 'Confirmed', 'brand'],
