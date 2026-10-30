@@ -60,7 +60,7 @@ public class AuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task RegisterAsync(string email, string displayName, string password, string? preferredLanguage = null)
+    public async Task RegisterAsync(string email, string firstName, string lastName, string company, string password, string? preferredLanguage = null)
     {
         email = NormalizeEmail(email);
         var language = Localization.Normalize(preferredLanguage);
@@ -88,7 +88,8 @@ public class AuthService : IAuthService
         {
             Id = Guid.NewGuid(),
             Email = email,
-            DisplayName = displayName,
+            // Phase 21: admins see the company (and the full name) when approving.
+            Company = company.Trim(),
             Role = UserRole.User,
             EmailVerified = false,
             PreferredLanguage = language,
@@ -101,6 +102,7 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
 
+        user.SetName(firstName, lastName);
         user.PasswordHash = _passwordHasher.HashPassword(user, password);
         _context.Users.Add(user);
 

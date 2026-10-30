@@ -14,6 +14,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.Email).IsRequired().HasMaxLength(256);
         builder.Property(u => u.DisplayName).IsRequired().HasMaxLength(200);
+        // Phase 21: identity shown to admins on approval; nullable for legacy and SSO rows.
+        builder.Property(u => u.FirstName).HasMaxLength(100);
+        builder.Property(u => u.LastName).HasMaxLength(100);
+        builder.Property(u => u.Company).HasMaxLength(200);
         builder.Property(u => u.CarLicensePlate).HasMaxLength(20);
         builder.Property(u => u.AzureAdObjectId).HasMaxLength(36);
         builder.Property(u => u.PasswordHash).HasMaxLength(512);

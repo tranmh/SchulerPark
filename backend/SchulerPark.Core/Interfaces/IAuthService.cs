@@ -10,7 +10,7 @@ public interface IAuthService
     /// the verification email for unverified accounts, does nothing for verified ones.
     /// </summary>
     /// <param name="preferredLanguage">UI language at registration ("de"/"en"); decides the language of the verification mail.</param>
-    Task RegisterAsync(string email, string displayName, string password, string? preferredLanguage = null);
+    Task RegisterAsync(string email, string firstName, string lastName, string company, string password, string? preferredLanguage = null);
     Task<bool> VerifyEmailAsync(string token);
     Task ResendVerificationEmailAsync(string email);
     Task<(User User, string AccessToken, string RefreshToken)> LoginAsync(string email, string password, string? ipAddress);

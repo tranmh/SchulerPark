@@ -68,7 +68,8 @@ public class ProfilePreferredSlotTests
 
         var response = await _client.SendAsync(Authed(HttpMethod.Put, "/api/profile", token, new
         {
-            displayName = "Pref User",
+            firstName = "Pref",
+            lastName = "User",
             carLicensePlate = (string?)null,
             preferredLocationId = locId,
             preferredSlotId = slotId
@@ -87,7 +88,8 @@ public class ProfilePreferredSlotTests
 
         var response = await _client.SendAsync(Authed(HttpMethod.Put, "/api/profile", token, new
         {
-            displayName = "Pref User",
+            firstName = "Pref",
+            lastName = "User",
             carLicensePlate = (string?)null,
             preferredLocationId = (Guid?)null,
             preferredSlotId = slotId
@@ -105,7 +107,8 @@ public class ProfilePreferredSlotTests
 
         var response = await _client.SendAsync(Authed(HttpMethod.Put, "/api/profile", token, new
         {
-            displayName = "Pref User",
+            firstName = "Pref",
+            lastName = "User",
             carLicensePlate = (string?)null,
             preferredLocationId = locB,
             preferredSlotId = slotA

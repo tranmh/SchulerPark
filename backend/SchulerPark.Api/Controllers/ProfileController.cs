@@ -72,7 +72,7 @@ public class ProfileController : ControllerBase
                 throw new ValidationException("Preferred slot does not belong to the preferred location.");
         }
 
-        user.DisplayName = request.DisplayName;
+        user.SetName(request.FirstName, request.LastName);
         user.CarLicensePlate = request.CarLicensePlate;
         user.PreferredLocationId = request.PreferredLocationId;
         user.PreferredSlotId = request.PreferredSlotId;
@@ -155,8 +155,8 @@ public class ProfileController : ControllerBase
 
         var export = new DataExportDto(
             Profile: new UserProfileExport(
-                user.Email, user.DisplayName, user.CarLicensePlate,
-                user.Role.ToString(), user.PreferredLanguage, user.CreatedAt),
+                user.Email, user.DisplayName, user.FirstName, user.LastName, user.Company,
+                user.CarLicensePlate, user.Role.ToString(), user.PreferredLanguage, user.CreatedAt),
             Bookings: bookings.Select(b => new BookingExport(
                 b.Id, b.Location.Name, b.Date, b.TimeSlot.ToString(),
                 b.Status.ToString(), b.ParkingSlot?.SlotNumber,

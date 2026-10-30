@@ -4,6 +4,11 @@ public record UserDto(
     Guid Id,
     string Email,
     string DisplayName,
+    // Phase 21: null for legacy / SSO accounts; the UI falls back to DisplayName.
+    string? FirstName,
+    string? LastName,
+    // Read-only for the user; changed by SuperAdmins only.
+    string? Company,
     string? CarLicensePlate,
     string Role,
     bool HasAzureAd,
@@ -17,6 +22,9 @@ public record UserDto(
         user.Id,
         user.Email,
         user.DisplayName,
+        user.FirstName,
+        user.LastName,
+        user.Company,
         user.CarLicensePlate,
         user.Role.ToString(),
         !string.IsNullOrEmpty(user.AzureAdObjectId),

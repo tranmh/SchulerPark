@@ -30,7 +30,9 @@ public class AuthTests
         var response = await _client.PostAsJsonAsync("/api/auth/register", new
         {
             email,
-            displayName = "New User",
+            firstName = "New",
+            lastName = "User",
+            company = "Example AG",
             password = "Test1234!"
         });
 
@@ -47,7 +49,9 @@ public class AuthTests
         var response = await _client.PostAsJsonAsync("/api/auth/register", new
         {
             email,
-            displayName = "Second",
+            firstName = "Second",
+            lastName = "Try",
+            company = "Example AG",
             password = "Other1234!"
         });
 
@@ -59,16 +63,55 @@ public class AuthTests
     public async Task Register_WeakOrInvalidInput_Returns400()
     {
         var noEmail = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = "not-an-email", displayName = "X", password = "Test1234!" });
+        { email = "not-an-email", firstName = "X", lastName = "Y", company = "Z", password = "Test1234!" });
         noEmail.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var shortPassword = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = NewEmail("weak"), displayName = "X", password = "short" });
+        { email = NewEmail("weak"), firstName = "X", lastName = "Y", company = "Z", password = "short" });
         shortPassword.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var longName = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = NewEmail("long"), displayName = new string('x', 300), password = "Test1234!" });
+        { email = NewEmail("long"), firstName = new string('x', 300), lastName = "Y", company = "Z", password = "Test1234!" });
         longName.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    // ── Phase 21: identity for admin approval ──
+
+    [Fact]
+    public async Task Register_WithoutSurnameOrCompany_Returns400()
+    {
+        var noSurname = await _client.PostAsJsonAsync("/api/auth/register", new
+        { email = NewEmail("nosur"), firstName = "Erika", lastName = "", company = "Muster GmbH", password = "Test1234!" });
+        noSurname.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var noCompany = await _client.PostAsJsonAsync("/api/auth/register", new
+        { email = NewEmail("nocomp"), firstName = "Erika", lastName = "Muster", password = "Test1234!" });
+        noCompany.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var legacyShape = await _client.PostAsJsonAsync("/api/auth/register", new
+        { email = NewEmail("legacy"), displayName = "Erika Muster", password = "Test1234!" });
+        legacyShape.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Register_StoresNameAndCompany_AndDerivesDisplayName()
+    {
+        var email = NewEmail("identity");
+        await _client.PostAsJsonAsync("/api/auth/register", new
+        { email, firstName = "  Erika ", lastName = "Muster", company = " Muster GmbH ", password = "Test1234!" });
+        await AuthTestHelper.VerifyEmailAsync(_factory, _client, email);
+        var auth = await AuthTestHelper.LoginAsync(_client, email, "Test1234!");
+
+        auth.User.DisplayName.Should().Be("Erika Muster");
+        auth.User.FirstName.Should().Be("Erika");
+        auth.User.LastName.Should().Be("Muster");
+        auth.User.Company.Should().Be("Muster GmbH");
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/profile");
+        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var profile = await (await _client.SendAsync(req)).Content.ReadFromJsonAsync<AuthTestHelper.AuthUserDto>();
+        profile!.Company.Should().Be("Muster GmbH");
+        profile.LastName.Should().Be("Muster");
     }
 
     [Fact]

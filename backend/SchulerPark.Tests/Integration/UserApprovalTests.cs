@@ -105,9 +105,9 @@ public class UserApprovalTests
     public async Task RegisterResponse_IsIdenticalForInternalAndExternalDomains()
     {
         var internalResponse = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = InternalEmail("same"), displayName = "A", password = AuthTestHelper.DefaultPassword });
+        { email = InternalEmail("same"), firstName = "A", lastName = "B", company = "C", password = AuthTestHelper.DefaultPassword });
         var externalResponse = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = ExternalEmail("same"), displayName = "A", password = AuthTestHelper.DefaultPassword });
+        { email = ExternalEmail("same"), firstName = "A", lastName = "B", company = "C", password = AuthTestHelper.DefaultPassword });
 
         internalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         externalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -248,7 +248,7 @@ public class UserApprovalTests
     public async Task SsoDomain_LocalRegistration_Returns400SsoOnlyDomain()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/register", new
-        { email = SsoEmail("blocked"), displayName = "A", password = AuthTestHelper.DefaultPassword });
+        { email = SsoEmail("blocked"), firstName = "A", lastName = "B", company = "C", password = AuthTestHelper.DefaultPassword });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
@@ -260,7 +260,7 @@ public class UserApprovalTests
     {
         var email = SsoEmail("nouser");
         await _client.PostAsJsonAsync("/api/auth/register", new
-        { email, displayName = "A", password = AuthTestHelper.DefaultPassword });
+        { email, firstName = "A", lastName = "B", company = "C", password = AuthTestHelper.DefaultPassword });
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

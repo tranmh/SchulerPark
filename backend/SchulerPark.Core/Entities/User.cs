@@ -7,6 +7,16 @@ public class User
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    /// <summary>Phase 21: given name; null for pre-Phase-21 rows and SSO accounts without the claim.</summary>
+    public string? FirstName { get; set; }
+    /// <summary>Phase 21: surname; see <see cref="FirstName"/>.</summary>
+    public string? LastName { get; set; }
+    /// <summary>
+    /// Phase 21: employer stated at registration so admins can judge an approval. Required
+    /// for local registrations, null for SSO and legacy accounts. Users cannot change it;
+    /// SuperAdmins can (PUT /api/admin/users/{id}/company).
+    /// </summary>
+    public string? Company { get; set; }
     public string? CarLicensePlate { get; set; }
     public string? AzureAdObjectId { get; set; }
     public string? PasswordHash { get; set; }
@@ -38,4 +48,15 @@ public class User
     public ICollection<BlockedDay> BlockedDays { get; set; } = [];
     public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
     public ICollection<PushSubscription> PushSubscriptions { get; set; } = [];
+
+    /// <summary>
+    /// Sets first and last name and derives <see cref="DisplayName"/> ("First Last") from
+    /// them, so the JWT name claim and every email greeting keep working unchanged.
+    /// </summary>
+    public void SetName(string firstName, string lastName)
+    {
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        DisplayName = $"{FirstName} {LastName}".Trim();
+    }
 }
