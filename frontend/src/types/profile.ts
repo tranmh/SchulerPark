@@ -1,5 +1,7 @@
 export interface UpdateProfileRequest {
-  displayName: string;
+  /** Phase 21: the server derives displayName from these two. Company is not editable here. */
+  firstName: string;
+  lastName: string;
   carLicensePlate: string | null;
   preferredLocationId: string | null;
   preferredSlotId: string | null;
@@ -11,6 +13,9 @@ export interface DataExport {
   profile: {
     email: string;
     displayName: string;
+    firstName: string | null;
+    lastName: string | null;
+    company: string | null;
     carLicensePlate: string | null;
     role: string;
     preferredLanguage: string;

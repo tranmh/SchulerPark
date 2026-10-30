@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminUsersService, type AdminUser, type UserRole } from '../../services/adminUsersService';
+import { describeApiError } from '../../utils/apiError';
 
 const ROLE_OPTIONS: ReadonlyArray<UserRole | ''> = ['', 'User', 'Admin', 'SuperAdmin'];
 
@@ -47,11 +48,11 @@ export function UsersPage() {
       setUsers(res.users);
       setTotalCount(res.totalCount);
     } catch {
-      setError('Failed to load users.');
+      setError(t('admin.usersPage.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, page]);
+  }, [search, roleFilter, page, t]);
 
   useEffect(() => {
     load();
@@ -65,7 +66,7 @@ export function UsersPage() {
       await adminUsersService.updateRole(u.id, role);
       await load();
     } catch (e) {
-      setError(extractError(e, 'Failed to change role.'));
+      setError(describeApiError(e, 'admin.usersPage.roleFailed'));
     } finally {
       setBusyId(null);
     }
@@ -79,21 +80,39 @@ export function UsersPage() {
       else await adminUsersService.disable(u.id);
       await load();
     } catch (e) {
-      setError(extractError(e, 'Failed to update user.'));
+      setError(describeApiError(e, 'admin.usersPage.updateFailed'));
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDelete = async (u: AdminUser) => {
-    if (!window.confirm(`Permanently delete ${u.email}? This cannot be undone.`)) return;
+    if (!window.confirm(t('admin.usersPage.deleteConfirm', { email: u.email }))) return;
     setBusyId(u.id);
     setError(null);
     try {
       await adminUsersService.remove(u.id);
       await load();
     } catch (e) {
-      setError(extractError(e, 'Failed to delete user.'));
+      setError(describeApiError(e, 'admin.usersPage.deleteFailed'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Phase 21: the company is read-only for the user, so this is the only place it changes.
+  const handleEditCompany = async (u: AdminUser) => {
+    const next = window.prompt(t('admin.usersPage.companyPrompt', { name: u.displayName }), u.company ?? '');
+    if (next === null) return;
+    const value = next.trim() || null;
+    if (value === (u.company ?? null)) return;
+    setBusyId(u.id);
+    setError(null);
+    try {
+      await adminUsersService.updateCompany(u.id, value);
+      await load();
+    } catch (e) {
+      setError(describeApiError(e, 'admin.usersPage.updateFailed'));
     } finally {
       setBusyId(null);
     }
@@ -105,8 +124,8 @@ export function UsersPage() {
     <div>
       <h1 className="text-[26px] font-bold tracking-tight text-ink-900">{t('admin.users')}</h1>
       <p className="mt-1 text-[13.5px] text-ink-400">
-        <span className="font-medium text-ink-700 num">{totalCount}</span> user{totalCount !== 1 ? 's' : ''} · role changes take
-        effect on the affected user's next login.
+        <span className="font-medium text-ink-700 num">{totalCount}</span>{' '}
+        {t('admin.usersPage.count', { count: totalCount })} · {t('admin.usersPage.roleHint')}
       </p>
 
       {error && (
@@ -116,7 +135,7 @@ export function UsersPage() {
       {/* Filters */}
       <div className="mt-5 flex flex-wrap items-end gap-3 [&>div]:w-full sm:[&>div]:w-auto">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Search</label>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">{t('admin.usersPage.search')}</label>
           <div className="relative">
             <svg
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-300"
@@ -133,13 +152,13 @@ export function UsersPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search email or name…"
+              placeholder={t('admin.usersPage.searchPlaceholder')}
               className="w-full sm:w-72 rounded-lg border border-line-strong bg-white pl-9 pr-3 py-2.5 text-[13px] text-ink-900 placeholder:text-ink-300"
             />
           </div>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">Role</label>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">{t('admin.usersPage.role')}</label>
           <select
             value={roleFilter}
             onChange={(e) => {
@@ -150,7 +169,7 @@ export function UsersPage() {
           >
             {ROLE_OPTIONS.map((r) => (
               <option key={r || 'all'} value={r}>
-                {r === '' ? 'All roles' : r}
+                {r === '' ? t('admin.usersPage.allRoles') : r}
               </option>
             ))}
           </select>
@@ -159,24 +178,25 @@ export function UsersPage() {
 
       {/* Table */}
       <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[640px]">
+        <table className="w-full min-w-[860px]">
           <thead className="bg-surface-warm">
             <tr>
-              <Th>User</Th>
-              <Th>Role</Th>
-              <Th>Status</Th>
-              <Th>Auth</Th>
-              <Th className="text-right pr-6">Actions</Th>
+              <Th>{t('admin.usersPage.user')}</Th>
+              <Th>{t('admin.usersPage.company')}</Th>
+              <Th>{t('admin.usersPage.role')}</Th>
+              <Th>{t('admin.usersPage.status')}</Th>
+              <Th>{t('admin.usersPage.auth')}</Th>
+              <Th className="text-right pr-6">{t('admin.usersPage.actions')}</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-[13px] text-ink-400">Loading…</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('common.loading')}</td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-[13px] text-ink-400">No users found.</td>
+                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('admin.usersPage.empty')}</td>
               </tr>
             ) : (
               users.map((u) => {
@@ -203,9 +223,32 @@ export function UsersPage() {
                         </div>
                         {isSelf && (
                           <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10.5px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">
-                            You
+                            {t('admin.usersPage.you')}
                           </span>
                         )}
+                      </div>
+                    </Td>
+                    <Td>
+                      <div className="flex items-center gap-1.5">
+                        {u.company ? (
+                          <span className="truncate text-[13px] text-ink-700">{u.company}</span>
+                        ) : u.hasAzureAd ? (
+                          <span className="text-[12px] italic text-ink-400">{t('admin.usersPage.internalSso')}</span>
+                        ) : (
+                          <span className="text-ink-300">—</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleEditCompany(u)}
+                          disabled={busy}
+                          aria-label={t('admin.usersPage.editCompany')}
+                          title={t('admin.usersPage.editCompany')}
+                          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-300 hover:bg-surface-sunken hover:text-ink-700 disabled:opacity-40"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                          </svg>
+                        </button>
                       </div>
                     </Td>
                     <Td>
@@ -226,12 +269,22 @@ export function UsersPage() {
                       {u.isDisabled ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-ink-100 px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-500 ring-1 ring-inset ring-line">
                           <span className="h-1.5 w-1.5 rounded-full bg-ink-300" />
-                          Disabled
+                          {t('admin.usersPage.disabled')}
+                        </span>
+                      ) : u.approvalStatus === 'Pending' ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          {t('admin.usersPage.pending')}
+                        </span>
+                      ) : u.approvalStatus === 'Rejected' ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-rose-800 ring-1 ring-inset ring-rose-200">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          {t('admin.usersPage.rejected')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Active
+                          {t('admin.usersPage.active')}
                         </span>
                       )}
                     </Td>
@@ -244,7 +297,7 @@ export function UsersPage() {
                           Azure AD
                         </span>
                       ) : (
-                        'Local'
+                        t('admin.usersPage.local')
                       )}
                     </Td>
                     <Td className="text-right pr-6">
@@ -255,7 +308,7 @@ export function UsersPage() {
                           disabled={isSelf || busy}
                           className="rounded-md border border-line-strong bg-white px-2.5 py-1 text-[11.5px] font-medium text-ink-700 hover:bg-surface-sunken disabled:opacity-40"
                         >
-                          {u.isDisabled ? 'Enable' : 'Disable'}
+                          {u.isDisabled ? t('admin.usersPage.enable') : t('admin.usersPage.disable')}
                         </button>
                         <button
                           type="button"
@@ -263,7 +316,7 @@ export function UsersPage() {
                           disabled={isSelf || busy}
                           className="rounded-md border border-rose-200 bg-white px-2.5 py-1 text-[11.5px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-40"
                         >
-                          Delete
+                          {t('admin.usersPage.delete')}
                         </button>
                       </div>
                     </Td>
@@ -283,10 +336,10 @@ export function UsersPage() {
             disabled={page <= 1}
             className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
           >
-            ← Previous
+            ← {t('admin.usersPage.previous')}
           </button>
           <span className="text-[12.5px] text-ink-400">
-            Page <span className="font-semibold text-ink-700 num">{page}</span> of <span className="num">{totalPages}</span>
+            {t('admin.usersPage.pageOf', { page, total: totalPages })}
           </span>
           <button
             type="button"
@@ -294,7 +347,7 @@ export function UsersPage() {
             disabled={page >= totalPages}
             className="rounded-lg border border-line-strong bg-white px-3 py-1.5 text-[12.5px] font-medium text-ink-700 disabled:opacity-50"
           >
-            Next →
+            {t('admin.usersPage.next')} →
           </button>
         </div>
       )}
@@ -313,21 +366,4 @@ function Th({ children, className = '' }: { children: React.ReactNode; className
 }
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-4 py-3.5 text-[13.5px] text-ink-700 ${className}`}>{children}</td>;
-}
-
-function extractError(err: unknown, fallback: string): string {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    'response' in err &&
-    typeof (err as { response?: unknown }).response === 'object'
-  ) {
-    const data = (err as { response?: { data?: unknown } }).response?.data;
-    if (data && typeof data === 'object') {
-      const detail = (data as { detail?: unknown; title?: unknown }).detail
-        ?? (data as { detail?: unknown; title?: unknown }).title;
-      if (typeof detail === 'string' && detail.length > 0) return detail;
-    }
-  }
-  return fallback;
 }

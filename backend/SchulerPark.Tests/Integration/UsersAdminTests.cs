@@ -174,6 +174,65 @@ public class UsersAdminTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    // ── Phase 21: company on the users list, editable by SuperAdmin only ──
+
+    [Fact]
+    public async Task ListUsers_ExposesIdentity_AndSearchMatchesCompany()
+    {
+        var (_, _, suToken) = await CreateUserAsync(UserRole.SuperAdmin, "ident-su");
+        var company = $"Firma-{Guid.NewGuid():N}";
+        var email = $"ident-{Guid.NewGuid():N}@schuler.de";
+        await AuthTestHelper.RegisterAsync(_client, email, "Erika Muster", company: company);
+        await AuthTestHelper.VerifyEmailAsync(_factory, _client, email);
+
+        var response = await _client.SendAsync(Authed(HttpMethod.Get, $"/api/admin/users?search={company}", suToken));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<AdminListResponse>();
+        body!.TotalCount.Should().Be(1);
+        var u = body.Users.Single();
+        u.Email.Should().Be(email);
+        u.FirstName.Should().Be("Erika");
+        u.LastName.Should().Be("Muster");
+        u.Company.Should().Be(company);
+        u.ApprovalStatus.Should().Be("Approved");
+    }
+
+    [Fact]
+    public async Task UpdateCompany_AsSuperAdmin_SetsAndClears()
+    {
+        var (_, _, suToken) = await CreateUserAsync(UserRole.SuperAdmin, "company-su");
+        var (targetId, _, _) = await CreateUserAsync(UserRole.User, "company-target");
+
+        var set = await _client.SendAsync(Authed(
+            HttpMethod.Put, $"/api/admin/users/{targetId}/company", suToken, new { company = "  Neue Firma AG " }));
+        set.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await set.Content.ReadFromJsonAsync<AdminUserEntry>())!.Company.Should().Be("Neue Firma AG");
+
+        var clear = await _client.SendAsync(Authed(
+            HttpMethod.Put, $"/api/admin/users/{targetId}/company", suToken, new { company = "   " }));
+        clear.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await clear.Content.ReadFromJsonAsync<AdminUserEntry>())!.Company.Should().BeNull();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Users.Single(u => u.Id == targetId).Company.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateCompany_AsAdmin_Returns403()
+    {
+        var (_, _, adminToken) = await CreateUserAsync(UserRole.Admin, "company-admin");
+        var (targetId, _, _) = await CreateUserAsync(UserRole.User, "company-admin-target");
+
+        var response = await _client.SendAsync(Authed(
+            HttpMethod.Put, $"/api/admin/users/{targetId}/company", adminToken, new { company = "X" }));
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    private record AdminListResponse(List<AdminUserEntry> Users, int TotalCount, int Page, int PageSize);
+    private record AdminUserEntry(Guid Id, string Email, string DisplayName, string? FirstName, string? LastName,
+        string? Company, string Role, string ApprovalStatus, bool IsDisabled, bool HasAzureAd, DateTime CreatedAt);
+
     private record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
     private record UserDto(Guid Id, string Email, string DisplayName, string? CarLicensePlate, string Role, bool HasAzureAd, Guid? PreferredLocationId);
 }

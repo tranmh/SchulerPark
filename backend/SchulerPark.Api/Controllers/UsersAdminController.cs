@@ -42,7 +42,10 @@ public class UsersAdminController : ControllerBase
             var s = search.Trim().ToLower();
             query = query.Where(u =>
                 u.Email.ToLower().Contains(s) ||
-                u.DisplayName.ToLower().Contains(s));
+                u.DisplayName.ToLower().Contains(s) ||
+                (u.FirstName != null && u.FirstName.ToLower().Contains(s)) ||
+                (u.LastName != null && u.LastName.ToLower().Contains(s)) ||
+                (u.Company != null && u.Company.ToLower().Contains(s)));
         }
 
         if (!string.IsNullOrWhiteSpace(role)
@@ -61,12 +64,7 @@ public class UsersAdminController : ControllerBase
             .Take(pageSize)
             .ToListAsync();
 
-        var dtos = users.Select(u => new AdminUserDto(
-            u.Id, u.Email, u.DisplayName,
-            u.Role.ToString(),
-            u.DeletedAt != null,
-            u.AzureAdObjectId != null,
-            u.CreatedAt)).ToList();
+        var dtos = users.Select(ToDto).ToList();
 
         return Ok(new { users = dtos, totalCount, page, pageSize });
     }
@@ -205,9 +203,33 @@ public class UsersAdminController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Phase 21: the company is set once at registration and is read-only for the user
+    /// (admins approved the account on that basis), so this is the only way to change it.
+    /// Blank clears it (e.g. SSO accounts).
+    /// </summary>
+    [HttpPut("{id:guid}/company")]
+    public async Task<ActionResult<AdminUserDto>> UpdateCompany(Guid id, [FromBody] UpdateUserCompanyRequest request)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user == null) return NotFound();
+
+        var company = string.IsNullOrWhiteSpace(request.Company) ? null : request.Company.Trim();
+        if (user.Company != company)
+        {
+            user.Company = company;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(ToDto(user));
+    }
+
     private static AdminUserDto ToDto(Core.Entities.User user) => new(
         user.Id, user.Email, user.DisplayName,
+        user.FirstName, user.LastName, user.Company,
         user.Role.ToString(),
+        user.ApprovalStatus.ToString(),
         user.DeletedAt != null,
         user.AzureAdObjectId != null,
         user.CreatedAt);

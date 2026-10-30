@@ -27,7 +27,7 @@ export function ApprovalsPage() {
   }, [load]);
 
   const handleDecision = async (u: PendingUser, approve: boolean) => {
-    if (!approve && !window.confirm(t('approvals.rejectConfirm', { email: u.email }))) return;
+    if (!approve && !window.confirm(t('approvals.rejectConfirm', { name: u.displayName, company: u.company ?? '—', email: u.email }))) return;
     setBusyId(u.id);
     setError(null);
     try {
@@ -50,10 +50,11 @@ export function ApprovalsPage() {
       )}
 
       <div className="mt-6 overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[640px]">
+        <table className="w-full min-w-[760px]">
           <thead className="bg-surface-warm">
             <tr>
               <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.user')}</th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.company')}</th>
               <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.registered')}</th>
               <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.emailStatus')}</th>
               <th className="px-4 py-3 text-right pr-6 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-400 border-b border-line">{t('approvals.actions')}</th>
@@ -62,11 +63,11 @@ export function ApprovalsPage() {
           <tbody className="divide-y divide-line">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('common.loading')}</td>
+                <td colSpan={5} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('common.loading')}</td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('approvals.empty')}</td>
+                <td colSpan={5} className="px-4 py-10 text-center text-[13px] text-ink-400">{t('approvals.empty')}</td>
               </tr>
             ) : (
               users.map((u) => {
@@ -78,6 +79,9 @@ export function ApprovalsPage() {
                         <div className="truncate text-[13.5px] font-medium text-ink-900">{u.displayName}</div>
                         <div className="truncate text-[11.5px] text-ink-400">{u.email}</div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-[13px] text-ink-700">
+                      {u.company ?? <span className="text-ink-300">—</span>}
                     </td>
                     <td className="px-4 py-3.5 text-[13px] text-ink-500">
                       {new Date(u.createdAt).toLocaleDateString()}

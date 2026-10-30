@@ -242,6 +242,42 @@ public class UserApprovalTests
         body.Should().Contain(email);
     }
 
+    // ── Phase 21: admins see who they approve ──
+
+    [Fact]
+    public async Task PendingList_ExposesNameAndCompany()
+    {
+        var adminToken = await CreateAdminTokenAsync();
+        var email = ExternalEmail("identity");
+        await AuthTestHelper.RegisterAsync(_client, email, "Erika Muster", company: "Muster GmbH");
+        await AuthTestHelper.VerifyEmailAsync(_factory, _client, email);
+
+        var response = await _client.SendAsync(Authed(HttpMethod.Get, "/api/admin/users/pending", adminToken));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PendingListResponse>();
+        var entry = body!.Users.Single(u => u.Email == email);
+        entry.FirstName.Should().Be("Erika");
+        entry.LastName.Should().Be("Muster");
+        entry.Company.Should().Be("Muster GmbH");
+        entry.DisplayName.Should().Be("Erika Muster");
+    }
+
+    [Fact]
+    public async Task ApprovalRequestMail_TellsAdminTheCompany()
+    {
+        await CreateAdminTokenAsync();
+        var email = ExternalEmail("mailcompany");
+        await AuthTestHelper.RegisterAsync(_client, email, "Erika Muster", company: "Muster GmbH");
+        await AuthTestHelper.VerifyEmailAsync(_factory, _client, email);
+
+        _factory.Emails.ApprovalRequests.Should().Contain(m =>
+            m.UserEmail == email && m.DisplayName == "Erika Muster" && m.Company == "Muster GmbH");
+    }
+
+    private record PendingListResponse(List<PendingEntry> Users, int TotalCount);
+    private record PendingEntry(Guid Id, string Email, string DisplayName, string? FirstName, string? LastName,
+        string? Company, bool EmailVerified, DateTime CreatedAt);
+
     // ── SSO-only domains ──
 
     [Fact]

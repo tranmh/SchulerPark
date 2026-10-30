@@ -39,7 +39,7 @@ public class UserApprovalController : ControllerBase
         var users = await _db.Users
             .Where(u => u.ApprovalStatus == ApprovalStatus.Pending && u.DeletedAt == null)
             .OrderBy(u => u.CreatedAt)
-            .Select(u => new PendingUserDto(u.Id, u.Email, u.DisplayName, u.EmailVerified, u.CreatedAt))
+            .Select(u => new PendingUserDto(u.Id, u.Email, u.DisplayName, u.FirstName, u.LastName, u.Company, u.EmailVerified, u.CreatedAt))
             .ToListAsync();
 
         return Ok(new { users, totalCount = users.Count });
@@ -76,7 +76,7 @@ public class UserApprovalController : ControllerBase
             await _emailService.SendAccountRejectedAsync(user.Email, user.DisplayName, user.PreferredLanguage);
         }
 
-        return Ok(new PendingUserDto(user.Id, user.Email, user.DisplayName, user.EmailVerified, user.CreatedAt));
+        return Ok(new PendingUserDto(user.Id, user.Email, user.DisplayName, user.FirstName, user.LastName, user.Company, user.EmailVerified, user.CreatedAt));
     }
 
     private Guid GetUserId() =>

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 
 // Mirrors USER_REFRESH_THROTTLE_MS in AuthContext.tsx (kept private there for react-refresh).
@@ -13,6 +14,15 @@ vi.mock('../services/authService', () => ({
     login: vi.fn(),
     logout: vi.fn(),
   },
+}));
+
+vi.mock('@azure/msal-browser', () => ({
+  PublicClientApplication: class {
+    initialize = vi.fn().mockResolvedValue(undefined);
+    handleRedirectPromise = vi.fn().mockResolvedValue(null);
+  },
+  BrowserAuthError: class extends Error {},
+  BrowserAuthErrorCodes: {},
 }));
 
 vi.mock('../services/profileService', () => ({
@@ -185,5 +195,40 @@ describe('AuthContext user refresh', () => {
     });
 
     expect(profileService.getProfile).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * With Azure AD enabled the provider used to wrap the tree in <MsalProvider> once the
+ * config arrived, remounting every page. Single-use token pages (verify-email, reset)
+ * then fired their request twice and reported a false failure.
+ */
+describe('AuthContext startup with Azure AD', () => {
+  it('does not remount its children when the Azure AD config arrives', async () => {
+    vi.clearAllMocks();
+    vi.mocked(authService.getAuthConfig).mockResolvedValue({
+      azureAdEnabled: true,
+      azureAdClientId: 'client',
+      azureAdTenantId: 'tenant',
+      ssoDomains: [],
+    });
+    vi.mocked(authService.refresh).mockRejectedValue(new Error('401'));
+
+    let mounts = 0;
+    function MountCounter() {
+      const { isLoading } = useAuth();
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <span data-testid="loading">{String(isLoading)}</span>;
+    }
+
+    render(
+      <AuthProvider>
+        <MountCounter />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
+    expect(mounts).toBe(1);
   });
 });

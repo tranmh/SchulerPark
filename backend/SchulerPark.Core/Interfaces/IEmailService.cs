@@ -18,7 +18,7 @@ public interface IEmailService
     Task SendWaitlistWonAsync(Booking booking);
     Task SendBookingDirectlyConfirmedAsync(Booking booking);
     Task SendBookingWaitlistedAsync(Booking booking);
-    Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink, string adminLanguage);
+    Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string? pendingUserCompany, string approvalLink, string adminLanguage);
     Task SendAccountApprovedAsync(string email, string displayName, string loginLink, string language);
     Task SendAccountRejectedAsync(string email, string displayName, string language);
 

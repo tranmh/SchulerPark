@@ -390,7 +390,7 @@ public class EmailService : IEmailService
         await SendEmailAsync(booking.User.Email, subject, body);
     }
 
-    public async Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink, string adminLanguage)
+    public async Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string? pendingUserCompany, string approvalLink, string adminLanguage)
     {
         var de = Localization.IsGerman(adminLanguage);
         var subject = de
@@ -400,6 +400,7 @@ public class EmailService : IEmailService
             <table style="border-collapse: collapse; margin: 16px 0;">
                 <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">Name</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserDisplayName)}</strong></td></tr>
                 <tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">E-Mail</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserEmail)}</strong></td></tr>
+                {(pendingUserCompany is null ? "" : $"""<tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">{(de ? "Firma" : "Company")}</td><td style="padding: 4px 0;"><strong>{Enc(pendingUserCompany)}</strong></td></tr>""")}
             </table>
             """;
         var body = BuildHtml(adminLanguage, de

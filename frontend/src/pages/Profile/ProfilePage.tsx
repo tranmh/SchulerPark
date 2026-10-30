@@ -14,10 +14,22 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'U';
 }
 
+/** Stored names win; a legacy display name is split at its last space as a suggestion. */
+function splitLegacyName(user: { firstName?: string | null; lastName?: string | null; displayName?: string } | null) {
+  if (!user) return { first: '', last: '' };
+  if (user.firstName || user.lastName) return { first: user.firstName ?? '', last: user.lastName ?? '' };
+  const name = (user.displayName ?? '').trim();
+  const idx = name.lastIndexOf(' ');
+  return idx > 0 ? { first: name.slice(0, idx), last: name.slice(idx + 1) } : { first: name, last: '' };
+}
+
 export function ProfilePage() {
   const { t } = useTranslation();
   const { user, logout, isAdmin, isSuperAdmin, refreshUser, updateUser } = useAuth();
-  const [displayName, setDisplayName] = useState(user?.displayName ?? '');
+  // Phase 21: first/last name are edited, the server derives displayName. Legacy
+  // accounts only have a display name: suggest a split at the last space.
+  const [firstName, setFirstName] = useState(() => splitLegacyName(user).first);
+  const [lastName, setLastName] = useState(() => splitLegacyName(user).last);
   const [carLicensePlate, setCarLicensePlate] = useState(user?.carLicensePlate ?? '');
   const [preferredLocationId, setPreferredLocationId] = useState<string | null>(user?.preferredLocationId ?? null);
   const [preferredSlotId, setPreferredSlotId] = useState<string | null>(user?.preferredSlotId ?? null);
@@ -71,7 +83,9 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (user && !dirtyRef.current) {
-      setDisplayName(user.displayName);
+      const split = splitLegacyName(user);
+      setFirstName(split.first);
+      setLastName(split.last);
       setCarLicensePlate(user.carLicensePlate ?? '');
       setPreferredLocationId(user.preferredLocationId ?? null);
       setPreferredSlotId(user.preferredSlotId ?? null);
@@ -99,7 +113,8 @@ export function ProfilePage() {
     setError(null);
     try {
       const updated = await profileService.updateProfile({
-        displayName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         carLicensePlate: carLicensePlate || null,
         preferredLocationId,
         preferredSlotId: preferredLocationId ? preferredSlotId : null,
@@ -255,13 +270,40 @@ export function ProfilePage() {
               className="w-full rounded-lg border border-line-strong bg-surface-sunken px-3.5 py-2.5 text-[14px] text-ink-400"
             />
           </Field>
-          <Field label={t('profile.labelDisplayName')} htmlFor="profile-display-name">
+          {user?.company || !user?.hasAzureAd ? (
+            <Field label={t('profile.labelCompany')} helper={t('profile.companyHelper')} htmlFor="profile-company">
+              <input
+                id="profile-company"
+                value={user?.company ?? ''}
+                disabled
+                className="w-full rounded-lg border border-line-strong bg-surface-sunken px-3.5 py-2.5 text-[14px] text-ink-400"
+              />
+            </Field>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
+          <Field label={t('profile.labelFirstName')} htmlFor="profile-first-name">
             <input
-              id="profile-display-name"
-              value={displayName}
+              id="profile-first-name"
+              value={firstName}
+              maxLength={100}
+              autoComplete="given-name"
               onChange={(e) => {
                 touch();
-                setDisplayName(e.target.value);
+                setFirstName(e.target.value);
+              }}
+              className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
+            />
+          </Field>
+          <Field label={t('profile.labelLastName')} htmlFor="profile-last-name">
+            <input
+              id="profile-last-name"
+              value={lastName}
+              maxLength={100}
+              autoComplete="family-name"
+              onChange={(e) => {
+                touch();
+                setLastName(e.target.value);
               }}
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-[14px] text-ink-900"
             />
@@ -331,7 +373,7 @@ export function ProfilePage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !displayName}
+            disabled={saving || !firstName.trim() || !lastName.trim()}
             className="min-h-11 w-full rounded-lg bg-brand-500 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-sm transition-colors hover:bg-brand-600 disabled:opacity-60 sm:min-h-0 sm:w-auto"
           >
             {saving ? t('common.saving') : t('common.save')}

@@ -13,7 +13,6 @@ import {
   BrowserAuthErrorCodes,
   PublicClientApplication,
 } from '@azure/msal-browser';
-import { MsalProvider } from '@azure/msal-react';
 import { useTranslation } from 'react-i18next';
 import { setAccessToken } from '../services/api';
 import { authService } from '../services/authService';
@@ -31,7 +30,7 @@ interface AuthContextType {
   authConfig: AuthConfig | null;
   login: (email: string, password: string) => Promise<void>;
   /** Registers an account. Does NOT sign in — the email must be verified first. */
-  register: (email: string, displayName: string, password: string) => Promise<void>;
+  register: (data: { email: string; firstName: string; lastName: string; company: string; password: string }) => Promise<void>;
   /**
    * Signs in via Microsoft. On desktop this opens a popup and resolves once
    * the backend has issued a session. On mobile / installed PWAs (or when the
@@ -197,10 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser]);
 
   const register = useCallback(
-    async (email: string, displayName: string, password: string) => {
+    async (data: { email: string; firstName: string; lastName: string; company: string; password: string }) => {
       // The verification mail (and later notifications) go out in the language
       // the user is registering in.
-      await authService.register({ email, displayName, password, preferredLanguage: uiLanguage });
+      await authService.register({ ...data, preferredLanguage: uiLanguage });
     },
     [uiLanguage]
   );
@@ -299,11 +298,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const content = <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-
-  if (msalInstance) {
-    return <MsalProvider instance={msalInstance}>{content}</MsalProvider>;
-  }
-
-  return content;
+  // Deliberately no <MsalProvider> wrapper: nothing in the app reads the MSAL React
+  // context (login goes through `msalInstance` directly), and wrapping the tree once the
+  // config arrived remounted every page. On /verify-email that fired the single-use
+  // token twice and showed "Verification failed" for a successfully verified account.
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

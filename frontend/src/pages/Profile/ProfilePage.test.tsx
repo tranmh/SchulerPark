@@ -37,7 +37,15 @@ function authWith(user: typeof baseUser) {
 }
 
 function nameInput() {
-  return screen.getByLabelText(/display name|anzeigename/i) as HTMLInputElement;
+  return screen.getByLabelText(/first name|vorname/i) as HTMLInputElement;
+}
+
+function lastNameInput() {
+  return screen.getByLabelText(/surname|nachname/i) as HTMLInputElement;
+}
+
+function companyInput() {
+  return screen.getByLabelText(/company|firma/i) as HTMLInputElement;
 }
 
 function plateInput() {
@@ -55,19 +63,30 @@ describe('ProfilePage', () => {
     renderWithRouter(<ProfilePage />);
 
     await waitFor(() => expect(mockAuth.refreshUser).toHaveBeenCalledTimes(1));
-    expect(nameInput().value).toBe('Test User');
+    expect(nameInput().value).toBe('Test');
+    expect(lastNameInput().value).toBe('User');
     expect(plateInput().value).toBe('GP-TE 1234');
+  });
+
+  it('shows the company read-only and splits a legacy display name as a suggestion', async () => {
+    mockAuth = authWith({ ...baseUser, firstName: null, lastName: null, displayName: 'Erika Maria Muster' });
+    renderWithRouter(<ProfilePage />);
+
+    await waitFor(() => expect(nameInput().value).toBe('Erika Maria'));
+    expect(lastNameInput().value).toBe('Muster');
+    expect(companyInput().value).toBe('Test GmbH');
+    expect(companyInput()).toBeDisabled();
   });
 
   it('follows a context user update while the form is pristine', async () => {
     const { rerender } = renderWithRouter(<ProfilePage />);
 
-    mockAuth = authWith({ ...baseUser, displayName: 'Fresh Name', carLicensePlate: 'GP-FR 9' });
+    mockAuth = authWith({ ...baseUser, firstName: 'Fresh', displayName: 'Fresh User', carLicensePlate: 'GP-FR 9' });
     rerender(<ProfilePage />);
 
-    await waitFor(() => expect(nameInput().value).toBe('Fresh Name'));
+    await waitFor(() => expect(nameInput().value).toBe('Fresh'));
     expect(plateInput().value).toBe('GP-FR 9');
-    expect(screen.getByText('Fresh Name')).toBeInTheDocument();
+    expect(screen.getByText('Fresh User')).toBeInTheDocument();
   });
 
   it('does not clobber in-progress edits when a background refresh arrives', async () => {
@@ -77,7 +96,7 @@ describe('ProfilePage', () => {
     await user.clear(nameInput());
     await user.type(nameInput(), 'Typing Here');
 
-    mockAuth = authWith({ ...baseUser, displayName: 'Fresh Name', carLicensePlate: 'GP-FR 9' });
+    mockAuth = authWith({ ...baseUser, firstName: 'Fresh', displayName: 'Fresh User', carLicensePlate: 'GP-FR 9' });
     rerender(<ProfilePage />);
 
     expect(nameInput().value).toBe('Typing Here');
@@ -87,17 +106,18 @@ describe('ProfilePage', () => {
 
   it('pushes the saved profile into the auth context and shows the server copy', async () => {
     const user = userEvent.setup();
-    const saved = { ...baseUser, displayName: 'Saved Name', carLicensePlate: 'GP-SA 1' };
+    const saved = { ...baseUser, firstName: 'Saved', displayName: 'Saved User', carLicensePlate: 'GP-SA 1' };
     vi.mocked(profileService.updateProfile).mockResolvedValue(saved);
     renderWithRouter(<ProfilePage />);
 
     await user.clear(nameInput());
-    await user.type(nameInput(), 'Saved Name');
+    await user.type(nameInput(), 'Saved');
     await user.click(screen.getByRole('button', { name: /save changes|änderungen speichern/i }));
 
     await waitFor(() => expect(mockAuth.updateUser).toHaveBeenCalledWith(saved));
     expect(profileService.updateProfile).toHaveBeenCalledWith({
-      displayName: 'Saved Name',
+      firstName: 'Saved',
+      lastName: 'User',
       carLicensePlate: 'GP-TE 1234',
       preferredLocationId: null,
       preferredSlotId: null,

@@ -40,7 +40,7 @@ public class AdminNotifier : IAdminNotifier
         foreach (var admin in await ActiveAdminsAsync())
         {
             await _email.SendApprovalRequestToAdminAsync(
-                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, approvalLink, admin.Language);
+                admin.Email, admin.DisplayName, pendingUser.Email, pendingUser.DisplayName, pendingUser.Company, approvalLink, admin.Language);
         }
     }
 

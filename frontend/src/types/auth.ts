@@ -1,7 +1,13 @@
 export interface User {
   id: string;
   email: string;
+  /** Derived server-side: "First Last" once names are set, legacy free text otherwise. */
   displayName: string;
+  /** Phase 21: null for legacy and SSO accounts. */
+  firstName: string | null;
+  lastName: string | null;
+  /** Phase 21: stated at registration, read-only for the user (SuperAdmin can change it). */
+  company: string | null;
   carLicensePlate: string | null;
   role: 'User' | 'Admin' | 'SuperAdmin';
   hasAzureAd: boolean;
@@ -26,7 +32,10 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   email: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
+  /** Phase 21: employer; shown to admins when they approve an external account. */
+  company: string;
   password: string;
   /** UI language at registration; decides the language of the verification email. */
   preferredLanguage?: string;

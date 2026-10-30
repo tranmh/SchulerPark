@@ -13,7 +13,9 @@ export function RegisterPage() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [company, setCompany] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -55,7 +57,13 @@ export function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(email, displayName, password);
+      await register({
+        email: email.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        company: company.trim(),
+        password,
+      });
       // No auto-login: the account must verify its email address first.
       setSubmitted(true);
     } catch (err: unknown) {
@@ -130,13 +138,33 @@ export function RegisterPage() {
               </div>
             )}
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="firstName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.firstName')}</label>
+              <input
+                id="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required maxLength={100} autoComplete="given-name"
+                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.lastName')}</label>
+              <input
+                id="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required maxLength={100} autoComplete="family-name"
+                className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
+              />
+            </div>
+          </div>
           <div>
-            <label htmlFor="displayName" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.displayName')}</label>
+            <label htmlFor="company" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.company')}</label>
             <input
-              id="displayName" type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required autoComplete="name"
+              id="company" type="text" value={company} onChange={(e) => setCompany(e.target.value)} required maxLength={200} autoComplete="organization"
               className="w-full rounded-lg border border-line-strong bg-white px-3.5 py-2.5 text-base text-ink-900 sm:text-[14px]"
             />
+            <p className="mt-1.5 text-[11.5px] text-ink-400">{t('auth.companyHint')}</p>
           </div>
+          <p className="rounded-lg bg-surface-warm px-3 py-2 text-[11.5px] leading-relaxed text-ink-500">
+            {t('auth.registerApprovalNote')}
+          </p>
           <div>
             <label htmlFor="password" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.password')}</label>
             <PasswordInput
@@ -145,9 +173,6 @@ export function RegisterPage() {
             />
             <p className="mt-1.5 text-[11.5px] text-ink-400">{t('auth.passwordHint')}</p>
           </div>
-          <p className="rounded-lg bg-surface-warm px-3 py-2 text-[11.5px] leading-relaxed text-ink-500">
-            {t('auth.registerApprovalNote')}
-          </p>
           <div>
             <label htmlFor="confirmPassword" className="mb-1.5 block text-[12.5px] font-medium text-ink-500">{t('auth.confirmPassword')}</label>
             <PasswordInput

@@ -54,15 +54,19 @@ public class CapturingEmailService : IEmailService
     // Phase 18 approval mails, recorded by type + recipient so tests can assert them.
     public ConcurrentQueue<(string Type, string Email)> ApprovalMails { get; } = new();
 
+    /// <summary>Phase 21: what each approval-request mail told the admin about the pending user.</summary>
+    public ConcurrentQueue<(string AdminEmail, string UserEmail, string DisplayName, string? Company)> ApprovalRequests { get; } = new();
+
     /// <summary>Account-level mails (Phase 20: reset, reset-not-applicable, locked, admin alerts) by type + recipient.</summary>
     public ConcurrentQueue<(string Type, string Email)> AccountMails { get; } = new();
 
     /// <summary>Admin alert subjects, so tests can assert what an admin was told.</summary>
     public ConcurrentQueue<(string Email, string Subject, IReadOnlyList<string> Paragraphs)> AdminAlerts { get; } = new();
 
-    public Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string approvalLink, string adminLanguage)
+    public Task SendApprovalRequestToAdminAsync(string adminEmail, string adminDisplayName, string pendingUserEmail, string pendingUserDisplayName, string? pendingUserCompany, string approvalLink, string adminLanguage)
     {
         ApprovalMails.Enqueue(("ApprovalRequest", adminEmail));
+        ApprovalRequests.Enqueue((adminEmail, pendingUserEmail, pendingUserDisplayName, pendingUserCompany));
         return Task.CompletedTask;
     }
 
