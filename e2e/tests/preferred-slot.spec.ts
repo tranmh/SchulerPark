@@ -8,7 +8,7 @@ const WEINGARTEN_ID = 'b0000000-0000-0000-0000-000000000005';
 async function uiLogin(page: Page, email: string, password: string) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page).toHaveURL('/', { timeout: 10000 });
 }
@@ -27,7 +27,7 @@ async function resetPrefs(request: APIRequestContext, token: string) {
   await request.put('/api/profile', {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      displayName: me.displayName,
+      firstName: me.firstName ?? 'Lisa', lastName: me.lastName ?? 'Weber',
       carLicensePlate: me.carLicensePlate,
       preferredLocationId: null,
       preferredSlotId: null,
@@ -91,7 +91,7 @@ test.describe('Preferred parking slot', () => {
     await request.put('/api/profile', {
       headers: { Authorization: `Bearer ${token}` },
       data: {
-        displayName: me.displayName,
+        firstName: me.firstName ?? 'Lisa', lastName: me.lastName ?? 'Weber',
         carLicensePlate: me.carLicensePlate,
         preferredLocationId: WEINGARTEN_ID,
         preferredSlotId: firstActive.id,
@@ -116,7 +116,7 @@ test.describe('Preferred parking slot', () => {
     const res = await request.put('/api/profile', {
       headers: { Authorization: `Bearer ${token}` },
       data: {
-        displayName: 'Lisa Weber',
+        firstName: 'Lisa', lastName: 'Weber',
         carLicensePlate: null,
         preferredLocationId: null,
         preferredSlotId: firstActive.id,
@@ -136,7 +136,7 @@ test.describe('Preferred parking slot', () => {
     const res = await request.put('/api/profile', {
       headers: { Authorization: `Bearer ${token}` },
       data: {
-        displayName: 'Lisa Weber',
+        firstName: 'Lisa', lastName: 'Weber',
         carLicensePlate: null,
         preferredLocationId: GOEPPINGEN_ID,
         preferredSlotId: firstActive.id,

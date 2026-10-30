@@ -7,7 +7,7 @@ export const USER_FINN = { email: 'finn.werner@schuler.de', password: 'Test1234!
 export async function login(page: Page, email: string, password: string) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL('/', { timeout: 15_000 });
   // Wait until the network is idle so the refresh-token cookie is fully

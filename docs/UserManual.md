@@ -7,7 +7,7 @@ Book a parking slot at any Schuler office: **https://louise.schuler.de**
 ## 1. Sign in
 
 - **Andritz employees:** click **Continue with Microsoft**. Done.
-- **Everyone else:** **Create an account** → click the link in the verification email → sign in. Some addresses also need admin approval; you get an email when approved.
+- **Everyone else:** **Create an account** with your **first name, surname and company** → click the link in the verification email → sign in. Addresses from outside the partner companies are checked by an administrator, who sees your name and company before approving, so please use your real name and employer; you get an email when approved. Your company can later only be changed by an administrator.
 - **Forgot password?** Click **Forgot?** on the sign-in page.
 
 Switch language with **DE / EN** in the top bar.
@@ -77,7 +77,7 @@ Add a comment if you can → **Report problem**. All admins get an email with th
 
 ## For Admins
 
-The **Admin** menu lets you manage **Locations**, **Parking Slots**, the **Grid Layout**, **Blocked Days**, **All Bookings**, **Lottery History** and **User Approvals**. Super Admins also manage **Users** (roles, disable, delete).
+The **Admin** menu lets you manage **Locations**, **Parking Slots**, the **Grid Layout**, **Blocked Days**, **All Bookings**, **Lottery History** and **User Approvals** (each pending registration shows name, company, email and whether the address is verified — approve only people you expect). Super Admins also manage **Users** (roles, company, disable, delete).
 
 - **Emails you receive:** lottery failures, users awaiting approval, **slot problem reports** and **user feedback**. Each problem report names the slot, location, booking, problem, any licence plate and comment, and the reporter (contact them by their address in the mail; replying goes to the system sender).
 - **Grid Layout** is admin-only; users don't see the parking map. Göppingen follows the site plan: one lane, P110–P097 on the left, P135–P122 on the right, charging stations (Ladesäulen) at the top.

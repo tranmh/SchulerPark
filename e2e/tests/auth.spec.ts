@@ -39,7 +39,7 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByText('LouisE').first()).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
-    await expect(page.getByLabel('Password')).toBeVisible();
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
   });
 
   test('can navigate to register page', async ({ page }) => {
@@ -54,7 +54,9 @@ test.describe('Authentication', () => {
 
     await page.goto('/register');
     await page.getByLabel('Email').fill(uniqueEmail);
-    await page.getByLabel(/display name/i).fill('Playwright User');
+    await page.getByLabel(/first name/i).fill('Playwright');
+    await page.getByLabel(/surname/i).fill('User');
+    await page.getByLabel(/company/i).fill('E2E GmbH');
     await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByLabel(/confirm password/i).fill('Test1234!');
     await page.getByRole('button', { name: /create account/i }).click();
@@ -65,7 +67,7 @@ test.describe('Authentication', () => {
     // Signing in before verification is rejected with a clear message.
     await page.goto('/login');
     await page.getByLabel('Email').fill(uniqueEmail);
-    await page.getByLabel('Password').fill('Test1234!');
+    await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page.getByText(/verify your email/i)).toBeVisible({ timeout: 5000 });
 
@@ -76,7 +78,7 @@ test.describe('Authentication', () => {
 
     await page.getByRole('link', { name: /back to sign in/i }).click();
     await page.getByLabel('Email').fill(uniqueEmail);
-    await page.getByLabel('Password').fill('Test1234!');
+    await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
     await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -90,7 +92,7 @@ test.describe('Authentication', () => {
 
     // A verified local account, created through the API (no UI needed for setup).
     const reg = await request.post('/api/auth/register', {
-      data: { email, displayName: 'Reset User', password: oldPassword },
+      data: { email, firstName: 'Reset', lastName: 'User', company: 'E2E GmbH', password: oldPassword },
     });
     expect(reg.ok()).toBeTruthy();
     const verifyLink = await fetchVerificationLink(email);
@@ -118,11 +120,11 @@ test.describe('Authentication', () => {
     // The new password signs in; the old one no longer does.
     await page.getByRole('link', { name: /back to sign in/i }).click();
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(oldPassword);
+    await page.getByLabel('Password', { exact: true }).fill(oldPassword);
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page.locator('.bg-rose-50')).toBeVisible({ timeout: 5000 });
 
-    await page.getByLabel('Password').fill(newPassword);
+    await page.getByLabel('Password', { exact: true }).fill(newPassword);
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/', { timeout: 10000 });
     await expect(page.getByText('Reset User')).toBeVisible();
@@ -131,7 +133,7 @@ test.describe('Authentication', () => {
   test('login with admin credentials', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('admin@schulerpark.local');
-    await page.getByLabel('Password').fill('Admin123!');
+    await page.getByLabel('Password', { exact: true }).fill('Admin123!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
     // Should redirect to dashboard and show admin sidebar
@@ -144,7 +146,7 @@ test.describe('Authentication', () => {
   test('login with wrong password shows error', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('admin@schulerpark.local');
-    await page.getByLabel('Password').fill('WrongPass!');
+    await page.getByLabel('Password', { exact: true }).fill('WrongPass!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
     await expect(page.locator('.bg-rose-50')).toBeVisible({ timeout: 5000 });
@@ -163,7 +165,9 @@ test.describe('Authentication', () => {
   test('register with mismatched passwords shows error', async ({ page }) => {
     await page.goto('/register');
     await page.getByLabel('Email').fill('mismatch@schuler.de');
-    await page.getByLabel(/display name/i).fill('Test');
+    await page.getByLabel(/first name/i).fill('Test');
+    await page.getByLabel(/surname/i).fill('User');
+    await page.getByLabel(/company/i).fill('E2E GmbH');
     await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByLabel(/confirm password/i).fill('Different!');
     await page.getByRole('button', { name: /create account/i }).click();
@@ -175,7 +179,7 @@ test.describe('Authentication', () => {
     // Login first
     await page.goto('/login');
     await page.getByLabel('Email').fill('admin@schulerpark.local');
-    await page.getByLabel('Password').fill('Admin123!');
+    await page.getByLabel('Password', { exact: true }).fill('Admin123!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/', { timeout: 10000 });
 

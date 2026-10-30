@@ -86,7 +86,7 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `GET /api/health` — Health check
 - `GET /swagger` — API documentation (development only)
 - `POST /api/auth/login` — Local login (returns JWT; requires verified email)
-- `POST /api/auth/register` — Local registration (sends verification email; no auto-login)
+- `POST /api/auth/register` — Local registration with `firstName`, `lastName`, `company` (Phase 21; `DisplayName` is derived "First Last"); sends verification email; no auto-login
 - `POST /api/auth/verify-email` — Confirm email via token from the verification mail
 - `POST /api/auth/resend-verification` — Resend verification email (generic response)
 - `POST /api/auth/forgot-password` — Request a password-reset mail (always 202, no enumeration)
@@ -107,6 +107,8 @@ needed; inbound SSH to the box is firewalled. See `docs/deploy-this-server.md`.
 - `DELETE /api/push/subscribe` — Unsubscribe from push notifications
 - `POST /api/feedback` — Slot problem (today's Won/Confirmed booking; optional blocking plate) or general feedback; mailed to all admins, nothing stored; 5 per user per 10 min
 - `POST /api/push/test` — Push a test notification to the caller's devices (manual end-to-end check; 404 no subscription, 502 nothing delivered)
+- `GET /api/admin/users/pending` / `POST /api/admin/users/{id}/approval` — External registrations awaiting approval, with name and company (admin)
+- `PUT /api/admin/users/{id}/company` — Set/clear a user's company; users cannot edit it themselves (superadmin)
 - `GET /api/admin/*` — Admin CRUD endpoints (admin)
 
 ## Error Handling

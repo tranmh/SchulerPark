@@ -9,12 +9,13 @@ test.describe('User → Profile (full)', () => {
     await expect(page.locator('#profile-email')).toHaveValue(USER_ANNA.email);
   });
 
-  test('saving display name persists', async ({ page }) => {
+  test('saving first name persists', async ({ page }) => {
     await loginAsAnna(page);
     await page.goto('/profile');
 
-    const newName = `Anna E2E ${Date.now().toString(36).slice(-4)}`;
-    await page.locator('#profile-display-name').fill(newName);
+    const newName = `Anna-${Date.now().toString(36).slice(-4)}`;
+    await page.locator('#profile-first-name').fill(newName);
+    await page.locator('#profile-last-name').fill('Mueller');
     const firstSave = page.waitForResponse(
       (r) => r.url().endsWith('/api/profile') && r.request().method() === 'PUT' && r.ok()
     );
@@ -24,10 +25,10 @@ test.describe('User → Profile (full)', () => {
 
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('#profile-display-name')).toHaveValue(newName);
+    await expect(page.locator('#profile-first-name')).toHaveValue(newName);
 
     // Restore for follow-up test isolation
-    await page.locator('#profile-display-name').fill('Anna Mueller');
+    await page.locator('#profile-first-name').fill('Anna');
     const secondSave = page.waitForResponse(
       (r) => r.url().endsWith('/api/profile') && r.request().method() === 'PUT' && r.ok()
     );

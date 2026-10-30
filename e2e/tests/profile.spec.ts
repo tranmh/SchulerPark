@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 async function loginAsTestUser(page: Page) {
   await page.goto('/login');
   await page.getByLabel('Email').fill('max.schmidt@schuler.de');
-  await page.getByLabel('Password').fill('Test1234!');
+  await page.getByLabel('Password', { exact: true }).fill('Test1234!');
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page).toHaveURL('/', { timeout: 10000 });
 }
@@ -15,7 +15,8 @@ test.describe('Profile & DSGVO', () => {
     await page.getByRole('link', { name: /profile/i }).click();
     await expect(page).toHaveURL('/profile');
 
-    await expect(page.getByText(/display name/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/first name/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/surname/i)).toBeVisible();
     await expect(page.getByText(/car licence plate/i)).toBeVisible();
   });
 

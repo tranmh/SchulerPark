@@ -92,6 +92,14 @@ export class AdminApi {
       .then(r => r.json());
   }
 
+  // Users / approvals (Phase 18 + 21)
+  pendingUsers(): Promise<{ users: Array<{ id: string; email: string; displayName: string; firstName: string | null; lastName: string | null; company: string | null; emailVerified: boolean }>; totalCount: number }> {
+    return this.request.get('/api/admin/users/pending', { headers: this.headers() }).then(r => r.json());
+  }
+  decideUser(id: string, approve: boolean) {
+    return this.request.post(`/api/admin/users/${id}/approval`, { headers: this.headers(), data: { approve } });
+  }
+
   // Bookings
   getBookings(params: {
     locationId?: string; status?: string; from?: string; to?: string;

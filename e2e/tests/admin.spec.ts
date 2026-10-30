@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 async function loginAsAdmin(page: Page) {
   await page.goto('/login');
   await page.getByLabel('Email').fill('admin@schulerpark.local');
-  await page.getByLabel('Password').fill('Admin123!');
+  await page.getByLabel('Password', { exact: true }).fill('Admin123!');
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page).toHaveURL('/', { timeout: 10000 });
 }
@@ -22,7 +22,7 @@ test.describe('Admin Features', () => {
   test('regular user does not see admin sidebar items', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('anna.mueller@schuler.de');
-    await page.getByLabel('Password').fill('Test1234!');
+    await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/', { timeout: 10000 });
 
@@ -74,7 +74,7 @@ test.describe('Admin Features', () => {
   test('regular user cannot access admin routes directly', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('anna.mueller@schuler.de');
-    await page.getByLabel('Password').fill('Test1234!');
+    await page.getByLabel('Password', { exact: true }).fill('Test1234!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/', { timeout: 10000 });
 
