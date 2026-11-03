@@ -56,7 +56,7 @@ export function PrivacyPage() {
                 i18nKey="privacy.section5_1"
                 components={{
                   strong: <strong />,
-                  profileLink: <Link to="/profile" className="text-blue-600 hover:underline" />,
+                  profileLink: <Link to="/profile" className="font-medium underline" />,
                 }}
               />
             </li>
