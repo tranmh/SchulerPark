@@ -12,7 +12,7 @@ export default defineConfig({
   // reporter alone never writes that directory).
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:8080',
+    baseURL: process.env.BASE_URL || process.env.AQAA_BASE_URL || 'http://localhost:8080',
     locale: 'en-US',
     extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
     headless: true,
