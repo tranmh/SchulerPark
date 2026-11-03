@@ -57,6 +57,8 @@ public class AdminController : ControllerBase
             throw new ValidationException("Location name is required.");
         if (request.Name.Length > 100)
             throw new ValidationException("Location name must not exceed 100 characters.");
+        if (await _db.Locations.AnyAsync(l => l.Name == request.Name))
+            throw new ValidationException("A location with this name already exists.");
 
         var location = new Location
         {
