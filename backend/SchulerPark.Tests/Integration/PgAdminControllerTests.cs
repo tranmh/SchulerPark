@@ -305,7 +305,7 @@ public class PgAdminControllerTests
             admin.AccessToken, new { locationId = Guid.NewGuid(), slotNumber = "X1" })), "Location not found");
     }
 
-    [SkippableFact(Skip = "aqaa: suspected bug - a duplicate slot number in one location hits the unique (LocationId, SlotNumber) index and surfaces as 500 instead of a 4xx validation error (B41)")]
+    [SkippableFact]
     public async Task CreateSlot_DuplicateNumberInLocation_ReturnsClientError()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
@@ -315,6 +315,7 @@ public class PgAdminControllerTests
         var response = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Post, "/api/admin/slots",
             admin.AccessToken, new { locationId, slotNumber = "P001" }));
 
+        // B41: a user-triggerable error is a 4xx ProblemDetails, not an unhandled 500.
         ((int)response.StatusCode).Should().BeInRange(400, 499);
     }
 
