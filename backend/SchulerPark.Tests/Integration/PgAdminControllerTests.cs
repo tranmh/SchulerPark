@@ -175,7 +175,7 @@ public class PgAdminControllerTests
         await AssertProblemDetailsAsync(response, "100");
     }
 
-    [SkippableFact(Skip = "aqaa: suspected bug - ExceptionHandlingMiddleware sets Content-Type application/problem+json but WriteAsJsonAsync overwrites it with application/json, so ValidationException responses are not served as RFC 9457 problem+json (B41)")]
+    [SkippableFact]
     public async Task ValidationError_ResponseMediaType_IsProblemJson()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
