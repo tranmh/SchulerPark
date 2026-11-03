@@ -69,7 +69,7 @@ public class ExceptionHandlingMiddleware
         if (parameters is { Count: > 0 })
             problem.Extensions["params"] = parameters;
 
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(problem);
+        // WriteAsJsonAsync overwrites ContentType unless it is passed explicitly.
+        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
     }
 }
