@@ -37,11 +37,32 @@ namespace SchulerPark.Infrastructure.Data.Migrations
                 type: "character varying(200)",
                 maxLength: 200,
                 nullable: true);
+
+            // DisplayName is now derived as "First Last" (100 + space + 100).
+            migrationBuilder.AlterColumn<string>(
+                name: "DisplayName",
+                table: "Users",
+                type: "character varying(201)",
+                maxLength: 201,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(200)",
+                oldMaxLength: 200);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterColumn<string>(
+                name: "DisplayName",
+                table: "Users",
+                type: "character varying(200)",
+                maxLength: 200,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(201)",
+                oldMaxLength: 201);
+
             migrationBuilder.DropColumn(name: "FirstName", table: "Users");
             migrationBuilder.DropColumn(name: "LastName", table: "Users");
             migrationBuilder.DropColumn(name: "Company", table: "Users");

@@ -13,7 +13,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Id).HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(u => u.Email).IsRequired().HasMaxLength(256);
-        builder.Property(u => u.DisplayName).IsRequired().HasMaxLength(200);
+        // "First Last" built by User.SetName: 100 + space + 100.
+        builder.Property(u => u.DisplayName).IsRequired().HasMaxLength(201);
         // Phase 21: identity shown to admins on approval; nullable for legacy and SSO rows.
         builder.Property(u => u.FirstName).HasMaxLength(100);
         builder.Property(u => u.LastName).HasMaxLength(100);

@@ -461,8 +461,8 @@ namespace SchulerPark.Infrastructure.Data.Migrations
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)");
 
                     b.Property<string>("Email")
                         .IsRequired()
