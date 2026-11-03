@@ -5,7 +5,8 @@ using SchulerPark.Api.Security;
 
 public record RegisterRequest(
     [Required, EmailAddress, MaxLength(320)] string Email,
-    [Required, MinLength(1), MaxLength(100)] string FirstName,
+    // 99 + " " + 100 = 199 keeps the derived DisplayName inside its varchar(200).
+    [Required, MinLength(1), MaxLength(99)] string FirstName,
     [Required, MinLength(1), MaxLength(100)] string LastName,
     // Phase 21: employer, shown to admins when they approve an external account.
     [Required, MinLength(1), MaxLength(200)] string Company,

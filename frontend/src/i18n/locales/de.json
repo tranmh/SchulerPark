@@ -528,6 +528,10 @@
     "feedback_booking_not_assigned": "Für diese Buchung ist kein Parkplatz zugeteilt.",
     "feedback_booking_not_today": "Probleme können nur für die heutige Buchung gemeldet werden.",
     "feedback_too_long": "Der Text ist zu lang.",
+    "duplicate_record": "Dieser Eintrag existiert bereits.",
+    "location_name_taken": "Ein Standort mit diesem Namen existiert bereits.",
+    "slot_number_taken": "Diese Parkplatznummer existiert an diesem Standort bereits.",
+    "blocked_day_exists": "Dieses Datum ist bereits gesperrt.",
     "feedback_invalid_category": "Unbekannte Art der Meldung.",
     "feedback_rate_limited": "Du hast gerade viele Meldungen gesendet. Bitte versuche es in ein paar Minuten erneut."
   }

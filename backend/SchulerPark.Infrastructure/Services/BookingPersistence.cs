@@ -21,6 +21,18 @@ public static class BookingPersistence
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
         && pg.ConstraintName == SlotUniqueIndex;
 
+    /// <summary>True when the exception is any PostgreSQL unique-index violation.</summary>
+    public static bool IsUniqueViolation(DbUpdateException ex, out string? constraintName)
+    {
+        if (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg)
+        {
+            constraintName = pg.ConstraintName;
+            return true;
+        }
+        constraintName = null;
+        return false;
+    }
+
     /// <summary>
     /// Saves pending changes. On a slot conflict, <paramref name="onSlotConflict"/> is
     /// invoked to re-place the colliding booking(s); it returns false to give up (the

@@ -75,12 +75,26 @@ public class AuthService : IAuthService
         if (existing != null)
         {
             // No enumeration: respond identically whether or not the email is taken.
-            // An unverified account gets a fresh verification email; a verified one
-            // is left untouched. Burn a hash like the new-account path below does,
-            // so response timing doesn't reveal that the address exists.
-            _passwordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, password);
-            if (!existing.EmailVerified && existing.DeletedAt == null)
-                await IssueVerificationTokenAsync(existing);
+            if (existing.EmailVerified || existing.DeletedAt != null)
+            {
+                // Verified or deleted: leave untouched. Burn a hash so timing matches the new-account path.
+                _passwordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, password);
+                return;
+            }
+
+            // Unverified: nobody has proven ownership yet, so the latest registrant's data wins.
+            // Overwriting the credentials closes the pre-account-takeover window where a
+            // squatter's password would survive the real owner's verification.
+            existing.SetName(firstName, lastName);
+            existing.Company = company.Trim();
+            existing.PreferredLanguage = language;
+            existing.ApprovalStatus = _registrationSettings.IsAutoApprovedDomain(email)
+                ? ApprovalStatus.Approved
+                : ApprovalStatus.Pending;
+            existing.PasswordHash = _passwordHasher.HashPassword(existing, password);
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            await IssueVerificationTokenAsync(existing);   // saves + mails the new token
             return;
         }
 

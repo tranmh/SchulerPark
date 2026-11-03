@@ -528,6 +528,10 @@
     "feedback_booking_not_assigned": "This booking has no assigned spot.",
     "feedback_booking_not_today": "Problems can only be reported for today's booking.",
     "feedback_too_long": "The text is too long.",
+    "duplicate_record": "This record already exists.",
+    "location_name_taken": "A location with this name already exists.",
+    "slot_number_taken": "This slot number already exists at this location.",
+    "blocked_day_exists": "This date is already blocked.",
     "feedback_invalid_category": "Unknown kind of report.",
     "feedback_rate_limited": "You've sent several reports just now. Please try again in a few minutes."
   }

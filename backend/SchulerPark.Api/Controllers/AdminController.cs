@@ -55,13 +55,16 @@ public class AdminController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ValidationException("Location name is required.");
-        if (request.Name.Length > 100)
+        var name = request.Name.Trim();
+        if (name.Length > 100)
             throw new ValidationException("Location name must not exceed 100 characters.");
+        if (await _db.Locations.AnyAsync(l => l.Name == name))
+            throw new ValidationException("A location with this name already exists.", "location_name_taken");
 
         var location = new Location
         {
             Id = Guid.NewGuid(),
-            Name = request.Name,
+            Name = name,
             IsActive = true,
             DefaultAlgorithm = LotteryAlgorithm.WeightedHistory
         };
@@ -81,8 +84,12 @@ public class AdminController : ControllerBase
             .FirstOrDefaultAsync(l => l.Id == id);
         if (location == null) return NotFound();
 
+        var name = request.Name.Trim();
+        if (await _db.Locations.AnyAsync(l => l.Id != id && l.Name == name))
+            throw new ValidationException("A location with this name already exists.", "location_name_taken");
+
         var deactivating = location.IsActive && !request.IsActive;
-        location.Name = request.Name;
+        location.Name = name;
         location.IsActive = request.IsActive;
         await _db.SaveChangesAsync();
 
@@ -154,17 +161,20 @@ public class AdminController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.SlotNumber))
             throw new ValidationException("Slot number is required.");
-        if (request.SlotNumber.Length > 20)
+        var slotNumber = request.SlotNumber.Trim();
+        if (slotNumber.Length > 20)
             throw new ValidationException("Slot number must not exceed 20 characters.");
 
         var locationExists = await _db.Locations.AnyAsync(l => l.Id == request.LocationId);
         if (!locationExists) throw new ValidationException("Location not found.");
+        if (await _db.ParkingSlots.AnyAsync(s => s.LocationId == request.LocationId && s.SlotNumber == slotNumber))
+            throw new ValidationException("This slot number already exists at this location.", "slot_number_taken");
 
         var slot = new ParkingSlot
         {
             Id = Guid.NewGuid(),
             LocationId = request.LocationId,
-            SlotNumber = request.SlotNumber,
+            SlotNumber = slotNumber,
             Label = request.Label,
             IsActive = true
         };
@@ -181,8 +191,12 @@ public class AdminController : ControllerBase
         var slot = await _db.ParkingSlots.FindAsync(id);
         if (slot == null) return NotFound();
 
+        var slotNumber = request.SlotNumber.Trim();
+        if (await _db.ParkingSlots.AnyAsync(s => s.Id != id && s.LocationId == slot.LocationId && s.SlotNumber == slotNumber))
+            throw new ValidationException("This slot number already exists at this location.", "slot_number_taken");
+
         var deactivating = slot.IsActive && !request.IsActive;
-        slot.SlotNumber = request.SlotNumber;
+        slot.SlotNumber = slotNumber;
         slot.Label = request.Label;
         slot.IsActive = request.IsActive;
         await _db.SaveChangesAsync();
@@ -258,6 +272,12 @@ public class AdminController : ControllerBase
                 throw new ValidationException("Parking slot does not belong to this location.");
             slotNumber = slot.SlotNumber;
         }
+
+        var alreadyBlocked = request.ParkingSlotId.HasValue
+            ? await _db.BlockedDays.AnyAsync(b => b.ParkingSlotId == request.ParkingSlotId && b.Date == request.Date)
+            : await _db.BlockedDays.AnyAsync(b => b.LocationId == request.LocationId && b.ParkingSlotId == null && b.Date == request.Date);
+        if (alreadyBlocked)
+            throw new ValidationException("This date is already blocked.", "blocked_day_exists");
 
         var blocked = new BlockedDay
         {

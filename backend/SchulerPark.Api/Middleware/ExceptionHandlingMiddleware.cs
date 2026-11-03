@@ -2,7 +2,9 @@ namespace SchulerPark.Api.Middleware;
 
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Infrastructure.Services;
 
 public class ExceptionHandlingMiddleware
 {
@@ -39,6 +41,16 @@ public class ExceptionHandlingMiddleware
             await WriteProblemDetails(context, "Forbidden", ex.Message,
                 "https://tools.ietf.org/html/rfc9110#section-15.5.4");
         }
+        catch (DbUpdateException ex) when (BookingPersistence.IsUniqueViolation(ex, out var constraint))
+        {
+            // Race-safe backstop for the controllers' duplicate pre-checks: a unique index
+            // fired between check and save (or on a path without a pre-check).
+            _logger.LogWarning(ex, "Unique constraint {Constraint} violated", constraint);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await WriteProblemDetails(context, "Conflict", "The record already exists.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+                code: "duplicate_record");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
@@ -69,7 +81,7 @@ public class ExceptionHandlingMiddleware
         if (parameters is { Count: > 0 })
             problem.Extensions["params"] = parameters;
 
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(problem);
+        // WriteAsJsonAsync overwrites ContentType unless it is passed explicitly.
+        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
     }
 }

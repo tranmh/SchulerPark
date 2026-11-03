@@ -4,7 +4,8 @@ using System.ComponentModel.DataAnnotations;
 
 public record UpdateProfileRequest(
     // Phase 21: DisplayName is derived ("First Last"); Company is not editable here.
-    [Required, MinLength(1), MaxLength(100)] string FirstName,
+    // 99 + " " + 100 = 199 keeps the derived DisplayName inside its varchar(200).
+    [Required, MinLength(1), MaxLength(99)] string FirstName,
     [Required, MinLength(1), MaxLength(100)] string LastName,
     [MaxLength(20)] string? CarLicensePlate,
     Guid? PreferredLocationId,
