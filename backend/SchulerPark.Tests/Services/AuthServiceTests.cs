@@ -173,35 +173,57 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_ExistingUnverifiedEmail_ResendsVerificationWithoutUpdatingIdentity()
+    public async Task RegisterAsync_ExistingUnverifiedEmail_LatestRegistrationWinsAndResendsVerification()
     {
         SeedLocalUser("half@external.de", ApprovalStatus.Pending, verified: false);
 
-        await NewService().RegisterAsync("half@external.de", "Mallory", "Evil", "Evil Corp", "Other-Password-1!");
+        await NewService().RegisterAsync("half@external.de", "Erika", "Muster", "  ACME GmbH ", "Other-Password-1!", "en");
 
         _email.VerificationLinkFor("half@external.de").Should().NotBeNull();
         var user = Stored("half@external.de");
-        user.DisplayName.Should().Be("Test User");
-        user.Company.Should().Be("Schuler AG");
-        _hasher.VerifyHashedPassword(user, user.PasswordHash!, Password).Should().NotBe(PasswordVerificationResult.Failed);
+        user.EmailVerified.Should().BeFalse();
+        user.FirstName.Should().Be("Erika");
+        user.LastName.Should().Be("Muster");
+        user.DisplayName.Should().Be("Erika Muster");
+        user.Company.Should().Be("ACME GmbH");
+        user.PreferredLanguage.Should().Be("en");
+        user.ApprovalStatus.Should().Be(ApprovalStatus.Pending);
+        _hasher.VerifyHashedPassword(user, user.PasswordHash!, "Other-Password-1!").Should().NotBe(PasswordVerificationResult.Failed);
+        _hasher.VerifyHashedPassword(user, user.PasswordHash!, Password).Should().Be(PasswordVerificationResult.Failed);
+        _db.Users.Should().ContainSingle();
     }
 
     [Fact]
-    public async Task RegisterAsync_ReRegisteredUnverifiedEmail_VerifyingDoesNotActivateEarlierRegistrantsPassword()
+    public async Task RegisterAsync_ReRegisteredUnverifiedEmail_VerifyingActivatesOnlyTheLatestRegistrantsPassword()
     {
         const string squatterPassword = "Squatter-Password-1!";
         var service = NewService();
 
         // Someone without access to the mailbox registers the address first …
         await service.RegisterAsync("colleague@partner.com", "Mallory", "Evil", "Evil Corp", squatterPassword);
+        var firstToken = _email.VerificationTokenFor("colleague@partner.com")!;
         // … then the real owner registers it and verifies through the mail they receive.
         await service.RegisterAsync("colleague@partner.com", "Real", "Owner", "Partner", Password);
-        (await service.VerifyEmailAsync(_email.VerificationTokenFor("colleague@partner.com")!)).Should().BeTrue();
+        var secondToken = _email.VerificationTokenFor("colleague@partner.com")!;
+        secondToken.Should().NotBe(firstToken);
 
-        // Verification must never turn the earlier, unproven registrant's password into valid credentials.
+        (await service.VerifyEmailAsync(secondToken)).Should().BeTrue();
+
+        // The squatter's password was overwritten and must never become valid credentials.
         await service.Invoking(s => s.LoginAsync("colleague@partner.com", squatterPassword, null))
             .Should().ThrowAsync<UnauthorizedAccessException>().WithMessage("Invalid email or password.");
         _tokens.Issued.Should().Be(0);
+
+        // The owner's password works; the account carries the owner's identity.
+        var (loggedIn, _, _) = await service.LoginAsync("colleague@partner.com", Password, null);
+        loggedIn.Email.Should().Be("colleague@partner.com");
+        _tokens.Issued.Should().Be(1);
+        var user = Stored("colleague@partner.com");
+        user.DisplayName.Should().Be("Real Owner");
+        user.Company.Should().Be("Partner");
+
+        // The first token was replaced and no longer verifies anything.
+        (await service.VerifyEmailAsync(firstToken)).Should().BeFalse();
     }
 
     // ---- verify email --------------------------------------------------------------

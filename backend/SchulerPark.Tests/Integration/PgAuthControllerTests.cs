@@ -198,6 +198,47 @@ public class PgAuthControllerTests
     }
 
     [SkippableFact]
+    public async Task Register_UnverifiedEmailRegisteredAgain_LatestRegistrantOwnsTheAccount()
+    {
+        Skip.IfNot(_fx.Available, _fx.SkipReason);
+        var client = NewClient();
+        var email = LocalEmail("squat");
+        const string attackerPassword = "Attacker1234!";
+        const string victimPassword = "Victim1234!";
+
+        // A squatter registers the address first and never verifies it …
+        var first = await client.PostAsJsonAsync("/api/auth/register",
+            RegisterBody(email, "Eve", "Attacker", "Evil Corp", attackerPassword));
+        var firstToken = Factory.Emails.VerificationTokenFor(email)!;
+
+        // … then the mailbox owner registers it and verifies with the mail they receive.
+        var second = await client.PostAsJsonAsync("/api/auth/register",
+            RegisterBody(email, "Anna", "Muster", "Muster AG", victimPassword));
+        var secondToken = Factory.Emails.VerificationTokenFor(email)!;
+
+        // B6: no enumeration — identical response either way.
+        second.StatusCode.Should().Be(HttpStatusCode.OK);
+        second.StatusCode.Should().Be(first.StatusCode);
+        (await second.Content.ReadAsStringAsync()).Should().Be(await first.Content.ReadAsStringAsync());
+        secondToken.Should().NotBe(firstToken);
+
+        (await client.PostAsJsonAsync("/api/auth/verify-email", new { token = secondToken }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // The squatter's password must not have survived; the owner's works.
+        (await LoginRawAsync(client, email, attackerPassword)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await LoginRawAsync(client, email, victimPassword)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var user = await UserAsync(email);
+        user.DisplayName.Should().Be("Anna Muster");
+        user.Company.Should().Be("Muster AG");
+
+        // The first token was replaced and no longer verifies anything.
+        (await client.PostAsJsonAsync("/api/auth/verify-email", new { token = firstToken }))
+            .IsSuccessStatusCode.Should().BeFalse();
+    }
+
+    [SkippableFact]
     public async Task Register_AutoApprovedDomainAnyCase_ApprovedOtherDomainPending()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
