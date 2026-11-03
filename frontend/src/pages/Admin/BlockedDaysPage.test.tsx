@@ -148,7 +148,7 @@ describe('BlockedDaysPage', () => {
     expect(adminService.removeBlockedDay).toHaveBeenCalledWith('b1');
   });
 
-  it.skip('aqaa: open bug, see report — a failing Remove in the list shows an error', async () => {
+  it('aqaa: open bug, see report — a failing Remove in the list shows an error', async () => {
     // aqaa: suspected bug: the list's Remove handler has no try/catch (unlike the calendar path,
     // which shows "Failed to remove block."), so a failed delete is an unhandled rejection and
     // the admin gets no feedback.
