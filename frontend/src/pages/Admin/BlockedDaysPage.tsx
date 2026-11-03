@@ -179,8 +179,13 @@ export function BlockedDaysPage() {
                     <button
                       type="button"
                       onClick={async () => {
-                        await adminService.removeBlockedDay(b.id);
-                        await loadBlockedDays();
+                        setError(null);
+                        try {
+                          await adminService.removeBlockedDay(b.id);
+                          await loadBlockedDays();
+                        } catch {
+                          setError('Failed to remove block.');
+                        }
                       }}
                       className="text-[12px] font-medium text-rose-600 hover:text-rose-700"
                     >
