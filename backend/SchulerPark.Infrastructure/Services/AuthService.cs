@@ -21,6 +21,10 @@ public class AuthService : IAuthService
     private const int MaxFailedAttemptsBeforeLockout = 5;
     private static readonly TimeSpan MaxLockout = TimeSpan.FromHours(1);
 
+    // Prefix on the stored verification hash of an account registered more than once
+    // with different passwords: verifying it disables the stored password.
+    private const string ContestedVerificationPrefix = "contested:";
+
     // Verified against a fixed dummy password when the email is unknown so that
     // login latency does not reveal whether an account exists. Static + lazy:
     // hashing is expensive and AuthService is scoped (per request).
@@ -78,9 +82,20 @@ public class AuthService : IAuthService
             // An unverified account gets a fresh verification email; a verified one
             // is left untouched. Burn a hash like the new-account path below does,
             // so response timing doesn't reveal that the address exists.
-            _passwordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, password);
             if (!existing.EmailVerified && existing.DeletedAt == null)
-                await IssueVerificationTokenAsync(existing);
+            {
+                // A second registrant with a different password: nobody has proved yet
+                // which of them owns the mailbox, so verifying must not activate the
+                // stored password (account pre-hijacking). The owner sets one via reset.
+                var contested = string.IsNullOrEmpty(existing.PasswordHash)
+                    || _passwordHasher.VerifyHashedPassword(existing, existing.PasswordHash, password)
+                        == PasswordVerificationResult.Failed;
+                await IssueVerificationTokenAsync(existing, contested);
+            }
+            else
+            {
+                _passwordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, password);
+            }
             return;
         }
 
@@ -112,11 +127,25 @@ public class AuthService : IAuthService
     public async Task<bool> VerifyEmailAsync(string token)
     {
         var tokenHash = HashToken(token);
+        var contestedHash = ContestedVerificationPrefix + tokenHash;
         var user = await _context.Users.FirstOrDefaultAsync(u =>
-            u.EmailVerificationTokenHash == tokenHash && u.DeletedAt == null);
+            (u.EmailVerificationTokenHash == tokenHash || u.EmailVerificationTokenHash == contestedHash)
+            && u.DeletedAt == null);
 
         if (user == null || user.EmailVerificationTokenExpiresAt < DateTime.UtcNow)
             return false;
+
+        if (user.EmailVerificationTokenHash == contestedHash)
+        {
+            // The address was registered more than once with different passwords —
+            // whichever was stored may belong to someone without the mailbox.
+            _logger.LogWarning(
+                "Verified contested registration {UserId}; local password disabled.", user.Id);
+            user.PasswordHash = null;
+            user.PasswordResetTokenHash = null;
+            user.PasswordResetTokenExpiresAt = null;
+            await _tokenService.RevokeAllUserTokensAsync(user.Id);
+        }
 
         user.EmailVerified = true;
         user.EmailVerificationTokenHash = null;
@@ -396,11 +425,13 @@ public class AuthService : IAuthService
 
     // ────────────────────────────────────────────────────────────────────────────
 
-    private async Task IssueVerificationTokenAsync(User user)
+    private async Task IssueVerificationTokenAsync(User user, bool contested = false)
     {
         var rawToken = GenerateToken();
 
-        user.EmailVerificationTokenHash = HashToken(rawToken);
+        // A contested registration stays contested when the token is re-issued (resend).
+        contested |= user.EmailVerificationTokenHash?.StartsWith(ContestedVerificationPrefix, StringComparison.Ordinal) == true;
+        user.EmailVerificationTokenHash = (contested ? ContestedVerificationPrefix : string.Empty) + HashToken(rawToken);
         user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(VerificationTokenValidHours);
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
