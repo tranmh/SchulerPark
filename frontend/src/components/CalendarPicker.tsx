@@ -12,6 +12,8 @@ interface Props {
   minDate?: string;
   maxDate?: string;
   weekMode?: boolean;
+  /** Admin use: blocked days stay clickable (e.g. to unblock them). Default: disabled. */
+  blockedSelectable?: boolean;
 }
 
 function getMonday(dateStr: string): string {
@@ -48,6 +50,7 @@ export function CalendarPicker({
   minDate,
   maxDate,
   weekMode,
+  blockedSelectable = false,
 }: Props) {
   const { i18n, t } = useTranslation();
   // Calendar "today" follows Europe/Berlin like the server, not the device zone.
@@ -141,7 +144,7 @@ export function CalendarPicker({
               : selectedDate === dateStr;
           const isPast = minDate ? dateStr < minDate : dateStr < todayStr;
           const isFuture = maxDate ? dateStr > maxDate : false;
-          const isDisabled = isPast || isFuture || isBlocked || (weekMode && isWeekend);
+          const isDisabled = isPast || isFuture || (isBlocked && !blockedSelectable) || (weekMode && isWeekend);
 
           const avail = availability?.get(dateStr);
           const tone = avail ? dayTone(avail) : null;
@@ -151,6 +154,8 @@ export function CalendarPicker({
             cls += isBlocked
               ? ' cursor-not-allowed bg-rose-50 text-rose-300 line-through'
               : ' cursor-not-allowed text-ink-200';
+          } else if (isBlocked) {
+            cls += ' bg-rose-50 text-rose-700 font-medium hover:bg-rose-100';
           } else if (isSelected) {
             cls += ' bg-brand-500 font-semibold text-white shadow-sm';
           } else {

@@ -55,7 +55,9 @@ describe('BlockedDaysPage', () => {
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText('2026-11-20')).toBeInTheDocument();
     expect(within(rows[0]).getByText('Holiday')).toBeInTheDocument();
-    expect(day(20)).toBeDisabled();
+    // B8: a blocked day stays clickable (to unblock it) and reads as blocked.
+    expect(day(20)).toBeEnabled();
+    expect(day(20)).toHaveClass('bg-rose-50', 'text-rose-700');
   });
 
   it('shows the empty list for a location without blocks', async () => {
@@ -134,24 +136,34 @@ describe('BlockedDaysPage', () => {
     expect(await screen.findByText('No blocked days for this location.')).toBeInTheDocument();
   });
 
-  it.skip('aqaa: open bug, see report — clicking a blocked date on the calendar unblocks it', async () => {
-    // aqaa: suspected bug: the page says "Click a date on the calendar to block or unblock it" and
-    // handleDateClick removes an existing location-wide block, but CalendarPicker disables blocked
-    // dates, so the unblock path is unreachable from the calendar.
+  it('clicking a blocked date on the calendar unblocks it', async () => {
+    // B8: CalendarPicker gets blockedSelectable, so the unblock path is reachable from the calendar.
     const user = userEvent.setup();
     vi.mocked(adminService.removeBlockedDay).mockResolvedValue(undefined as never);
     render(<BlockedDaysPage />);
 
     await screen.findAllByTestId('blocked-day-row');
+    vi.mocked(adminService.getBlockedDays).mockResolvedValue([]);
     await user.click(day(20));
 
     expect(adminService.removeBlockedDay).toHaveBeenCalledWith('b1');
+    expect(await screen.findByText('No blocked days for this location.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Block day' })).not.toBeInTheDocument();
   });
 
-  it('aqaa: open bug, see report — a failing Remove in the list shows an error', async () => {
-    // aqaa: suspected bug: the list's Remove handler has no try/catch (unlike the calendar path,
-    // which shows "Failed to remove block."), so a failed delete is an unhandled rejection and
-    // the admin gets no feedback.
+  it('a failing unblock from the calendar shows an error', async () => {
+    const user = userEvent.setup();
+    vi.mocked(adminService.removeBlockedDay).mockRejectedValue(new Error('500'));
+    render(<BlockedDaysPage />);
+
+    await screen.findAllByTestId('blocked-day-row');
+    await user.click(day(20));
+
+    expect(await screen.findByText('Failed to remove block.')).toBeInTheDocument();
+  });
+
+  it('a failing Remove in the list shows an error', async () => {
+    // B1: both remove paths share handleRemove, so the list button reports failures too.
     const user = userEvent.setup();
     vi.mocked(adminService.removeBlockedDay).mockRejectedValue(new Error('500'));
     render(<BlockedDaysPage />);

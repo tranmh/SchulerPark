@@ -60,18 +60,23 @@ export function BlockedDaysPage() {
 
   const locationWideBlocks = blockedDays.filter((b) => !b.parkingSlotId);
 
+  const handleRemove = async (id: string) => {
+    setError(null);
+    try {
+      await adminService.removeBlockedDay(id);
+      await loadBlockedDays();
+    } catch {
+      setError('Failed to remove block.');
+    }
+  };
+
   const handleDateClick = async (date: string) => {
     if (!selectedLocationId) return;
     setError(null);
 
     const existing = blockedDays.find((b) => b.date === date && !b.parkingSlotId);
     if (existing) {
-      try {
-        await adminService.removeBlockedDay(existing.id);
-        await loadBlockedDays();
-      } catch {
-        setError('Failed to remove block.');
-      }
+      await handleRemove(existing.id);
       return;
     }
     setSelectedDate(date);
@@ -148,7 +153,7 @@ export function BlockedDaysPage() {
       </div>
 
       <div className="mt-6 grid gap-7 lg:grid-cols-[420px_1fr]">
-        <CalendarPicker selectedDate={null} onSelect={handleDateClick} blockedDates={blockedDates} />
+        <CalendarPicker selectedDate={null} onSelect={handleDateClick} blockedDates={blockedDates} blockedSelectable />
 
         <div className="rounded-card border border-line bg-white shadow-card">
           <div className="flex items-center justify-between border-b border-line px-5 py-4">
@@ -178,15 +183,7 @@ export function BlockedDaysPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={async () => {
-                        setError(null);
-                        try {
-                          await adminService.removeBlockedDay(b.id);
-                          await loadBlockedDays();
-                        } catch {
-                          setError('Failed to remove block.');
-                        }
-                      }}
+                      onClick={() => handleRemove(b.id)}
                       className="text-[12px] font-medium text-rose-600 hover:text-rose-700"
                     >
                       Remove

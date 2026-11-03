@@ -54,6 +54,27 @@ describe('CalendarPicker', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('keeps blocked days clickable when blockedSelectable is set, disabled otherwise', async () => {
+    const user = userEvent.setup();
+    const onSelect = setup({ blockedDates: new Set(['2026-11-12']), blockedSelectable: true });
+
+    expect(day(12)).toBeEnabled();
+    expect(day(12)).toHaveClass('bg-rose-50', 'text-rose-700');
+    expect(day(12)).not.toHaveClass('line-through');
+    await user.click(day(12));
+    expect(onSelect).toHaveBeenCalledWith('2026-11-12');
+  });
+
+  it('with blockedSelectable false (default) a blocked day is disabled and not selectable', async () => {
+    const user = userEvent.setup();
+    const onSelect = setup({ blockedDates: new Set(['2026-11-12']), blockedSelectable: false });
+
+    expect(day(12)).toBeDisabled();
+    expect(day(12)).toHaveClass('line-through');
+    await user.click(day(12));
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('navigates months across the year boundary in both directions', async () => {
     const user = userEvent.setup();
     setup();
