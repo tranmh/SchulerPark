@@ -134,7 +134,7 @@ describe('BlockedDaysPage', () => {
     expect(await screen.findByText('No blocked days for this location.')).toBeInTheDocument();
   });
 
-  it.skip('aqaa: open bug, see report — clicking a blocked date on the calendar unblocks it', async () => {
+  it('aqaa: open bug, see report — clicking a blocked date on the calendar unblocks it', async () => {
     // aqaa: suspected bug: the page says "Click a date on the calendar to block or unblock it" and
     // handleDateClick removes an existing location-wide block, but CalendarPicker disables blocked
     // dates, so the unblock path is unreachable from the calendar.
