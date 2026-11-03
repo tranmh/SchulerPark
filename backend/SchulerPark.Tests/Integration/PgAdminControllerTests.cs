@@ -431,7 +431,7 @@ public class PgAdminControllerTests
             (await db.BlockedDays.AnyAsync(b => b.LocationId == locationId)).Should().BeFalse());
     }
 
-    [SkippableFact(Skip = "aqaa: suspected bug - blocking the same location/date twice hits the unique (LocationId, Date) filtered index and surfaces as 500 instead of a 4xx validation error (B41)")]
+    [SkippableFact]
     public async Task CreateBlockedDay_SameLocationDateTwice_ReturnsClientError()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
