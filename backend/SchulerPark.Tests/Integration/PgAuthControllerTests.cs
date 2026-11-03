@@ -118,7 +118,7 @@ public class PgAuthControllerTests
     }
 
     [SkippableTheory]
-    [InlineData("firstName", 101)]
+    [InlineData("firstName", 100)]
     [InlineData("lastName", 101)]
     [InlineData("company", 201)]
     public async Task Register_FieldTooLong_Returns400(string field, int length)
@@ -157,21 +157,27 @@ public class PgAuthControllerTests
     }
 
     [SkippableFact]
-    public async Task Register_MaximumLengthNames_Accepted()
+    public async Task Register_FirstAndLastNameBoth100Chars_Returns400But99Plus100Accepted()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
         var client = NewClient();
-        var email = LocalEmail("max");
+        var rejected = LocalEmail("max-rejected");
+        var accepted = LocalEmail("max-accepted");
 
-        var response = await client.PostAsJsonAsync("/api/auth/register",
-            RegisterBody(email, new string('f', 100), new string('l', 100), new string('c', 200)));
+        // B2: "First Last" must fit DisplayName varchar(200), so FirstName is capped at 99.
+        var tooLong = await client.PostAsJsonAsync("/api/auth/register",
+            RegisterBody(rejected, new string('f', 100), new string('l', 100)));
+        tooLong.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AdminTestHelper.WithDbAsync(Factory, async db =>
+            (await db.Users.AnyAsync(u => u.Email == rejected)).Should().BeFalse());
 
-        // B01: 100-char first and last names are valid; B02: DisplayName is "First Last".
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var user = await UserAsync(email);
-        user.FirstName.Should().HaveLength(100);
+        var fits = await client.PostAsJsonAsync("/api/auth/register",
+            RegisterBody(accepted, new string('f', 99), new string('l', 100)));
+        fits.StatusCode.Should().Be(HttpStatusCode.OK);
+        var user = await UserAsync(accepted);
+        user.FirstName.Should().HaveLength(99);
         user.LastName.Should().HaveLength(100);
-        user.DisplayName.Should().Be($"{new string('f', 100)} {new string('l', 100)}");
+        user.DisplayName.Should().Be($"{new string('f', 99)} {new string('l', 100)}");
     }
 
     [SkippableFact]
