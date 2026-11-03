@@ -186,6 +186,24 @@ public class AuthServiceTests
         _hasher.VerifyHashedPassword(user, user.PasswordHash!, Password).Should().NotBe(PasswordVerificationResult.Failed);
     }
 
+    [Fact]
+    public async Task RegisterAsync_ReRegisteredUnverifiedEmail_VerifyingDoesNotActivateEarlierRegistrantsPassword()
+    {
+        const string squatterPassword = "Squatter-Password-1!";
+        var service = NewService();
+
+        // Someone without access to the mailbox registers the address first …
+        await service.RegisterAsync("colleague@partner.com", "Mallory", "Evil", "Evil Corp", squatterPassword);
+        // … then the real owner registers it and verifies through the mail they receive.
+        await service.RegisterAsync("colleague@partner.com", "Real", "Owner", "Partner", Password);
+        (await service.VerifyEmailAsync(_email.VerificationTokenFor("colleague@partner.com")!)).Should().BeTrue();
+
+        // Verification must never turn the earlier, unproven registrant's password into valid credentials.
+        await service.Invoking(s => s.LoginAsync("colleague@partner.com", squatterPassword, null))
+            .Should().ThrowAsync<UnauthorizedAccessException>().WithMessage("Invalid email or password.");
+        _tokens.Issued.Should().Be(0);
+    }
+
     // ---- verify email --------------------------------------------------------------
 
     [Fact]
