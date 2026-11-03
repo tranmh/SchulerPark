@@ -263,6 +263,12 @@ public class AdminController : ControllerBase
             slotNumber = slot.SlotNumber;
         }
 
+        var alreadyBlocked = request.ParkingSlotId.HasValue
+            ? await _db.BlockedDays.AnyAsync(b => b.ParkingSlotId == request.ParkingSlotId && b.Date == request.Date)
+            : await _db.BlockedDays.AnyAsync(b => b.LocationId == request.LocationId && b.ParkingSlotId == null && b.Date == request.Date);
+        if (alreadyBlocked)
+            throw new ValidationException("This date is already blocked.");
+
         var blocked = new BlockedDay
         {
             Id = Guid.NewGuid(),
