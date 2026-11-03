@@ -156,7 +156,7 @@ public class PgAuthControllerTests
         user.DisplayName.Should().HaveLength(200);
     }
 
-    [SkippableFact(Skip = "aqaa: suspected bug - FirstName and LastName of 100 chars each pass validation (B01) but the derived DisplayName 'First Last' is 201 chars and overflows the varchar(200) Users.DisplayName column, so register returns 500 instead of 200 (B01/B02)")]
+    [SkippableFact]
     public async Task Register_MaximumLengthNames_Accepted()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
