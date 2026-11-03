@@ -189,7 +189,7 @@ public class PgAdminControllerTests
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
     }
 
-    [SkippableFact(Skip = "aqaa: suspected bug - a duplicate location name hits the unique Locations.Name index and surfaces as 500 instead of a 4xx validation error (B41)")]
+    [SkippableFact]
     public async Task CreateLocation_DuplicateName_ReturnsClientError()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
