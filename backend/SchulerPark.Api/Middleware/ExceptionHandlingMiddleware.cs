@@ -2,7 +2,9 @@ namespace SchulerPark.Api.Middleware;
 
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchulerPark.Core.Exceptions;
+using SchulerPark.Infrastructure.Services;
 
 public class ExceptionHandlingMiddleware
 {
@@ -38,6 +40,16 @@ public class ExceptionHandlingMiddleware
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await WriteProblemDetails(context, "Forbidden", ex.Message,
                 "https://tools.ietf.org/html/rfc9110#section-15.5.4");
+        }
+        catch (DbUpdateException ex) when (BookingPersistence.IsUniqueViolation(ex, out var constraint))
+        {
+            // Race-safe backstop for the controllers' duplicate pre-checks: a unique index
+            // fired between check and save (or on a path without a pre-check).
+            _logger.LogWarning(ex, "Unique constraint {Constraint} violated", constraint);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await WriteProblemDetails(context, "Conflict", "The record already exists.",
+                "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+                code: "duplicate_record");
         }
         catch (Exception ex)
         {

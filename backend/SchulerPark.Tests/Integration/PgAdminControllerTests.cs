@@ -206,6 +206,56 @@ public class PgAdminControllerTests
     }
 
     [SkippableFact]
+    public async Task UpdateLocation_DuplicateName_Returns400WithCode()
+    {
+        Skip.IfNot(_fx.Available, _fx.SkipReason);
+        var (client, admin) = await AsAsync(UserRole.Admin);
+        var takenName = UniqueName("taken");
+        await AdminTestHelper.SeedLocationAsync(Factory, 0, takenName);
+        var (otherId, _) = await AdminTestHelper.SeedLocationAsync(Factory, 0, UniqueName("other"));
+
+        // B5: renaming onto another location's name (even with padding) is a 400, not a 500.
+        var duplicate = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Put,
+            $"/api/admin/locations/{otherId}", admin.AccessToken, new { name = $"  {takenName} ", isActive = true }));
+        duplicate.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await JsonAsync(duplicate);
+        problem.GetProperty("detail").GetString().Should().Contain("already exists");
+        problem.GetProperty("code").GetString().Should().Be("location_name_taken");
+
+        // A location may keep (or re-submit) its own name.
+        var selfName = UniqueName("self");
+        var (selfId, _) = await AdminTestHelper.SeedLocationAsync(Factory, 0, selfName);
+        var self = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Put,
+            $"/api/admin/locations/{selfId}", admin.AccessToken, new { name = selfName, isActive = true }));
+        self.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [SkippableFact]
+    public async Task UpdateSlot_DuplicateNumberInLocation_Returns400WithCode()
+    {
+        Skip.IfNot(_fx.Available, _fx.SkipReason);
+        var (client, admin) = await AsAsync(UserRole.Admin);
+        var (_, slotIds) = await AdminTestHelper.SeedLocationAsync(Factory, 2); // P001, P002
+
+        // B4: renumbering onto a sibling's number (even with padding) is a 400, not a 500.
+        var duplicate = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Put,
+            $"/api/admin/slots/{slotIds[1]}", admin.AccessToken, new { slotNumber = " P001 ", isActive = true }));
+        duplicate.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await JsonAsync(duplicate);
+        problem.GetProperty("detail").GetString().Should().Contain("already exists");
+        problem.GetProperty("code").GetString().Should().Be("slot_number_taken");
+
+        // A slot may keep its own number; the same number in another location is fine.
+        var self = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Put,
+            $"/api/admin/slots/{slotIds[1]}", admin.AccessToken, new { slotNumber = "P002", label = "renamed", isActive = true }));
+        self.StatusCode.Should().Be(HttpStatusCode.OK);
+        var (_, otherSlotIds) = await AdminTestHelper.SeedLocationAsync(Factory, 1);
+        var elsewhere = await client.SendAsync(AdminTestHelper.Authed(HttpMethod.Put,
+            $"/api/admin/slots/{otherSlotIds[0]}", admin.AccessToken, new { slotNumber = "P002", isActive = true }));
+        elsewhere.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [SkippableFact]
     public async Task UpdateLocation_UnknownId_Returns404()
     {
         Skip.IfNot(_fx.Available, _fx.SkipReason);
