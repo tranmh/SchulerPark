@@ -161,6 +161,8 @@ public class AdminController : ControllerBase
 
         var locationExists = await _db.Locations.AnyAsync(l => l.Id == request.LocationId);
         if (!locationExists) throw new ValidationException("Location not found.");
+        if (await _db.ParkingSlots.AnyAsync(s => s.LocationId == request.LocationId && s.SlotNumber == request.SlotNumber))
+            throw new ValidationException("A slot with this number already exists in this location.");
 
         var slot = new ParkingSlot
         {
