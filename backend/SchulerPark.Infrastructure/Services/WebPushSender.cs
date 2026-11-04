@@ -23,6 +23,13 @@ public class WebPushSender : IPushSender
 
     public async Task<PushSendOutcome> SendAsync(Core.Entities.PushSubscription sub, string jsonPayload, CancellationToken ct = default)
     {
+        // Defence in depth: never POST to an internal host even if such a row exists.
+        if (!PushEndpointPolicy.IsAllowed(sub.Endpoint))
+        {
+            _logger.LogWarning("Push subscription {SubId} points to a disallowed host; not sending.", sub.Id);
+            return PushSendOutcome.Failed;
+        }
+
         try
         {
             var client = new PushServiceClient
