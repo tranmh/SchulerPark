@@ -1,14 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { installFakeApi, type FakeApi } from './fakeApi';
 import {
   apiError,
+  buildAdminBooking,
+  buildAdminBookingPage,
+  buildAdminSlot,
   buildAdminUser,
   buildAdminUserList,
   buildBooking,
+  buildGridConfiguration,
   buildPendingUserList,
+  buildSaveGridRequest,
+  mockAdminService,
   resetFixtureIds,
 } from './fixtures';
 import { adminUsersService } from '../services/adminUsersService';
+import { adminService } from '../services/adminService';
 import { getApiErrorCode } from '../utils/apiError';
 import { setAccessToken } from '../services/api';
 
@@ -54,6 +61,20 @@ describe('shared test doubles', () => {
     const err = await adminUsersService.pending().catch((e: unknown) => e);
     expect(getApiErrorCode(err)).toBe('FORBIDDEN');
     expect(getApiErrorCode(apiError(409, { code: 'DUPLICATE' }))).toBe('DUPLICATE');
+  });
+
+  it('admin builders and the adminService double compile and answer with typed defaults', async () => {
+    const svc = mockAdminService({ getSlots: vi.fn<typeof adminService.getSlots>().mockResolvedValue([buildAdminSlot()]) });
+    await expect(svc.getSlots('loc')).resolves.toEqual([expect.objectContaining({ id: 'slot-1', slotNumber: 'P001' })]);
+    await expect(svc.createLocation({ name: 'Nord' })).resolves.toMatchObject({ name: 'Nord', isActive: true });
+    await expect(svc.saveGridConfiguration('loc', buildSaveGridRequest({ gridRows: 4 }))).resolves.toMatchObject({ gridRows: 4 });
+    expect(buildGridConfiguration().cells[0].cellType).toBe('Road');
+    expect(buildAdminBookingPage([buildAdminBooking({ status: 'Won' })]).totalCount).toBe(1);
+  });
+
+  it('serves grid configuration through the real adminService over the fake http', async () => {
+    http.on('get', '/admin/locations/loc-goeppingen/grid', { data: buildGridConfiguration() });
+    await expect(adminService.getGridConfiguration('loc-goeppingen')).resolves.toMatchObject({ gridRows: 2, gridColumns: 3 });
   });
 
   it('answers unrouted requests with 404', async () => {

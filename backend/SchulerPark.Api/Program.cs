@@ -169,16 +169,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 // round-trip per call. A disabled account then loses access within the TTL —
                 // the same bounded window the 60-minute access token already tolerates. Still
                 // fails closed (a null/absent user → active == false → context.Fail).
+                // Security S2: the cached value is the account's CURRENT role (null = disabled/
+                // deleted), not just an active flag, so a demoted admin loses the privileges of a
+                // stale role claim immediately instead of when the access token expires.
                 var services = context.HttpContext.RequestServices;
                 var cache = services.GetRequiredService<IMemoryCache>();
-                var active = await cache.GetOrCreateAsync(SchulerPark.Api.Auth.UserActiveCache.Key(userId), entry =>
+                var currentRole = await cache.GetOrCreateAsync(SchulerPark.Api.Auth.UserActiveCache.Key(userId), entry =>
                 {
                     entry.AbsoluteExpirationRelativeToNow = SchulerPark.Api.Auth.UserActiveCache.Ttl;
                     var db = services.GetRequiredService<AppDbContext>();
-                    return db.Users.AnyAsync(u => u.Id == userId && u.DeletedAt == null);
+                    return db.Users
+                        .Where(u => u.Id == userId && u.DeletedAt == null)
+                        .Select(u => u.Role.ToString())
+                        .FirstOrDefaultAsync();
                 });
-                if (!active)
+                if (currentRole == null)
+                {
                     context.Fail("Account is disabled or deleted.");
+                    return;
+                }
+
+                var identity = context.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                if (identity != null)
+                {
+                    foreach (var stale in identity.FindAll(System.Security.Claims.ClaimTypes.Role).ToList())
+                        identity.RemoveClaim(stale);
+                    identity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, currentRole));
+                }
             }
         };
     });

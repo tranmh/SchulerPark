@@ -120,6 +120,29 @@ public class UsersAdminTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    // Security review S2 (CWE-863): a demoted admin must not keep admin access on the strength of
+    // a stale role claim in an access token that was issued before the demotion. The role must be
+    // re-read from the DB (403) or the old token must stop validating (401) — never 200.
+    [Fact]
+    public async Task UpdateRole_DemotedAdminLosesAdminAccessWithExistingToken()
+    {
+        var (_, _, suToken) = await CreateUserAsync(UserRole.SuperAdmin, "demoter");
+        var (adminId, _, adminToken) = await CreateUserAsync(UserRole.Admin, "demote-target");
+
+        // Precondition: the token grants admin access before the demotion.
+        var before = await _client.SendAsync(Authed(HttpMethod.Get, "/api/admin/locations", adminToken));
+        before.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var demote = await _client.SendAsync(Authed(
+            HttpMethod.Put, $"/api/admin/users/{adminId}/role", suToken,
+            new { role = "User" }));
+        demote.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Same (still unexpired) access token after the demotion: admin endpoints must be refused.
+        var after = await _client.SendAsync(Authed(HttpMethod.Get, "/api/admin/locations", adminToken));
+        after.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized);
+    }
+
     [Fact]
     public async Task Disable_AsSuperAdmin_SoftDeletesUser()
     {

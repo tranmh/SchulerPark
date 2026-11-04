@@ -13,7 +13,13 @@ import type {
   MyBookingsResponse,
   ParkingSlot,
 } from '../types/booking';
-import type { AdminBlockedDay, AdminBlockedDayCreated, AdminLocation, CapacityChangeResult } from '../types/admin';
+import { vi, type MockedFunction } from 'vitest';
+import type { AxiosResponse } from 'axios';
+import type {
+  AdminBlockedDay, AdminBlockedDayCreated, AdminBooking, AdminLocation, AdminSlot, CapacityChangeResult, LotteryRun,
+} from '../types/admin';
+import type { GridCell, GridConfiguration, GridSlot, SaveGridConfigurationRequest } from '../types/grid';
+import type { adminService } from '../services/adminService';
 import type {
   AdminUser,
   AdminUserListResponse,
@@ -228,6 +234,108 @@ export function buildBookingWindow(overrides: Partial<BookingWindowResponse> = {
     afternoonDeadline: '13:00',
     ...overrides,
   };
+}
+
+export function buildAdminSlot(overrides: Partial<AdminSlot> = {}): AdminSlot {
+  return { id: nextId('slot'), locationId: LOCATION_ID, slotNumber: 'P001', label: null, isActive: true, ...overrides };
+}
+
+export function buildAdminBooking(overrides: Partial<AdminBooking> = {}): AdminBooking {
+  return {
+    id: nextId('booking'),
+    userId: 'user-erika',
+    userEmail: 'erika.mustermann@schuler.de',
+    userDisplayName: 'Erika Mustermann',
+    locationId: LOCATION_ID,
+    locationName: 'Goeppingen',
+    parkingSlotId: null,
+    parkingSlotNumber: null,
+    date: FIXED_TODAY,
+    timeSlot: 'Morning',
+    status: 'Pending',
+    confirmedAt: null,
+    createdAt: '2026-06-09T10:00:00.000Z',
+    cancelledAt: null,
+    cancelReason: null,
+    cancelledByUserId: null,
+    autoConfirmReason: null,
+    ...overrides,
+  };
+}
+
+export function buildAdminBookingPage(bookings: AdminBooking[] = [buildAdminBooking()]) {
+  return { bookings, totalCount: bookings.length, page: 1, pageSize: 20 };
+}
+
+export function buildLotteryRun(overrides: Partial<LotteryRun> = {}): LotteryRun {
+  return {
+    id: nextId('lottery'),
+    locationId: LOCATION_ID,
+    locationName: 'Goeppingen',
+    date: FIXED_TODAY,
+    timeSlot: 'Morning',
+    algorithm: 'Random',
+    ranAt: '2026-06-09T20:00:00.000Z',
+    totalBookings: 3,
+    availableSlots: 10,
+    ...overrides,
+  };
+}
+
+export function buildGridSlot(overrides: Partial<GridSlot> = {}): GridSlot {
+  return { id: nextId('slot'), slotNumber: 'P001', label: null, isActive: true, row: 0, column: 0, ...overrides };
+}
+
+export function buildGridCell(overrides: Partial<GridCell> = {}): GridCell {
+  return { id: nextId('cell'), row: 0, column: 1, cellType: 'Road', label: null, ...overrides };
+}
+
+/** A 2x3 grid with one placed slot and one road cell. */
+export function buildGridConfiguration(overrides: Partial<GridConfiguration> = {}): GridConfiguration {
+  return { gridRows: 2, gridColumns: 3, slots: [buildGridSlot()], cells: [buildGridCell()], ...overrides };
+}
+
+export function buildSaveGridRequest(overrides: Partial<SaveGridConfigurationRequest> = {}): SaveGridConfigurationRequest {
+  return {
+    gridRows: 2,
+    gridColumns: 3,
+    slotPositions: [{ slotId: 'slot-1', row: 0, column: 0 }],
+    cells: [{ row: 0, column: 1, cellType: 'Road' }],
+    ...overrides,
+  };
+}
+
+/**
+ * A typed test double for `adminService` with every method a `vi.fn` that resolves to a sane
+ * default. Use with `vi.mock('../../services/adminService', () => ({ adminService: mockAdminService() }))`
+ * (inside the factory, so hoisting is safe) and override per test with `vi.mocked(adminService.x)`.
+ */
+export type MockAdminService = { [K in keyof typeof adminService]: MockedFunction<(typeof adminService)[K]> };
+
+export function mockAdminService(overrides: Partial<MockAdminService> = {}): MockAdminService {
+  const ok = { status: 200, data: undefined, statusText: 'OK', headers: {}, config: {} } as unknown as AxiosResponse;
+  const svc: MockAdminService = {
+    getLocations: vi.fn<typeof adminService.getLocations>().mockResolvedValue([buildAdminLocation()]),
+    createLocation: vi.fn<typeof adminService.createLocation>().mockImplementation(async (d) => buildAdminLocation({ id: nextId('loc'), ...d })),
+    updateLocation: vi.fn<typeof adminService.updateLocation>().mockImplementation(async (id, d) => buildAdminLocation({ id, ...d })),
+    deactivateLocation: vi.fn<typeof adminService.deactivateLocation>().mockResolvedValue(buildCapacityChange()),
+    setAlgorithm: vi.fn<typeof adminService.setAlgorithm>().mockResolvedValue(ok),
+    getSlots: vi.fn<typeof adminService.getSlots>().mockResolvedValue([]),
+    createSlot: vi.fn<typeof adminService.createSlot>().mockImplementation(async (d) => buildAdminSlot({ ...d, label: d.label ?? null })),
+    updateSlot: vi.fn<typeof adminService.updateSlot>().mockImplementation(async (id, d) => buildAdminSlot({ id, ...d, label: d.label ?? null })),
+    deactivateSlot: vi.fn<typeof adminService.deactivateSlot>().mockResolvedValue(buildCapacityChange()),
+    getBlockedDays: vi.fn<typeof adminService.getBlockedDays>().mockResolvedValue([]),
+    createBlockedDay: vi.fn<typeof adminService.createBlockedDay>().mockImplementation(async (d) =>
+      buildAdminBlockedDayCreated(buildAdminBlockedDay({ ...d, parkingSlotId: d.parkingSlotId ?? null, reason: d.reason ?? null }))),
+    removeBlockedDay: vi.fn<typeof adminService.removeBlockedDay>().mockResolvedValue(ok),
+    getBookings: vi.fn<typeof adminService.getBookings>().mockResolvedValue(buildAdminBookingPage([])),
+    countBookings: vi.fn<typeof adminService.countBookings>().mockResolvedValue(0),
+    getLotteryRuns: vi.fn<typeof adminService.getLotteryRuns>().mockResolvedValue({ lotteryRuns: [], totalCount: 0, page: 1, pageSize: 20 }),
+    getGridConfiguration: vi.fn<typeof adminService.getGridConfiguration>().mockResolvedValue(buildGridConfiguration()),
+    saveGridConfiguration: vi.fn<typeof adminService.saveGridConfiguration>().mockImplementation(async (_id, d) =>
+      buildGridConfiguration({ gridRows: d.gridRows, gridColumns: d.gridColumns })),
+  };
+  return { ...svc, ...overrides };
 }
 
 /** The shape axios rejects with, as far as the app's error helpers read it. */

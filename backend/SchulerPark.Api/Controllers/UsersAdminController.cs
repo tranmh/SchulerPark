@@ -98,6 +98,10 @@ public class UsersAdminController : ControllerBase
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
+        // Security S2: the per-request check caches the current role; drop it so the new role
+        // applies on the user's next request instead of after the cache TTL.
+        UserActiveCache.Evict(_cache, user.Id);
+
         return Ok(ToDto(user));
     }
 

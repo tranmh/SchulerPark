@@ -84,7 +84,11 @@ public class AdminController : ControllerBase
             .FirstOrDefaultAsync(l => l.Id == id);
         if (location == null) return NotFound();
 
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ValidationException("Location name is required.");
         var name = request.Name.Trim();
+        if (name.Length > 100)
+            throw new ValidationException("Location name must not exceed 100 characters.");
         if (await _db.Locations.AnyAsync(l => l.Id != id && l.Name == name))
             throw new ValidationException("A location with this name already exists.", "location_name_taken");
 
@@ -191,7 +195,11 @@ public class AdminController : ControllerBase
         var slot = await _db.ParkingSlots.FindAsync(id);
         if (slot == null) return NotFound();
 
+        if (string.IsNullOrWhiteSpace(request.SlotNumber))
+            throw new ValidationException("Slot number is required.");
         var slotNumber = request.SlotNumber.Trim();
+        if (slotNumber.Length > 20)
+            throw new ValidationException("Slot number must not exceed 20 characters.");
         if (await _db.ParkingSlots.AnyAsync(s => s.Id != id && s.LocationId == slot.LocationId && s.SlotNumber == slotNumber))
             throw new ValidationException("This slot number already exists at this location.", "slot_number_taken");
 
@@ -259,6 +267,8 @@ public class AdminController : ControllerBase
     {
         if (request.Date < BerlinToday)
             throw new ValidationException("Cannot block a date in the past.");
+        if (request.Reason is { Length: > 500 })
+            throw new ValidationException("Reason must not exceed 500 characters.");
 
         var location = await _db.Locations.FindAsync(request.LocationId);
         if (location == null) throw new ValidationException("Location not found.");

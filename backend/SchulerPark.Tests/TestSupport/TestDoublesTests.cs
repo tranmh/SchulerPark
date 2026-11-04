@@ -31,6 +31,27 @@ public class TestDoublesTests
     }
 
     [Fact]
+    public async Task FakeTokenService_RevokeAllUserTokens_InvalidatesOnlyThatUsersTokens()
+    {
+        var tokens = new FakeTokenService();
+        var notifier = new RecordingAdminNotifier();
+        var a = TestData.User();
+        var b = TestData.User();
+        var ra = await tokens.GenerateRefreshTokenAsync(a, "127.0.0.1");
+        var rb = await tokens.GenerateRefreshTokenAsync(b, null);
+
+        await tokens.RevokeAllUserTokensAsync(a.Id);
+        await notifier.PendingUserAsync(TestData.PendingUser());
+
+        (await tokens.ValidateRefreshTokenAsync(ra)).Should().BeNull();
+        (await tokens.ValidateRefreshTokenAsync(rb))!.Id.Should().Be(b.Id);
+        tokens.Revoked.Should().ContainSingle().Which.Should().Be(ra);
+        tokens.GenerateAccessToken(a).Should().Be($"access:{a.Id}");
+        notifier.PendingUsers.Should().ContainSingle();
+        SeedSql.BookingsAndBlockedDay.Should().Contain(SeedSql.WonBookingId.ToString());
+    }
+
+    [Fact]
     public async Task SendEmailVerificationAsync_SmtpUnconfigured_LogsSkippedSubject()
     {
         var logger = new CapturingLogger<EmailService>();

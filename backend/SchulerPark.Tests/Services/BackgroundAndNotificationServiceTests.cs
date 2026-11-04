@@ -1,5 +1,6 @@
 namespace SchulerPark.Tests.Services;
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -363,5 +364,241 @@ public class EmailServiceSendTests
     {
         EmailService.Enc("Smith & <Sons>").Should().Be("Smith &amp; &lt;Sons&gt;");
         EmailService.Enc(null).Should().BeEmpty();
+    }
+}
+
+/// <summary>
+/// Push payloads (B44, B47): every type in both languages, camelCase JSON keys, the tag
+/// that groups the confirmation lifecycle, trimmed admin reasons, and per-device outcomes.
+/// </summary>
+public class PushNotificationServicePayloadTests
+{
+    private static readonly DateOnly Date = new(2026, 3, 3);
+    private readonly AppDbContext _db = TestDb.InMemory();
+    private readonly ScriptedPushSender _sender = new();
+    private readonly CapturingLogger<PushNotificationService> _logger = new();
+
+    private PushNotificationService NewService() => new(_db, _sender,
+        Options.Create(new VapidSettings { PublicKey = "pub", PrivateKey = "priv" }), _logger);
+
+    /// <summary>A user in <paramref name="language"/> with the given push endpoints, a location "Göppingen" and slot "A-2".</summary>
+    private (User User, Location Location, ParkingSlot Slot) Site(string language, params string[] endpoints)
+    {
+        var user = TestData.User(u => u.PreferredLanguage = language);
+        var location = TestData.Location(l => l.Name = "Göppingen");
+        var slot = TestData.Slot(location, "A-2");
+        _db.Users.Add(user);
+        _db.Locations.Add(location);
+        _db.ParkingSlots.Add(slot);
+        Subscribe(user, endpoints);
+        return (user, location, slot);
+    }
+
+    private void Subscribe(User user, params string[] endpoints)
+    {
+        foreach (var e in endpoints)
+            _db.PushSubscriptions.Add(new PushSubscription { Id = Guid.NewGuid(), UserId = user.Id, Endpoint = e, P256dh = "k", Auth = "a", CreatedAt = TestData.CreatedAt });
+        _db.SaveChanges();
+    }
+
+    private sealed record Payload(string Title, string Body, string Url, string? Tag, bool HasTag);
+
+    private static Payload Parse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        root.EnumerateObject().Select(p => p.Name).Should().BeSubsetOf(new[] { "title", "body", "url", "tag" }, "keys are camelCase");
+        var hasTag = root.TryGetProperty("tag", out var tag);
+        return new Payload(root.GetProperty("title").GetString()!, root.GetProperty("body").GetString()!,
+            root.GetProperty("url").GetString()!, hasTag ? tag.GetString() : null, hasTag);
+    }
+
+    private Payload SingleSent() => Parse(_sender.Sent.Should().ContainSingle().Which.Payload);
+
+    private static readonly Dictionary<string, (Func<PushNotificationService, Booking, Task> Send, string German, string English)> Catalogue = new()
+    {
+        ["LotteryWon"] = ((s, b) => s.SendLotteryWonAsync(b), "Parkplatz gewonnen!", "You Won a Parking Spot!"),
+        ["LotteryLost"] = ((s, b) => s.SendLotteryLostAsync(b), "Verlosungsergebnis", "Lottery Result"),
+        ["WaitlistWon"] = ((s, b) => s.SendWaitlistWonAsync(b), "Ein Platz ist frei geworden!", "A Spot Opened Up!"),
+        ["BookingDirectlyConfirmed"] = ((s, b) => s.SendBookingDirectlyConfirmedAsync(b), "Parkplatz bestätigt!", "Parking Spot Confirmed!"),
+        ["BookingWaitlisted"] = ((s, b) => s.SendBookingWaitlistedAsync(b), "Sie stehen auf der Warteliste", "You're on the Waitlist"),
+        ["SlotReassigned"] = ((s, b) => s.SendSlotReassignedAsync(b, "A-1"), "Ihr Parkplatz wurde geändert", "Your parking slot has changed"),
+        ["SlotWithdrawn"] = ((s, b) => s.SendSlotWithdrawnAsync(b), "Parkplatz nicht mehr verfügbar", "Parking slot no longer available"),
+        ["BookingCancelledByAdmin"] = ((s, b) => s.SendBookingCancelledByAdminAsync(b, "Event"), "Buchung storniert", "Booking cancelled"),
+        ["ConfirmationReminder"] = ((s, b) => s.SendConfirmationReminderAsync(b), "Bitte Parkplatz bestätigen", "Please confirm your parking spot"),
+        ["BookingExpired"] = ((s, b) => s.SendBookingExpiredAsync(b), "Buchung verfallen", "Booking expired"),
+        ["UnconfirmedBookingKept"] = ((s, b) => s.SendUnconfirmedBookingKeptAsync(b), "Ihr Parkplatz bleibt Ihnen", "Your parking spot is still yours"),
+        ["WaitlistAutoConfirmed"] = ((s, b) => s.SendWaitlistAutoConfirmedAsync(b), "Ein Platz ist frei geworden — bestätigt!", "A spot opened up — confirmed!"),
+    };
+
+    public static IEnumerable<object[]> Types => Catalogue.Keys.Select(k => new object[] { k });
+
+    [Theory]
+    [MemberData(nameof(Types))]
+    public async Task Every_push_type_follows_the_users_language(string type)
+    {
+        var (send, german, english) = Catalogue[type];
+        var (user, location, slot) = Site("de", "https://push/1");
+        var booking = TestData.Booking(user, location, Date, status: BookingStatus.Won, slot: slot,
+            configure: b => b.ConfirmationDeadline = new DateTime(2026, 3, 3, 6, 0, 0, DateTimeKind.Utc));
+
+        await send(NewService(), booking);
+        var de = SingleSent();
+        de.Title.Should().Be(german);
+        de.Url.Should().Be("/my-bookings");
+        de.Body.Should().Contain("Göppingen").And.Contain("03.03.2026");
+
+        _sender.Sent.Clear();
+        user.PreferredLanguage = "en";
+        await send(NewService(), booking);
+        var en = SingleSent();
+        en.Title.Should().Be(english);
+        en.Url.Should().Be("/my-bookings");
+        en.Body.Should().Contain("Göppingen").And.Contain("03.03.2026");
+    }
+
+    [Fact]
+    public async Task SendBookingCancelledByAdminAsync_TrimsReasonIntoParentheses()
+    {
+        var (user, location, _) = Site("en", "https://push/1");
+
+        await NewService().SendBookingCancelledByAdminAsync(TestData.Booking(user, location, Date), "  Fire drill  ");
+
+        SingleSent().Body.Should().Be("Your booking at Göppingen on 03.03.2026 was cancelled by an administrator (Fire drill).");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SendBookingCancelledByAdminAsync_BlankReason_OmitsParentheses(string? reason)
+    {
+        var (user, location, _) = Site("de", "https://push/1");
+
+        await NewService().SendBookingCancelledByAdminAsync(TestData.Booking(user, location, Date), reason);
+
+        SingleSent().Body.Should().Be("Ihre Buchung in Göppingen am 03.03.2026 wurde von der Verwaltung storniert.");
+    }
+
+    [Fact]
+    public async Task SendSlotReassignedAsync_NamesOldAndNewSlot()
+    {
+        var (user, location, slot) = Site("en", "https://push/1");
+
+        await NewService().SendSlotReassignedAsync(TestData.Booking(user, location, Date, status: BookingStatus.Confirmed, slot: slot), "A-1");
+
+        SingleSent().Body.Should().Contain("slot A-1 is no longer available").And.Contain("you now park on slot A-2");
+    }
+
+    [Fact]
+    public async Task ConfirmationLifecyclePushes_ShareOneTagPerBooking_OthersCarryNone()
+    {
+        var (user, location, slot) = Site("en", "https://push/1");
+        var booking = TestData.Booking(user, location, Date, status: BookingStatus.Won, slot: slot,
+            configure: b => b.ConfirmationDeadline = new DateTime(2026, 3, 3, 6, 0, 0, DateTimeKind.Utc));
+        var service = NewService();
+
+        await service.SendConfirmationReminderAsync(booking);
+        await service.SendBookingExpiredAsync(booking);
+        await service.SendUnconfirmedBookingKeptAsync(booking);
+        await service.SendWaitlistAutoConfirmedAsync(booking);
+        await service.SendLotteryLostAsync(booking);
+
+        var payloads = _sender.Sent.Select(s => Parse(s.Payload)).ToList();
+        payloads.Should().HaveCount(5);
+        payloads.Take(3).Select(p => p.Tag).Should().AllBe($"confirm-{booking.Id:N}");
+        payloads.Skip(3).Should().OnlyContain(p => !p.HasTag);
+    }
+
+    [Fact]
+    public async Task SendConfirmationReminderAsync_NoStoredDeadline_UsesSlotEndInBerlinTime()
+    {
+        var (user, location, slot) = Site("en", "https://push/1");
+
+        await NewService().SendConfirmationReminderAsync(TestData.Booking(user, location, Date, TimeSlot.Afternoon, BookingStatus.Won, slot));
+
+        SingleSent().Body.Should().Contain("goes to the waitlist at 19:00 unless you confirm it");
+    }
+
+    [Fact]
+    public async Task SendLotteryWonAsync_UnsupportedLanguage_FallsBackToGerman()
+    {
+        var (user, location, slot) = Site("fr", "https://push/1");
+
+        await NewService().SendLotteryWonAsync(TestData.Booking(user, location, Date, status: BookingStatus.Won, slot: slot));
+
+        var payload = SingleSent();
+        payload.Title.Should().Be("Parkplatz gewonnen!");
+        payload.Body.Should().Contain("Vormittag").And.EndWith("Bitte bestätigen.");
+    }
+
+    [Fact]
+    public async Task SendTestAsync_GermanUser_SendsGermanTextToProfileWithoutTag()
+    {
+        var (user, _, _) = Site("de", "https://push/1");
+
+        var result = await NewService().SendTestAsync(user.Id);
+
+        result.Should().Be(new PushSendResult(1, 1, 0, 0));
+        var payload = SingleSent();
+        payload.Title.Should().Be("LouisE Testbenachrichtigung");
+        payload.Body.Should().Be("Push-Benachrichtigungen funktionieren auf diesem Gerät.");
+        payload.Url.Should().Be("/profile");
+        payload.HasTag.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SendBookingWaitlistedAsync_ReachesEachDeviceOfTheUserOnce_AndNobodyElse()
+    {
+        var (user, location, _) = Site("en", "https://push/1", "https://push/2");
+        var other = TestData.User();
+        _db.Users.Add(other);
+        Subscribe(other, "https://push/other");
+
+        await NewService().SendBookingWaitlistedAsync(TestData.Booking(user, location, Date, status: BookingStatus.Waitlisted));
+
+        _sender.Sent.Select(s => s.Endpoint).Should().BeEquivalentTo(new[] { "https://push/1", "https://push/2" });
+        _sender.Sent.Select(s => s.Payload).Distinct().Should().ContainSingle("every device gets the same payload");
+    }
+
+    [Fact]
+    public async Task SendTestAsync_EveryDeviceFails_ReportsAllFailedAndNothingDelivered()
+    {
+        var (user, _, _) = Site("en", "https://push/a", "https://push/b");
+        _sender.Outcomes["https://push/a"] = PushSendOutcome.Failed;
+        _sender.Outcomes["https://push/b"] = PushSendOutcome.Failed;
+
+        var result = await NewService().SendTestAsync(user.Id);
+
+        result.Should().Be(new PushSendResult(2, 0, 0, 2));
+        _sender.Sent.Select(s => s.Endpoint).Should().BeEquivalentTo(new[] { "https://push/a", "https://push/b" });
+        _logger.Messages(LogLevel.Warning).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SendTestAsync_GoneDeviceButPruneFails_StillReturnsResultAndLogsWarning()
+    {
+        // The InMemory provider cannot run ExecuteDelete, which stands in for a failing prune:
+        // the fan-out result still comes back, with the stale device counted as removed.
+        var (user, _, _) = Site("en", "https://push/ok", "https://push/gone");
+        _sender.Outcomes["https://push/gone"] = PushSendOutcome.Gone;
+
+        var result = await NewService().SendTestAsync(user.Id);
+
+        result.Should().Be(new PushSendResult(2, 1, 1, 0));
+        _logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Warning)
+            .Which.Message.Should().Contain("Could not prune 1 expired push subscription");
+        _logger.Messages(LogLevel.Error).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SendLotteryWonAsync_VapidNotConfigured_SendsNothingEvenWithDevices()
+    {
+        var (user, location, slot) = Site("en", "https://push/1");
+        var service = new PushNotificationService(_db, _sender, Options.Create(new VapidSettings { PublicKey = "pub" }), _logger);
+
+        await service.SendLotteryWonAsync(TestData.Booking(user, location, Date, status: BookingStatus.Won, slot: slot));
+
+        _sender.Sent.Should().BeEmpty();
     }
 }

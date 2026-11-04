@@ -35,7 +35,7 @@ pipeline {
           post {
             always {
               junit allowEmptyResults: true, testResults: 'backend/test-reports/*.xml'
-              recordCoverage id: 'coverage-dotnet-backend', name: 'Coverage dotnet backend', tools: [[parser: 'COBERTURA', pattern: 'backend/test-reports/**/*.cobertura.xml']], sourceDirectories: [[path: 'backend']], qualityGates: [[threshold: 19.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE']]
+              recordCoverage id: 'coverage-dotnet-backend', name: 'Coverage dotnet backend', tools: [[parser: 'COBERTURA', pattern: 'backend/test-reports/**/*.cobertura.xml']], sourceDirectories: [[path: 'backend']], qualityGates: [[threshold: 22.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE']]
               archiveArtifacts allowEmptyArchive: true, artifacts: 'backend/test-reports/**'
             }
             cleanup {
@@ -144,7 +144,32 @@ pipeline {
           post {
             always {
               junit allowEmptyResults: true, testResults: 'frontend/test-reports/*.xml'
-              recordCoverage id: 'coverage-typescript-frontend', name: 'Coverage typescript frontend', tools: [[parser: 'COBERTURA', pattern: 'frontend/test-reports/coverage/cobertura-coverage.xml']], sourceDirectories: [[path: 'frontend']], qualityGates: [[threshold: 66.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE']]
+              recordCoverage id: 'coverage-typescript-frontend', name: 'Coverage typescript frontend', tools: [[parser: 'COBERTURA', pattern: 'frontend/test-reports/coverage/cobertura-coverage.xml']], sourceDirectories: [[path: 'frontend']], qualityGates: [[threshold: 79.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE']]
+              archiveArtifacts allowEmptyArchive: true, artifacts: 'frontend/test-reports/**'
+            }
+            cleanup {
+              cleanWs deleteDirs: true, notFailBuild: true
+            }
+          }
+        }
+        stage('End-to-end: typescript frontend') {
+          agent { docker { image 'mcr.microsoft.com/playwright:v1.56.1-noble' } }
+          options { timeout(time: 45, unit: 'MINUTES') }
+          steps {
+            dir('frontend') {
+              sh '''
+                set -eu
+                mkdir -p test-reports
+                npm ci
+                npm install --no-save --no-audit --no-fund "@vitest/coverage-v8@$(node -p "require('vitest/package.json').version")"
+                npx playwright install chromium
+                PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-reports/e2e.xml npx playwright test --reporter=junit,list
+              '''
+            }
+          }
+          post {
+            always {
+              junit allowEmptyResults: true, testResults: 'frontend/test-reports/*.xml'
               archiveArtifacts allowEmptyArchive: true, artifacts: 'frontend/test-reports/**'
             }
             cleanup {

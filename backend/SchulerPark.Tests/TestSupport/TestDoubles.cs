@@ -1,9 +1,13 @@
 namespace SchulerPark.Tests.TestSupport;
 
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Settings;
@@ -212,6 +216,62 @@ public static class TestData
     }
 }
 
+/// <summary>Records every admin fan-out call (lottery failures, watchdog, pending users, feedback); sends nothing.</summary>
+public sealed class RecordingAdminNotifier : Core.Interfaces.IAdminNotifier
+{
+    public ConcurrentQueue<Guid> PendingUsers { get; } = new();
+    public ConcurrentQueue<(Core.Models.LotteryRunSummary Summary, int Attempt)> LotteryFailures { get; } = new();
+    public ConcurrentQueue<(DateOnly Date, IReadOnlyList<string> Healed, int Swept)> WatchdogInterventions { get; } = new();
+    public ConcurrentQueue<Core.Models.FeedbackReport> Feedback { get; } = new();
+
+    public Task PendingUserAsync(User pendingUser) { PendingUsers.Enqueue(pendingUser.Id); return Task.CompletedTask; }
+    public Task LotteryFailedAsync(Core.Models.LotteryRunSummary summary, int attempt) { LotteryFailures.Enqueue((summary, attempt)); return Task.CompletedTask; }
+    public Task LotteryWatchdogInterventionAsync(DateOnly targetDate, IReadOnlyList<string> healedSlots, int sweptPending)
+    { WatchdogInterventions.Enqueue((targetDate, healedSlots, sweptPending)); return Task.CompletedTask; }
+    public Task FeedbackReceivedAsync(Core.Models.FeedbackReport report) { Feedback.Enqueue(report); return Task.CompletedTask; }
+}
+
+/// <summary>
+/// Token service without JWT signing: access tokens are "access:{userId}", refresh tokens
+/// "refresh:{n}" kept in memory until revoked. Lets auth-flow tests assert issuance and revocation.
+/// </summary>
+public sealed class FakeTokenService : Core.Interfaces.ITokenService
+{
+    private readonly ConcurrentDictionary<string, User> _refresh = new();
+    private int _counter;
+
+    public ConcurrentQueue<string> Revoked { get; } = new();
+
+    public string GenerateAccessToken(User user) => $"access:{user.Id}";
+
+    public Task<string> GenerateRefreshTokenAsync(User user, string? ipAddress)
+    {
+        var token = $"refresh:{Interlocked.Increment(ref _counter)}";
+        _refresh[token] = user;
+        return Task.FromResult(token);
+    }
+
+    public Task<User?> ValidateRefreshTokenAsync(string token) =>
+        Task.FromResult(_refresh.TryGetValue(token, out var user) ? user : null);
+
+    public Task RevokeRefreshTokenAsync(string token)
+    {
+        _refresh.TryRemove(token, out _);
+        Revoked.Enqueue(token);
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeAllUserTokensAsync(Guid userId)
+    {
+        foreach (var kv in _refresh.Where(kv => kv.Value.Id == userId).ToList())
+        {
+            _refresh.TryRemove(kv.Key, out _);
+            Revoked.Enqueue(kv.Key);
+        }
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>
 /// Seed data for Postgres integration tests (tables and columns as in the EF
 /// migrations; enums stored as strings). Fixed ids, idempotent: run it with
@@ -245,4 +305,199 @@ public static class SeedSql
                 TRUE, 0, 'User', 'Pending', 'de', '2026-03-01T08:00:00Z', '2026-03-01T08:00:00Z')
         ON CONFLICT DO NOTHING;
         """;
+
+    public static readonly Guid SlotId1 = Guid.Parse("c0000000-0000-0000-0000-000000000001");
+    public static readonly Guid PendingBookingId = Guid.Parse("d0000000-0000-0000-0000-000000000001");
+    public static readonly Guid WonBookingId = Guid.Parse("d0000000-0000-0000-0000-000000000002");
+    public static readonly Guid BlockedDayId = Guid.Parse("e0000000-0000-0000-0000-000000000001");
+
+    /// <summary>
+    /// Builds on <see cref="Basic"/>: a Pending morning booking for the seed user on
+    /// 2026-03-03, a Won afternoon booking on slot S-1 with a 07:00 UTC confirmation
+    /// deadline, and a whole-location blocked day on 2026-03-04.
+    /// </summary>
+    public const string BookingsAndBlockedDay = """
+        INSERT INTO "Bookings" ("Id", "UserId", "LocationId", "ParkingSlotId", "Date", "TimeSlot", "Status",
+                                "CreatedAt", "ConfirmationDeadline")
+        VALUES ('d0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002',
+                'a0000000-0000-0000-0000-000000000001', NULL, '2026-03-03', 'Morning', 'Pending',
+                '2026-03-02T08:00:00Z', NULL),
+               ('d0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000002',
+                'a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', '2026-03-03', 'Afternoon', 'Won',
+                '2026-03-02T08:00:00Z', '2026-03-03T07:00:00Z')
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO "BlockedDays" ("Id", "LocationId", "ParkingSlotId", "Date", "Reason", "BlockedByUserId", "CreatedAt")
+        VALUES ('e0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', NULL, '2026-03-04',
+                'Maintenance', 'b0000000-0000-0000-0000-000000000001', '2026-03-02T08:00:00Z')
+        ON CONFLICT DO NOTHING;
+        """;
+}
+
+/// <summary>
+/// Minimal in-process SMTP server on a loopback port (no TLS, no AUTH, nothing beyond
+/// 127.0.0.1). It answers EHLO/MAIL/RCPT/DATA/QUIT, parses each delivered message with
+/// MimeKit and keeps it in <see cref="Messages"/>, so tests can assert on the subject and
+/// HTML body EmailService really hands to MailKit. <see cref="RejectRecipients"/> makes
+/// RCPT TO fail with 550, which drives EmailService's send-failure path.
+/// </summary>
+public sealed class LoopbackSmtpServer : IAsyncDisposable
+{
+    private readonly TcpListener _listener;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Task _acceptLoop;
+    private readonly ConcurrentBag<Task> _sessions = new();
+
+    public LoopbackSmtpServer()
+    {
+        _listener = new TcpListener(IPAddress.Loopback, 0);
+        _listener.Start();
+        _acceptLoop = AcceptLoopAsync();
+    }
+
+    public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
+
+    /// <summary>Every message that completed DATA, in delivery order.</summary>
+    public ConcurrentQueue<MimeMessage> Messages { get; } = new();
+
+    /// <summary>Envelope (MAIL FROM / RCPT TO) of each delivered message, in delivery order.</summary>
+    public ConcurrentQueue<(string From, IReadOnlyList<string> To)> Envelopes { get; } = new();
+
+    /// <summary>When true every RCPT TO is answered with 550, so MailKit fails before DATA.</summary>
+    public bool RejectRecipients { get; set; }
+
+    /// <summary>SMTP settings pointing EmailService at this server (no username, so no AUTH).</summary>
+    public IOptions<SmtpSettings> Settings(Action<SmtpSettings>? configure = null)
+    {
+        var s = new SmtpSettings
+        {
+            Host = "127.0.0.1",
+            Port = Port,
+            FromAddress = "noreply@louise.test",
+            FromName = "LouisE"
+        };
+        configure?.Invoke(s);
+        return Options.Create(s);
+    }
+
+    /// <summary>The one delivered message; throws when there is none or more than one.</summary>
+    public MimeMessage Single()
+    {
+        if (Messages.Count != 1)
+            throw new InvalidOperationException($"expected exactly one delivered message, got {Messages.Count}");
+        Messages.TryPeek(out var message);
+        return message!;
+    }
+
+    private async Task AcceptLoopAsync()
+    {
+        try
+        {
+            while (!_cts.IsCancellationRequested)
+            {
+                var client = await _listener.AcceptTcpClientAsync(_cts.Token);
+                _sessions.Add(HandleSessionAsync(client));
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch (SocketException) { }
+    }
+
+    private async Task HandleSessionAsync(TcpClient client)
+    {
+        using (client)
+        {
+            try
+            {
+                var stream = client.GetStream();
+                // Latin1 is byte-transparent, so the raw message bytes can be rebuilt for MimeKit.
+                using var reader = new StreamReader(stream, Encoding.Latin1, false, 4096, leaveOpen: true);
+                using var writer = new StreamWriter(stream, Encoding.Latin1, 4096, leaveOpen: true) { AutoFlush = true, NewLine = "\r\n" };
+
+                await writer.WriteLineAsync("220 loopback ESMTP ready");
+                string? from = null;
+                var to = new List<string>();
+
+                while (!_cts.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(_cts.Token);
+                    if (line is null) return;
+                    var verb = (line.Length >= 4 ? line[..4] : line).ToUpperInvariant();
+
+                    switch (verb)
+                    {
+                        case "EHLO":
+                            await writer.WriteLineAsync("250-loopback");
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "HELO":
+                            await writer.WriteLineAsync("250 loopback");
+                            break;
+                        case "MAIL":
+                            from = Address(line);
+                            to.Clear();
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "RCPT":
+                            if (RejectRecipients)
+                            {
+                                await writer.WriteLineAsync("550 5.1.1 No such user here");
+                            }
+                            else
+                            {
+                                to.Add(Address(line));
+                                await writer.WriteLineAsync("250 OK");
+                            }
+                            break;
+                        case "DATA":
+                            await writer.WriteLineAsync("354 End data with <CR><LF>.<CR><LF>");
+                            var raw = new StringBuilder();
+                            while (true)
+                            {
+                                var dataLine = await reader.ReadLineAsync(_cts.Token);
+                                if (dataLine is null) return;
+                                if (dataLine == ".") break;
+                                // undo SMTP dot-stuffing
+                                raw.Append(dataLine.StartsWith('.') ? dataLine[1..] : dataLine).Append("\r\n");
+                            }
+                            using (var ms = new MemoryStream(Encoding.Latin1.GetBytes(raw.ToString())))
+                                Messages.Enqueue(await MimeMessage.LoadAsync(ms, _cts.Token));
+                            Envelopes.Enqueue((from ?? "", to.ToList()));
+                            await writer.WriteLineAsync("250 OK queued");
+                            break;
+                        case "RSET":
+                        case "NOOP":
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "QUIT":
+                            await writer.WriteLineAsync("221 Bye");
+                            return;
+                        default:
+                            await writer.WriteLineAsync("500 Unrecognised command");
+                            break;
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            catch (ObjectDisposedException) { }
+        }
+    }
+
+    private static string Address(string line)
+    {
+        var open = line.IndexOf('<');
+        var close = line.LastIndexOf('>');
+        return open >= 0 && close > open ? line[(open + 1)..close] : line[(line.IndexOf(':') + 1)..].Trim();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _listener.Stop();
+        try { await _acceptLoop; } catch { /* shutting down */ }
+        try { await Task.WhenAll(_sessions); } catch { /* shutting down */ }
+        _cts.Dispose();
+    }
 }
