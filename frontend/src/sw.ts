@@ -7,10 +7,15 @@ import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
 
-// registerType 'autoUpdate' (vite.config.ts) relies on the new worker taking over
-// as soon as it is installed. In injectManifest mode that is our job, not the
-// plugin's — without these two calls a new release waits until every tab closes.
-self.skipWaiting();
+// registerType 'prompt' (vite.config.ts): a freshly installed release stays in
+// the waiting state until the user accepts the "new version" toast (UpdateToast),
+// which makes workbox-window post SKIP_WAITING. Activating eagerly instead would
+// swap the precached app shell underneath open tabs mid-booking. Once activated,
+// clientsClaim() lets the new worker control the open tabs immediately so the
+// plugin's "controlling" listener can reload them.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 clientsClaim();
 
 // Precache static assets (injected by vite-plugin-pwa) and drop caches left by

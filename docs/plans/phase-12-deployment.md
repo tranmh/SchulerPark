@@ -83,7 +83,7 @@ Two changes:
 ### 5b. `frontend/vite.config.ts` (modify)
 
 Add `VitePWA` plugin with:
-- `registerType: 'autoUpdate'` — auto-update service worker (no prompt, appropriate for internal tool)
+- `registerType: 'autoUpdate'` — auto-update service worker (no prompt, appropriate for internal tool). *Superseded 2026-11-04:* switched to `'prompt'` with an in-app "new version" toast (`UpdateToast` + `usePwaUpdate`), so open tabs are never reloaded mid-booking.
 - Manifest: name "LouisE", `theme_color: '#111827'` (matches sidebar), `display: 'standalone'`
 - Workbox: precache static assets; runtime cache `/api/locations` with NetworkFirst (1h); all other `/api/` routes NetworkOnly (booking data must never be stale)
 

@@ -1,4 +1,9 @@
 {
+  "update": {
+    "available": "Eine neue Version von LouisE ist verfügbar.",
+    "reload": "Jetzt neu laden",
+    "dismiss": "Später"
+  },
   "offline": {
     "banner": "Sie sind offline. Buchungen und Aktualisierungen sind erst wieder mit Verbindung möglich."
   },

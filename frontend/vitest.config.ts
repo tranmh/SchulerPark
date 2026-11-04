@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // vite-plugin-pwa is not loaded here, so its virtual register module needs a stub.
+    alias: { 'virtual:pwa-register/react': new URL('./src/test/pwaRegisterStub.ts', import.meta.url).pathname },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

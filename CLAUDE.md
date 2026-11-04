@@ -11,7 +11,7 @@ Multi-location parking slot booking system with fair lottery assignment for Schu
 - **Email:** MailKit via SMTP (MailHog for dev)
 - **Deploy:** Docker Compose (dev: app + PostgreSQL + MailHog; prod: Caddy + app + PostgreSQL + db-backup)
 - **Reverse Proxy:** Caddy 2 (stock `caddy:2-alpine`), currently `tls internal` (self-signed CA) on `louise.schuler.de` (canonical; `park.schuler.de` aliased) — Let's Encrypt DNS-01 migration is planned, see `docs/plans/phase-15-letsencrypt-dns01.md`. HTTP→HTTPS 308 redirect enforced (no plaintext site block). Security headers incl. CSP; HSTS deliberately off until a trusted cert is live.
-- **PWA:** vite-plugin-pwa, injectManifest (`frontend/src/sw.ts`): precached app shell with offline navigation fallback (API routes never cached), Web Push handlers, installable. Icons are generated — run `python3 scripts/generate-icons.py`, don't hand-edit the PNGs.
+- **PWA:** vite-plugin-pwa, injectManifest (`frontend/src/sw.ts`): precached app shell with offline navigation fallback (API routes never cached), Web Push handlers, installable. Updates use `registerType: 'prompt'`: a new release installs in the background and `UpdateToast` (via `hooks/usePwaUpdate.ts`, which also re-checks hourly and on tab focus) offers a reload; the worker only calls `skipWaiting()` on the SKIP_WAITING message. Icons are generated — run `python3 scripts/generate-icons.py`, don't hand-edit the PNGs.
 
 ## Repo Structure
 ```

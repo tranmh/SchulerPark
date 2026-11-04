@@ -11,7 +11,11 @@ export default defineConfig(({ mode }) => ({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      // A new release waits until the user accepts the UpdateToast; the hook in
+      // src/hooks/usePwaUpdate.ts registers the worker via virtual:pwa-register/react,
+      // so the plugin must not inject its own bare registerSW.js as well.
+      registerType: 'prompt',
+      injectRegister: false,
       // Icons are generated from scripts/generate-icons.py — edit the script, not the PNGs.
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png', 'badge-96x96.png'],
       manifest: {

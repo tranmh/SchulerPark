@@ -1,4 +1,9 @@
 {
+  "update": {
+    "available": "A new version of LouisE is available.",
+    "reload": "Reload now",
+    "dismiss": "Later"
+  },
   "offline": {
     "banner": "You are offline. Bookings and updates will fail until the connection is back."
   },

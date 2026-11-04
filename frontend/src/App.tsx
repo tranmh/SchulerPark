@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
 import { OfflineBanner } from './components/OfflineBanner'
+import { UpdateToast } from './components/UpdateToast'
 import { LoginPage } from './pages/Login/LoginPage'
 import { RegisterPage } from './pages/Login/RegisterPage'
 import { VerifyEmailPage } from './pages/Login/VerifyEmailPage'
@@ -25,6 +26,7 @@ function App() {
   return (
     <>
     <OfflineBanner />
+    <UpdateToast />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
