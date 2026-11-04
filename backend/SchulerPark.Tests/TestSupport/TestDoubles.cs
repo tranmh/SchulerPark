@@ -212,6 +212,62 @@ public static class TestData
     }
 }
 
+/// <summary>Records every admin fan-out call (lottery failures, watchdog, pending users, feedback); sends nothing.</summary>
+public sealed class RecordingAdminNotifier : Core.Interfaces.IAdminNotifier
+{
+    public ConcurrentQueue<Guid> PendingUsers { get; } = new();
+    public ConcurrentQueue<(Core.Models.LotteryRunSummary Summary, int Attempt)> LotteryFailures { get; } = new();
+    public ConcurrentQueue<(DateOnly Date, IReadOnlyList<string> Healed, int Swept)> WatchdogInterventions { get; } = new();
+    public ConcurrentQueue<Core.Models.FeedbackReport> Feedback { get; } = new();
+
+    public Task PendingUserAsync(User pendingUser) { PendingUsers.Enqueue(pendingUser.Id); return Task.CompletedTask; }
+    public Task LotteryFailedAsync(Core.Models.LotteryRunSummary summary, int attempt) { LotteryFailures.Enqueue((summary, attempt)); return Task.CompletedTask; }
+    public Task LotteryWatchdogInterventionAsync(DateOnly targetDate, IReadOnlyList<string> healedSlots, int sweptPending)
+    { WatchdogInterventions.Enqueue((targetDate, healedSlots, sweptPending)); return Task.CompletedTask; }
+    public Task FeedbackReceivedAsync(Core.Models.FeedbackReport report) { Feedback.Enqueue(report); return Task.CompletedTask; }
+}
+
+/// <summary>
+/// Token service without JWT signing: access tokens are "access:{userId}", refresh tokens
+/// "refresh:{n}" kept in memory until revoked. Lets auth-flow tests assert issuance and revocation.
+/// </summary>
+public sealed class FakeTokenService : Core.Interfaces.ITokenService
+{
+    private readonly ConcurrentDictionary<string, User> _refresh = new();
+    private int _counter;
+
+    public ConcurrentQueue<string> Revoked { get; } = new();
+
+    public string GenerateAccessToken(User user) => $"access:{user.Id}";
+
+    public Task<string> GenerateRefreshTokenAsync(User user, string? ipAddress)
+    {
+        var token = $"refresh:{Interlocked.Increment(ref _counter)}";
+        _refresh[token] = user;
+        return Task.FromResult(token);
+    }
+
+    public Task<User?> ValidateRefreshTokenAsync(string token) =>
+        Task.FromResult(_refresh.TryGetValue(token, out var user) ? user : null);
+
+    public Task RevokeRefreshTokenAsync(string token)
+    {
+        _refresh.TryRemove(token, out _);
+        Revoked.Enqueue(token);
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeAllUserTokensAsync(Guid userId)
+    {
+        foreach (var kv in _refresh.Where(kv => kv.Value.Id == userId).ToList())
+        {
+            _refresh.TryRemove(kv.Key, out _);
+            Revoked.Enqueue(kv.Key);
+        }
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>
 /// Seed data for Postgres integration tests (tables and columns as in the EF
 /// migrations; enums stored as strings). Fixed ids, idempotent: run it with
@@ -243,6 +299,33 @@ public static class SeedSql
                 TRUE, 0, 'User', 'Approved', 'en', '2026-03-01T08:00:00Z', '2026-03-01T08:00:00Z'),
                ('b0000000-0000-0000-0000-000000000003', 'seed-pending@external.de', 'Pia Pending', 'Pia', 'Pending', 'External GmbH',
                 TRUE, 0, 'User', 'Pending', 'de', '2026-03-01T08:00:00Z', '2026-03-01T08:00:00Z')
+        ON CONFLICT DO NOTHING;
+        """;
+
+    public static readonly Guid SlotId1 = Guid.Parse("c0000000-0000-0000-0000-000000000001");
+    public static readonly Guid PendingBookingId = Guid.Parse("d0000000-0000-0000-0000-000000000001");
+    public static readonly Guid WonBookingId = Guid.Parse("d0000000-0000-0000-0000-000000000002");
+    public static readonly Guid BlockedDayId = Guid.Parse("e0000000-0000-0000-0000-000000000001");
+
+    /// <summary>
+    /// Builds on <see cref="Basic"/>: a Pending morning booking for the seed user on
+    /// 2026-03-03, a Won afternoon booking on slot S-1 with a 07:00 UTC confirmation
+    /// deadline, and a whole-location blocked day on 2026-03-04.
+    /// </summary>
+    public const string BookingsAndBlockedDay = """
+        INSERT INTO "Bookings" ("Id", "UserId", "LocationId", "ParkingSlotId", "Date", "TimeSlot", "Status",
+                                "CreatedAt", "ConfirmationDeadline")
+        VALUES ('d0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002',
+                'a0000000-0000-0000-0000-000000000001', NULL, '2026-03-03', 'Morning', 'Pending',
+                '2026-03-02T08:00:00Z', NULL),
+               ('d0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000002',
+                'a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', '2026-03-03', 'Afternoon', 'Won',
+                '2026-03-02T08:00:00Z', '2026-03-03T07:00:00Z')
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO "BlockedDays" ("Id", "LocationId", "ParkingSlotId", "Date", "Reason", "BlockedByUserId", "CreatedAt")
+        VALUES ('e0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', NULL, '2026-03-04',
+                'Maintenance', 'b0000000-0000-0000-0000-000000000001', '2026-03-02T08:00:00Z')
         ON CONFLICT DO NOTHING;
         """;
 }
