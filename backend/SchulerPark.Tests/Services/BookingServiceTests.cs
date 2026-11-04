@@ -608,3 +608,119 @@ public class BookingServiceTests
         await ExpectValidation(() => NewService().ConfirmBookingAsync(booking.Id, user.Id), "booking_not_confirmable");
     }
 }
+
+/// <summary>Lifecycle stand-in: records every capacity-removal call and reports no impact.</summary>
+public sealed class RecordingLifecycleService : IBookingLifecycleService
+{
+    public List<(Guid LocationId, Guid? SlotId, BookingReleaseReason Reason, string? AdminReason)> CapacityCalls { get; } = [];
+
+    public Task<Core.Models.CapacityChangeResult> ReleaseUserBookingsAsync(Guid userId, BookingReleaseReason reason)
+        => Task.FromResult(Core.Models.CapacityChangeResult.Empty);
+
+    public Task<Core.Models.CapacityChangeResult> HandleCapacityRemovedAsync(Guid locationId, DateOnly from, DateOnly? to,
+        Guid? parkingSlotId, BookingReleaseReason reason, Guid actedByUserId, string? adminReason)
+    {
+        CapacityCalls.Add((locationId, parkingSlotId, reason, adminReason));
+        return Task.FromResult(Core.Models.CapacityChangeResult.Empty);
+    }
+}
+
+/// <summary>
+/// Security review S3: the admin update endpoints and blocked-day creation must apply the
+/// same blank/length rules as the create endpoints (Location.Name ≤ 100, SlotNumber ≤ 20,
+/// BlockedDay.Reason ≤ 500 per the EF configuration) and answer 400 (ValidationException):
+/// never store a blank name, never let an oversized value reach the column limit (500).
+/// </summary>
+public class AdminControllerValidationTests
+{
+    private readonly AppDbContext _db = TestDb.InMemory();
+    private readonly RecordingLifecycleService _lifecycle = new();
+    private readonly FixedTimeProvider _time = new();
+
+    private Api.Controllers.AdminController NewController()
+    {
+        var admin = TestData.Admin();
+        _db.Users.Add(admin);
+        _db.SaveChanges();
+
+        return new Api.Controllers.AdminController(_db, _lifecycle, _time)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                        [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, admin.Id.ToString())], "Test"))
+                }
+            }
+        };
+    }
+
+    [Fact]
+    public async Task UpdateLocation_RejectsBlankName()
+    {
+        var (_, location, _) = TestData.SeedSite(_db);
+        var original = location.Name;
+        var controller = NewController();
+
+        var act = () => controller.UpdateLocation(location.Id, new Api.DTOs.Admin.UpdateLocationRequest("   ", true));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await _db.Locations.FindAsync(location.Id))!.Name.Should().Be(original);
+    }
+
+    [Fact]
+    public async Task UpdateLocation_RejectsNameOver100Characters()
+    {
+        var (_, location, _) = TestData.SeedSite(_db);
+        var original = location.Name;
+        var controller = NewController();
+
+        var act = () => controller.UpdateLocation(location.Id, new Api.DTOs.Admin.UpdateLocationRequest(new string('x', 101), true));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await _db.Locations.FindAsync(location.Id))!.Name.Should().Be(original);
+    }
+
+    [Fact]
+    public async Task UpdateSlot_RejectsBlankSlotNumber()
+    {
+        var (_, _, slots) = TestData.SeedSite(_db);
+        var slot = slots[0];
+        var original = slot.SlotNumber;
+        var controller = NewController();
+
+        var act = () => controller.UpdateSlot(slot.Id, new Api.DTOs.Admin.UpdateSlotRequest("   ", null, true));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await _db.ParkingSlots.FindAsync(slot.Id))!.SlotNumber.Should().Be(original);
+    }
+
+    [Fact]
+    public async Task UpdateSlot_RejectsSlotNumberOver20Characters()
+    {
+        var (_, _, slots) = TestData.SeedSite(_db);
+        var slot = slots[0];
+        var original = slot.SlotNumber;
+        var controller = NewController();
+
+        var act = () => controller.UpdateSlot(slot.Id, new Api.DTOs.Admin.UpdateSlotRequest(new string('9', 21), null, true));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await _db.ParkingSlots.FindAsync(slot.Id))!.SlotNumber.Should().Be(original);
+    }
+
+    [Fact]
+    public async Task CreateBlockedDay_RejectsReasonOver500Characters()
+    {
+        var (_, location, _) = TestData.SeedSite(_db);
+        var controller = NewController();
+        var request = new Api.DTOs.Admin.CreateBlockedDayRequest(location.Id, null, _time.Today.AddDays(1), new string('r', 501));
+
+        var act = () => controller.CreateBlockedDay(request);
+
+        await act.Should().ThrowAsync<ValidationException>();
+        _db.BlockedDays.Should().BeEmpty();
+        _lifecycle.CapacityCalls.Should().BeEmpty();
+    }
+}
