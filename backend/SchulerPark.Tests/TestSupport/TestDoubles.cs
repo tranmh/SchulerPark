@@ -1,9 +1,13 @@
 namespace SchulerPark.Tests.TestSupport;
 
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 using SchulerPark.Core.Entities;
 using SchulerPark.Core.Enums;
 using SchulerPark.Core.Settings;
@@ -328,4 +332,172 @@ public static class SeedSql
                 'Maintenance', 'b0000000-0000-0000-0000-000000000001', '2026-03-02T08:00:00Z')
         ON CONFLICT DO NOTHING;
         """;
+}
+
+/// <summary>
+/// Minimal in-process SMTP server on a loopback port (no TLS, no AUTH, nothing beyond
+/// 127.0.0.1). It answers EHLO/MAIL/RCPT/DATA/QUIT, parses each delivered message with
+/// MimeKit and keeps it in <see cref="Messages"/>, so tests can assert on the subject and
+/// HTML body EmailService really hands to MailKit. <see cref="RejectRecipients"/> makes
+/// RCPT TO fail with 550, which drives EmailService's send-failure path.
+/// </summary>
+public sealed class LoopbackSmtpServer : IAsyncDisposable
+{
+    private readonly TcpListener _listener;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Task _acceptLoop;
+    private readonly ConcurrentBag<Task> _sessions = new();
+
+    public LoopbackSmtpServer()
+    {
+        _listener = new TcpListener(IPAddress.Loopback, 0);
+        _listener.Start();
+        _acceptLoop = AcceptLoopAsync();
+    }
+
+    public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
+
+    /// <summary>Every message that completed DATA, in delivery order.</summary>
+    public ConcurrentQueue<MimeMessage> Messages { get; } = new();
+
+    /// <summary>Envelope (MAIL FROM / RCPT TO) of each delivered message, in delivery order.</summary>
+    public ConcurrentQueue<(string From, IReadOnlyList<string> To)> Envelopes { get; } = new();
+
+    /// <summary>When true every RCPT TO is answered with 550, so MailKit fails before DATA.</summary>
+    public bool RejectRecipients { get; set; }
+
+    /// <summary>SMTP settings pointing EmailService at this server (no username, so no AUTH).</summary>
+    public IOptions<SmtpSettings> Settings(Action<SmtpSettings>? configure = null)
+    {
+        var s = new SmtpSettings
+        {
+            Host = "127.0.0.1",
+            Port = Port,
+            FromAddress = "noreply@louise.test",
+            FromName = "LouisE"
+        };
+        configure?.Invoke(s);
+        return Options.Create(s);
+    }
+
+    /// <summary>The one delivered message; throws when there is none or more than one.</summary>
+    public MimeMessage Single()
+    {
+        if (Messages.Count != 1)
+            throw new InvalidOperationException($"expected exactly one delivered message, got {Messages.Count}");
+        Messages.TryPeek(out var message);
+        return message!;
+    }
+
+    private async Task AcceptLoopAsync()
+    {
+        try
+        {
+            while (!_cts.IsCancellationRequested)
+            {
+                var client = await _listener.AcceptTcpClientAsync(_cts.Token);
+                _sessions.Add(HandleSessionAsync(client));
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch (SocketException) { }
+    }
+
+    private async Task HandleSessionAsync(TcpClient client)
+    {
+        using (client)
+        {
+            try
+            {
+                var stream = client.GetStream();
+                // Latin1 is byte-transparent, so the raw message bytes can be rebuilt for MimeKit.
+                using var reader = new StreamReader(stream, Encoding.Latin1, false, 4096, leaveOpen: true);
+                using var writer = new StreamWriter(stream, Encoding.Latin1, 4096, leaveOpen: true) { AutoFlush = true, NewLine = "\r\n" };
+
+                await writer.WriteLineAsync("220 loopback ESMTP ready");
+                string? from = null;
+                var to = new List<string>();
+
+                while (!_cts.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(_cts.Token);
+                    if (line is null) return;
+                    var verb = (line.Length >= 4 ? line[..4] : line).ToUpperInvariant();
+
+                    switch (verb)
+                    {
+                        case "EHLO":
+                            await writer.WriteLineAsync("250-loopback");
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "HELO":
+                            await writer.WriteLineAsync("250 loopback");
+                            break;
+                        case "MAIL":
+                            from = Address(line);
+                            to.Clear();
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "RCPT":
+                            if (RejectRecipients)
+                            {
+                                await writer.WriteLineAsync("550 5.1.1 No such user here");
+                            }
+                            else
+                            {
+                                to.Add(Address(line));
+                                await writer.WriteLineAsync("250 OK");
+                            }
+                            break;
+                        case "DATA":
+                            await writer.WriteLineAsync("354 End data with <CR><LF>.<CR><LF>");
+                            var raw = new StringBuilder();
+                            while (true)
+                            {
+                                var dataLine = await reader.ReadLineAsync(_cts.Token);
+                                if (dataLine is null) return;
+                                if (dataLine == ".") break;
+                                // undo SMTP dot-stuffing
+                                raw.Append(dataLine.StartsWith('.') ? dataLine[1..] : dataLine).Append("\r\n");
+                            }
+                            using (var ms = new MemoryStream(Encoding.Latin1.GetBytes(raw.ToString())))
+                                Messages.Enqueue(await MimeMessage.LoadAsync(ms, _cts.Token));
+                            Envelopes.Enqueue((from ?? "", to.ToList()));
+                            await writer.WriteLineAsync("250 OK queued");
+                            break;
+                        case "RSET":
+                        case "NOOP":
+                            await writer.WriteLineAsync("250 OK");
+                            break;
+                        case "QUIT":
+                            await writer.WriteLineAsync("221 Bye");
+                            return;
+                        default:
+                            await writer.WriteLineAsync("500 Unrecognised command");
+                            break;
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            catch (ObjectDisposedException) { }
+        }
+    }
+
+    private static string Address(string line)
+    {
+        var open = line.IndexOf('<');
+        var close = line.LastIndexOf('>');
+        return open >= 0 && close > open ? line[(open + 1)..close] : line[(line.IndexOf(':') + 1)..].Trim();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        _listener.Stop();
+        try { await _acceptLoop; } catch { /* shutting down */ }
+        try { await Task.WhenAll(_sessions); } catch { /* shutting down */ }
+        _cts.Dispose();
+    }
 }
