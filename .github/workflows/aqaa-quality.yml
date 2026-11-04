@@ -65,8 +65,8 @@ jobs:
         run: |-
           export PATH="$PATH:$HOME/.dotnet/tools" DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 RUNNER_TEMP_DIR="${RUNNER_TEMP:-${WORKSPACE_TMP:-/tmp}}"
           if grep -rqsi --include='*.csproj' --include='*.props' --include='*.targets' coverlet.collector .; then c="XPlat Code Coverage"; else c="Code Coverage;Format=cobertura"; fi; dotnet test --no-restore --filter "Category!=Integration&Category!=E2E" --logger "trx;LogFilePrefix=unit" --results-directory test-reports --collect "$c" && trx2junit test-reports/*.trx
-      - name: Coverage floor (19%)
-        run: python3 "$GITHUB_WORKSPACE/ci/coverage_gate.py" cobertura 'test-reports/**/*.cobertura.xml' 19
+      - name: Coverage floor (22%)
+        run: python3 "$GITHUB_WORKSPACE/ci/coverage_gate.py" cobertura 'test-reports/**/*.cobertura.xml' 22
       - if: always()
         name: Upload test reports
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -337,13 +337,46 @@ jobs:
           npm install --no-save --no-audit --no-fund "@vitest/coverage-v8@$(node -p "require('vitest/package.json').version")"
       - name: Unit tests
         run: npx vitest run --coverage --coverage.reporter=cobertura --coverage.reportsDirectory=test-reports/coverage --reporter=default --reporter=junit --outputFile.junit=test-reports/unit.xml --exclude '**/*.integration.test.*' --exclude 'e2e/**'
-      - name: Coverage floor (66%)
-        run: python3 "$GITHUB_WORKSPACE/ci/coverage_gate.py" cobertura 'test-reports/coverage/cobertura-coverage.xml' 66
+      - name: Coverage floor (79%)
+        run: python3 "$GITHUB_WORKSPACE/ci/coverage_gate.py" cobertura 'test-reports/coverage/cobertura-coverage.xml' 79
       - if: always()
         name: Upload test reports
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unit-typescript-frontend
+          path: frontend/test-reports
+          if-no-files-found: ignore
+          retention-days: 14
+  e2e-typescript-frontend:
+    name: End-to-end tests (typescript frontend)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: |- # zizmor: ignore[adhoc-packages] test tooling, pinned to exact versions
+          mkdir -p test-reports
+          npm ci
+          npm install --no-save --no-audit --no-fund "@vitest/coverage-v8@$(node -p "require('vitest/package.json').version")"
+          npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: PLAYWRIGHT_JUNIT_OUTPUT_NAME=test-reports/e2e.xml npx playwright test --reporter=junit,list
+      - if: always()
+        name: Upload test reports
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-typescript-frontend
           path: frontend/test-reports
           if-no-files-found: ignore
           retention-days: 14
