@@ -3,6 +3,8 @@
 # lock file point into $BATS_TEST_TMPDIR (test_helper.bash); docker, git, curl
 # and the clock are fakes, so nothing touches a real Docker daemon or host.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   load test_helper
   common_setup
@@ -661,4 +663,391 @@ ROLLBACK_IMAGES=$'2026-11-03 08:00:00 +0000 UTC\tschulerpark-app:rollback-202611
   assert_file_not_contains "$DEPLOY_STATE" 'ROLLBACK_TAG'
   refute_called docker 'compose *'
   assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+# ─── Flags: combinations and edge cases ──────────────────────────────────────
+
+@test "-h is --help: usage goes to stderr only, nothing on stdout" {
+  run --separate-stderr "$DEPLOY_SCRIPT" -h
+  assert_success
+  assert_output ""
+  [[ "$stderr" == *"Usage:"* ]] || fail "usage missing on stderr: $stderr"
+  [[ "$stderr" == *"$DEPLOY_STATE"* ]] || fail "state file path missing from usage: $stderr"
+  assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+@test "an unknown flag after a valid one still exits 1 before taking the lock" {
+  run "$DEPLOY_SCRIPT" --yes --bogus
+  assert_failure 1
+  assert_output --partial 'Unknown arg: --bogus'
+  assert_file_not_exists "$DEPLOY_LOCK"
+  refute_called docker '*'
+}
+
+@test "an empty argument is rejected" {
+  run "$DEPLOY_SCRIPT" ""
+  assert_failure 1
+  assert_output --partial 'Unknown arg: '
+  assert_output --partial 'Usage:'
+}
+
+@test "of --rollback and --cleanup the last one wins" {
+  # cleanup mode prompts for the prune; rollback mode would abort on the missing state file
+  run "$DEPLOY_SCRIPT" --rollback --cleanup <<< "n"
+  assert_failure
+  assert_output --partial 'Cancelled at docker system prune'
+  refute_output --partial 'No state file'
+
+  run "$DEPLOY_SCRIPT" --cleanup --rollback <<< "n"
+  assert_failure
+  assert_output --partial 'No state file'
+  refute_called docker '*prune*'
+}
+
+# ─── Pure helpers ────────────────────────────────────────────────────────────
+
+@test "log prefixes the message with the clock time" {
+  run_deploy_fn log "hello world"
+  assert_success
+  assert_output '[08:30:00] hello world'
+}
+
+@test "step prints a numbered banner" {
+  run_deploy_fn step 3 "Build image"
+  assert_success
+  assert_line --index 0 '═══════════════════════════════════════════════════════════════'
+  assert_line --index 1 '  Step 3: Build image'
+  assert_line --index 2 '═══════════════════════════════════════════════════════════════'
+}
+
+@test "compose always applies the prod overlay" {
+  run_deploy_fn compose ps --services
+  assert_success
+  assert_called docker "$COMPOSE ps --services"
+}
+
+@test "confirm with --yes answers itself and leaves stdin untouched" {
+  run_deploy_fn ASSUME_YES=1 eval 'rest=; confirm "Go?"; IFS= read -r rest || true; echo "rest=$rest"' <<< "n"
+  assert_success
+  assert_output --partial 'AUTO-YES: Go?'
+  assert_output --partial 'rest=n'
+}
+
+@test "confirm_phrase ignores --yes and treats end of input as no" {
+  run_deploy_fn ASSUME_YES=1 confirm_phrase "Rollback?" rollback < /dev/null
+  assert_failure
+  refute_output --partial 'AUTO-YES'
+}
+
+@test "record_state round-trips empty values, spaces and newlines" {
+  run_deploy_fn eval 'record_state EMPTY ""; record_state SPACED "a b  c"; record_state MULTI "$(printf "l1\nl2")"'
+  assert_success
+  run bash -c 'source "$1"; printf "[%s][%s][%s]" "$EMPTY" "$SPACED" "$MULTI"' _ "$DEPLOY_STATE"
+  assert_success
+  assert_output $'[][a b  c][l1\nl2]'
+}
+
+@test "record_state appends to the existing state" {
+  make_state_file DEPLOY_SHA=abc
+  run_deploy_fn record_state BACKUP_FILE x.sql.gz
+  assert_success
+  assert_file_contains "$DEPLOY_STATE" '^DEPLOY_SHA=abc$'
+  assert_file_contains "$DEPLOY_STATE" '^BACKUP_FILE=x.sql.gz$'
+}
+
+@test "verify_state_file accepts every owner-only mode" {
+  make_default_state_file
+  local mode
+  for mode in 400 600 700; do
+    chmod "$mode" "$DEPLOY_STATE"
+    run_deploy_fn verify_state_file
+    assert_success
+  done
+  chmod 600 "$DEPLOY_STATE"
+}
+
+@test "verify_state_file refuses a directory at the state path" {
+  mkdir -p "$DEPLOY_STATE"
+  run_deploy_fn verify_state_file
+  assert_failure
+  assert_output --partial 'missing or is a symlink'
+}
+
+@test "the lock is released when a step aborts" {
+  run_deploy_fn eval 'acquire_lock; abort "boom"'
+  assert_failure 1
+  assert_output --partial 'ABORT: boom'
+  assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+@test "wait_for_health keeps polling until the app answers" {
+  rm -f "$FAKE_DIR"/curl.*
+  fake_fallback curl 'n=$(cat "$FAKE_DIR/curl.count" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "$FAKE_DIR/curl.count"; [[ $n -ge 3 ]] && exit 0; exit 7'
+  run_deploy_fn wait_for_health
+  assert_success
+  assert_output --partial 'App is healthy'
+  assert_equal "$(fake_calls curl | wc -l)" 3
+  refute_called docker 'compose * logs *'
+}
+
+@test "wait_for_health returns 1 at the deadline and shows the app logs" {
+  rm -f "$FAKE_DIR"/curl.*
+  fake_curl 7
+  run_deploy_fn HEALTH_TIMEOUT_SECONDS=3 wait_for_health
+  assert_failure 1
+  assert_output --partial 'Healthcheck timed out after 3s'
+  assert_called docker "$COMPOSE logs --tail=120 app"
+}
+
+# ─── Step 2: resource boundaries ─────────────────────────────────────────────
+
+@test "resource check logs the free space and passes with ample disk" {
+  stub_response df '--output=avail *' 0 $'Avail\n104857600'
+  run_deploy_fn ASSUME_YES=1 step_2_resource_check
+  assert_success
+  assert_output --partial '/ free:           100.0 GB'
+  assert_output --partial '/var/lib/docker:  100.0 GB'
+  refute_output --partial 'has only'
+  refute_output --partial 'GB free (<'
+}
+
+@test "resource check falls back to / when /var/lib/docker cannot be measured" {
+  stub_response df '--output=avail /var/lib/docker' 1
+  stub_response df '--output=avail /' 0 $'Avail\n104857600'
+  run_deploy_fn ASSUME_YES=1 step_2_resource_check
+  assert_success
+  assert_output --partial '/var/lib/docker:  100.0 GB'
+}
+
+@test "resource check at exactly the abort limits only warns" {
+  stub_response df '--output=avail /var/lib/docker' 0 $'Avail\n3145728'
+  stub_response df '--output=avail /' 0 $'Avail\n2097152'
+  run_deploy_fn step_2_resource_check <<< "n"
+  assert_failure
+  refute_output --partial 'Resource hard limits violated'
+  assert_output --partial 'WARN: / has 2.0 GB free (< 5 GB recommended).'
+  assert_output --partial 'WARN: /var/lib/docker has 3.0 GB free (< 8 GB recommended).'
+  assert_output --partial 'Cancelled at resource check'
+}
+
+@test "resource check at exactly the warn limits does not warn about disk" {
+  stub_response df '--output=avail /var/lib/docker' 0 $'Avail\n8388608'
+  stub_response df '--output=avail /' 0 $'Avail\n5242880'
+  run_deploy_fn ASSUME_YES=1 step_2_resource_check
+  assert_success
+  refute_output --partial 'GB free (<'
+}
+
+@test "resource check warnings are accepted with a yes" {
+  stub_response df '--output=avail *' 0 $'Avail\n4194304'
+  run_deploy_fn step_2_resource_check <<< "y"
+  assert_success
+  assert_output --partial 'WARN: / has 4.0 GB free (< 5 GB recommended).'
+  refute_output --partial 'Cancelled'
+}
+
+# ─── Step 4: more failure modes ──────────────────────────────────────────────
+
+@test "runtime smoke points the app at the ephemeral postgres with synthetic creds only" {
+  stub_response docker 'inspect -f *' 0 'running'
+  run_deploy_fn ASSUME_YES=1 DEPLOY_SHA=abc step_4_smoke
+  assert_success
+  assert_called docker 'run -d --name sp-smoke-*-app --network sp-smoke-*-net -p 127.0.0.1:18080:8080 -e ConnectionStrings__Default=Host=sp-smoke-*-db;Port=5432;Database=preflight;Username=preflight;Password=preflight -e Jwt__Secret=* -e ASPNETCORE_ENVIRONMENT=Production schulerpark-app:latest'
+  assert_called docker 'exec sp-smoke-*-db psql -U preflight -d preflight -c SELECT 1'
+  assert_called curl '-fsS --noproxy * --max-time 5 http://127.0.0.1:18080/api/health'
+  assert_output --partial 'Proceed with deploy of abc?'
+}
+
+@test "runtime smoke aborts when the network cannot be created" {
+  stub_response docker 'network create *' 1
+  run_deploy_fn step_4_smoke
+  assert_failure
+  assert_output --partial 'Failed to create sp-smoke-'
+  refute_called docker 'run *'
+}
+
+@test "runtime smoke aborts when postgres fails to start and removes the network" {
+  stub_response docker 'run -d --name sp-smoke-*-db *' 1
+  run_deploy_fn step_4_smoke
+  assert_failure
+  assert_output --partial 'Failed to start postgres'
+  refute_called docker 'run -d --name sp-smoke-*-app*'
+  assert_called docker 'network rm sp-smoke-*-net'
+}
+
+@test "runtime smoke aborts when the app container fails to start and cleans up" {
+  stub_response docker 'run -d --name sp-smoke-*-app *' 1
+  run_deploy_fn step_4_smoke
+  assert_failure
+  assert_output --partial 'Failed to start app container'
+  assert_called docker 'rm -f sp-smoke-*-app sp-smoke-*-db'
+  assert_called docker 'network rm sp-smoke-*-net'
+}
+
+@test "runtime smoke cleans up before asking and a no stops the deploy" {
+  stub_response docker 'inspect -f *' 0 'running'
+  run_deploy_fn DEPLOY_SHA=abc step_4_smoke <<< "n"
+  assert_failure
+  assert_output --partial 'Runtime smoke OK'
+  assert_output --partial 'Cancelled at preflight summary'
+  assert_called docker 'rm -f sp-smoke-*-app sp-smoke-*-db'
+  assert_called docker 'network rm sp-smoke-*-net'
+}
+
+# ─── Steps 6/7: rollback branches ────────────────────────────────────────────
+
+@test "roll health timeout with accepted rollback retags the saved image and exits 1" {
+  rm -f "$FAKE_DIR"/curl.*
+  fake_curl 22
+  run_deploy_fn ASSUME_YES=1 HEALTH_TIMEOUT_SECONDS=4 ROLLBACK_TAG="$DEFAULT_ROLLBACK_TAG" step_6_roll <<< "y"
+  assert_failure 1
+  assert_called docker "tag $DEFAULT_ROLLBACK_TAG schulerpark-app:latest"
+  assert_equal "$(fake_calls docker | grep -c ' up -d --no-build app$')" 2
+}
+
+@test "a failing health check with accepted rollback retags and exits 1" {
+  rm -f "$FAKE_DIR"/curl.*
+  # the step-7 probe (--max-time 10) fails; the rollback's health poll (--max-time 5) succeeds
+  fake_fallback curl '[[ "$*" == *"--max-time 10"* ]] && exit 7; exit 0'
+  run_deploy_fn ROLLBACK_TAG="$DEFAULT_ROLLBACK_TAG" step_7_health_and_smoke <<< "y"
+  assert_failure 1
+  assert_output --partial 'Health check against https://localhost/api/health failed.'
+  assert_called docker "tag $DEFAULT_ROLLBACK_TAG schulerpark-app:latest"
+  assert_output --partial 'Code rollback complete'
+}
+
+@test "manual smoke accepts an upper-case continue" {
+  make_state_file
+  run_deploy_fn DEPLOY_SHA=abc step_7_health_and_smoke <<< "C"
+  assert_success
+  assert_output --partial 'Deploy successful: abc'
+  assert_file_contains "$DEPLOY_STATE" '^DEPLOY_RESULT=success$'
+}
+
+@test "manual smoke with no answer at all is treated as abort" {
+  make_state_file
+  run_deploy_fn step_7_health_and_smoke < /dev/null
+  assert_success
+  assert_output --partial 'Unrecognized choice; treating as abort'
+  assert_file_not_contains "$DEPLOY_STATE" 'DEPLOY_RESULT'
+}
+
+@test "manual smoke [r]ollback plus DB restore drops and restores the schema" {
+  make_state_file
+  stub_response docker 'compose * exec -T db psql -tA *' 0 '5'
+  run_deploy_fn ROLLBACK_TAG="$DEFAULT_ROLLBACK_TAG" BACKUP_FILE="$DEFAULT_BACKUP_FILE" \
+    step_7_health_and_smoke <<< $'r\ny\nrestore'
+  assert_success
+  assert_called docker '*DROP SCHEMA*'
+  assert_output --partial 'Code + DB rollback complete'
+  assert_file_not_contains "$DEPLOY_STATE" 'DEPLOY_RESULT'
+}
+
+# ─── Rollback functions: more branches ───────────────────────────────────────
+
+@test "DB rollback without a saved image restores and restarts without retagging" {
+  stub_response docker 'compose * exec -T db psql -tA *' 0 '7'
+  run_deploy_fn BACKUP_FILE="$DEFAULT_BACKUP_FILE" rollback_code_and_db <<< "restore"
+  assert_success
+  refute_called docker 'tag *'
+  assert_called docker "$COMPOSE up -d --no-build app"
+  assert_output --partial 'DB restore verified (7 tables present)'
+}
+
+@test "DB rollback aborts when the table count cannot be read" {
+  stub_response docker 'compose * exec -T db psql -tA *' 0
+  run_deploy_fn BACKUP_FILE="$DEFAULT_BACKUP_FILE" rollback_code_and_db <<< "restore"
+  assert_failure
+  assert_output --partial 'public schema has no tables'
+  refute_called docker 'compose * up *'
+}
+
+@test "DB rollback stops when the schema drop fails, before restoring" {
+  stub_response docker 'compose * exec -T db psql -v ON_ERROR_STOP=1 -U louise -d louise -c DROP SCHEMA*' 2
+  run_deploy_fn BACKUP_FILE="$DEFAULT_BACKUP_FILE" rollback_code_and_db <<< "restore"
+  assert_failure
+  assert_called docker "$COMPOSE stop app"
+  refute_called docker '*gunzip -c*'
+  refute_called docker 'compose * up *'
+}
+
+# ─── main: more whole-script paths ───────────────────────────────────────────
+
+@test "--yes does not bypass the rollback phrase" {
+  make_default_state_file
+  run "$DEPLOY_SCRIPT" --yes --rollback < /dev/null
+  assert_failure
+  assert_output --partial 'Cancelled rollback'
+  refute_called docker 'tag *'
+  assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+@test "--rollback with DB restore accepted drops and restores the schema" {
+  make_default_state_file
+  stub_response docker 'compose * exec -T db psql -tA *' 0 '9'
+  run "$DEPLOY_SCRIPT" --rollback <<< $'rollback\ny\nrestore'
+  assert_success
+  assert_called docker "tag $DEFAULT_ROLLBACK_TAG schulerpark-app:latest"
+  assert_called docker '*DROP SCHEMA*'
+  assert_called docker "$COMPOSE exec -T db-backup sh -c gunzip -c '/backups/$DEFAULT_BACKUP_FILE'"
+  assert_output --partial 'Code + DB rollback complete'
+  assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+@test "a deploy aborts when the repo directory is missing" {
+  rm -rf "$DEPLOY_REPO"
+  run "$DEPLOY_SCRIPT" --yes
+  assert_failure 1
+  assert_output --partial "Cannot cd to $DEPLOY_REPO"
+  assert_file_not_exists "$DEPLOY_LOCK"
+  refute_called docker '*'
+}
+
+@test "--cleanup with both prunes accepted keeps volumes" {
+  run "$DEPLOY_SCRIPT" --cleanup <<< $'y\ny'
+  assert_success
+  assert_called docker 'system prune -a -f'
+  assert_called docker 'builder prune -a -f'
+  refute_called docker '*--volumes*'
+  assert_output --partial 'Cleanup complete.'
+}
+
+@test "--cleanup fails when docker system prune fails and releases the lock" {
+  stub_response docker 'system prune *' 1
+  run "$DEPLOY_SCRIPT" --cleanup <<< "y"
+  assert_failure
+  refute_output --partial 'Cleanup complete.'
+  refute_called docker 'builder prune*'
+  assert_file_not_exists "$DEPLOY_LOCK"
+}
+
+@test "a full --yes deploy runs the steps in order and records success" {
+  fake_git master
+  stub_response docker 'images -q schulerpark-app:latest' 0 'sha256abc'
+  stub_response docker 'inspect -f *' 0 'running'
+  stub_response docker 'compose * exec -T db-backup sh -c *' 0 "/backups/$DEFAULT_BACKUP_FILE"
+  stub_response docker 'compose * exec -T db-backup du -h *' 0 $'12K\t/backups/'"$DEFAULT_BACKUP_FILE"
+  stub_response df '--output=avail *' 0 $'Avail\n104857600'
+
+  # the backup step always prompts, even with --yes
+  run "$DEPLOY_SCRIPT" --yes <<< "y"
+  assert_success
+  assert_output --partial "Deploy successful: $DEFAULT_DEPLOY_SHA"
+  assert_file_contains "$DEPLOY_STATE" "^DEPLOY_SHA=$DEFAULT_DEPLOY_SHA\$"
+  assert_file_contains "$DEPLOY_STATE" '^PREV_IMAGE_ID=sha256abc$'
+  assert_file_contains "$DEPLOY_STATE" '^ROLLBACK_TAG=schulerpark-app:rollback-'
+  assert_file_contains "$DEPLOY_STATE" "^BACKUP_FILE=$DEFAULT_BACKUP_FILE\$"
+  assert_file_contains "$DEPLOY_STATE" '^DEPLOY_RESULT=success$'
+  assert_file_not_exists "$DEPLOY_LOCK"
+  refute_called docker '*DROP SCHEMA*'
+  refute_output --partial 'Deploy did not complete cleanly'
+
+  local tag build smoke backup up
+  tag=$(grep -n '^docker tag sha256abc' "$FAKE_LOG" | head -n1 | cut -d: -f1)
+  build=$(grep -n ' build app$' "$FAKE_LOG" | head -n1 | cut -d: -f1)
+  smoke=$(grep -n '^docker network create sp-smoke-' "$FAKE_LOG" | head -n1 | cut -d: -f1)
+  backup=$(grep -n 'db-backup.sh$' "$FAKE_LOG" | head -n1 | cut -d: -f1)
+  up=$(grep -n ' up -d --no-build app$' "$FAKE_LOG" | head -n1 | cut -d: -f1)
+  (( tag < build && build < smoke && smoke < backup && backup < up )) \
+    || fail "steps out of order: tag=$tag build=$build smoke=$smoke backup=$backup up=$up"
 }

@@ -172,3 +172,109 @@ old_dump() {
   assert_file_exists "$BACKUP_DIR/louise_20260901_020000.sql.gz"
   refute_output --partial 'Done.'
 }
+
+# ─── Connection env, exit codes and boundaries ───────────────────────────────
+
+@test "pg_dump inherits the libpq connection env of the caller" {
+  export PGHOST=db.internal PGDATABASE=louise_test PGUSER=backup
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  assert_called pg_dump-env 'PGHOST=db.internal PGDATABASE=louise_test PGUSER=backup'
+}
+
+@test "a failing pg_dump propagates its exit status" {
+  fake_pg_dump_failing 3
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_failure 3
+}
+
+@test "a failing gzip fails the backup and never reports completion" {
+  fake_fallback gzip 'cat > /dev/null; echo "gzip: no space left" >&2; exit 1'
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_failure
+  assert_output --partial 'gzip: no space left'
+  refute_output --partial 'Backup complete'
+  refute_output --partial 'Done.'
+}
+
+@test "a BACKUP_DIR that cannot be created fails before pg_dump runs" {
+  : > "$BATS_TEST_TMPDIR/notadir"
+  export BACKUP_DIR="$BATS_TEST_TMPDIR/notadir/backups"
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_failure
+  refute_output --partial 'Starting backup'
+  refute_called pg_dump '*'
+}
+
+@test "a BACKUP_DIR with spaces is handled" {
+  export BACKUP_DIR="$BATS_TEST_TMPDIR/back ups/louise dir"
+  old_dump louise_20260901_020000.sql.gz 60
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  assert_file_exists "$BACKUP_DIR/louise_20261103_083000.sql.gz"
+  assert_file_not_exists "$BACKUP_DIR/louise_20260901_020000.sql.gz"
+  assert_output --partial 'Cleaned up 1 backup(s) older than 30 days.'
+}
+
+@test "an empty BACKUP_RETENTION_DAYS falls back to the 30-day default" {
+  export BACKUP_RETENTION_DAYS=""
+  old_dump louise_20261003_020000.sql.gz 31
+  old_dump louise_20261004_020000.sql.gz 30
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  assert_output --partial 'Cleaned up 1 backup(s) older than 30 days.'
+  assert_file_not_exists "$BACKUP_DIR/louise_20261003_020000.sql.gz"
+  assert_file_exists "$BACKUP_DIR/louise_20261004_020000.sql.gz"
+}
+
+@test "retention reports the total number of reaped dumps across all prefixes" {
+  old_dump louise_20260801_020000.sql.gz 90
+  old_dump louise_20260802_020000.sql.gz.enc 90
+  old_dump schulerpark_20250101_020000.sql.gz 400
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  assert_output --partial 'Cleaned up 3 backup(s) older than 30 days.'
+  assert_file_exists "$BACKUP_DIR/louise_20261103_083000.sql.gz"
+}
+
+@test "young legacy and encrypted dumps are kept" {
+  old_dump schulerpark_20261101_020000.sql.gz 2
+  old_dump louise_20261101_020000.sql.gz.enc 2
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  refute_output --partial 'Cleaned up'
+  assert_file_exists "$BACKUP_DIR/schulerpark_20261101_020000.sql.gz"
+  assert_file_exists "$BACKUP_DIR/louise_20261101_020000.sql.gz.enc"
+}
+
+@test "the encrypted dump is AES-256-CBC pbkdf2 that decrypts back to the pg_dump output" {
+  command -v openssl >/dev/null 2>&1 || skip "openssl is not installed in the runner"
+  export BACKUP_PASSPHRASE=fixture-passphrase
+
+  run "$SCRIPTS_DIR/db-backup.sh"
+  assert_success
+  local enc="$BACKUP_DIR/louise_20261103_083000.sql.gz.enc"
+  assert_file_exists "$enc"
+  assert_file_not_exists "$BACKUP_DIR/louise_20261103_083000.sql.gz"
+  assert_equal "$(head -c 8 "$enc")" "Salted__"
+
+  # the file is not plain gzip ...
+  run gzip -t "$enc"
+  assert_failure
+  # ... but the documented decrypt command restores the dump byte for byte
+  run bash -c 'openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_PASSPHRASE -in "$1" | gunzip | diff - "$2"' \
+    _ "$enc" "$SEEDS_DIR/louise_seed.sql"
+  assert_success
+  # ... and a wrong passphrase does not
+  run bash -c 'BACKUP_PASSPHRASE=wrong openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_PASSPHRASE -in "$1" 2>/dev/null | gunzip -c > /dev/null' \
+    _ "$enc"
+  assert_failure
+}
